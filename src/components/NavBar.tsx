@@ -6,12 +6,13 @@ import { useState } from "react";
 import { useGame } from "@/lib/store";
 import { useHydrated } from "@/lib/useHydrated";
 import { play } from "@/lib/sound";
+import { CrestLogo } from "@/components/CrestLogo";
 
 const LINKS = [
   { href: "/", label: "Home" },
   { href: "/draft", label: "Draft" },
   { href: "/tournament", label: "Tournament" },
-  { href: "/database", label: "Database" },
+  { href: "/database", label: "Archive" },
   { href: "/daily", label: "Daily" },
   { href: "/stats", label: "Profile" },
 ];
@@ -28,8 +29,8 @@ export function NavBar() {
     <header className="fixed top-0 inset-x-0 z-50">
       <nav className="glass mx-auto mt-3 flex max-w-6xl items-center justify-between rounded-2xl px-4 py-2.5 sm:px-6">
         <Link href="/" className="flex items-center gap-2.5 group" onClick={() => play("click")}>
-          <span className="relative grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-[#003b8e] to-[#061a40] gold-border">
-            <span className="text-gold text-lg">★</span>
+          <span className="relative grid place-items-center transition-transform group-hover:scale-105">
+            <CrestLogo size={38} />
           </span>
           <span className="font-display text-sm font-extrabold tracking-tight sm:text-base">
             CONTINENTAL <span className="text-gradient-gold">XI</span>

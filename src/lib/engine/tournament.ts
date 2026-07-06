@@ -1,8 +1,8 @@
 import type {
-  Fixture, KOTie, MatchResult, Player, SimTeam, TableRow, TeamAnalysis, TournamentState,
+  Fixture, KORoundName, KOTie, MatchResult, Player, SimTeam, TableRow, TeamAnalysis, TournamentState,
 } from "../types";
 import type { Rng } from "../rng";
-import { shuffle } from "../rng";
+import { shuffle, weightedPick } from "../rng";
 import { CLUB_REGISTRY } from "../data/clubs";
 import { simulateMatch, shootout, type EngineTeamContext } from "./match";
 
@@ -203,6 +203,21 @@ function ctx(state: TournamentState, teamId: string, userPlayers: Player[] | nul
   };
 }
 
+// The user's road: which round follows which, and the matching phase key.
+const KO_NEXT: Record<KORoundName, { round: KORoundName; phase: TournamentState["phase"] } | null> = {
+  "Play-off": { round: "Round of 16", phase: "r16" },
+  "Round of 16": { round: "Quarter-final", phase: "qf" },
+  "Quarter-final": { round: "Semi-final", phase: "sf" },
+  "Semi-final": { round: "Final", phase: "final" },
+  "Final": null,
+};
+
+function ordinalWord(n: number): string {
+  const s = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
 /** Simulate the next league matchday in place. Returns the fixtures just played. */
 export function playMatchday(rng: Rng, state: TournamentState, userPlayers: Player[]): Fixture[] {
   const table = computeTable(state);
@@ -216,47 +231,71 @@ export function playMatchday(rng: Rng, state: TournamentState, userPlayers: Play
     if (f.away === USER_TEAM_ID) trackUserStats(state, result, 1, userPlayers);
   }
   state.matchday++;
-  if (state.matchday > 8) {
-    state.phase = "playoffs";
-    seedPlayoffs(rng, state);
-  }
+  if (state.matchday > 8) resolveLeaguePhase(rng, state, userPlayers);
   return todays;
 }
 
-function seedPlayoffs(rng: Rng, state: TournamentState) {
+/**
+ * Once the 8 matchdays are done, the user's fate is decided by their final
+ * position — and the sim ends here if they didn't qualify. Only the user's
+ * onward path is ever simulated (38-0 / 48-0 style).
+ */
+function resolveLeaguePhase(rng: Rng, state: TournamentState, userPlayers: Player[]) {
   const table = computeTable(state);
   const ids = table.map((r) => r.teamId);
-  // 9-24 into play-offs: 9v24, 10v23 ... seeded bracket
-  const ties: KOTie[] = [];
-  for (let i = 0; i < 8; i++) {
-    ties.push({ round: "Play-off", teamA: ids[8 + i], teamB: ids[23 - i] });
+  const pos = ids.indexOf(USER_TEAM_ID) + 1;
+  state.userSeed = pos;
+  state.faced = [];
+
+  if (pos >= 25) {
+    // Eliminated in the league phase — the run stops right here.
+    state.userAlive = false;
+    state.phase = "done";
+    state.exit = { stage: "League Phase", text: `Finished ${ordinalWord(pos)} — eliminated in the league phase` };
+    return;
   }
-  state.ties = ties;
-  const userPos = ids.indexOf(USER_TEAM_ID) + 1;
-  if (userPos > 24) state.userAlive = false;
-  void rng;
+  if (pos <= 8) {
+    state.phase = "r16";
+    openUserTie(rng, state, "Round of 16");
+  } else {
+    state.phase = "playoffs";
+    openUserTie(rng, state, "Play-off");
+  }
+  void userPlayers;
 }
 
-function playTwoLegs(rng: Rng, state: TournamentState, tie: KOTie, userPlayers: Player[]) {
-  const leg1 = simulateMatch(rng, ctx(state, tie.teamB, userPlayers, true), ctx(state, tie.teamA, userPlayers, true), { knockout: true });
-  const leg2 = simulateMatch(rng, ctx(state, tie.teamA, userPlayers, true), ctx(state, tie.teamB, userPlayers, true), { knockout: true });
-  tie.leg1 = leg1;
-  tie.leg2 = leg2;
-  const aGoals = leg1.awayGoals + leg2.homeGoals;
-  const bGoals = leg1.homeGoals + leg2.awayGoals;
-  if (aGoals === bGoals) {
-    const [hp, ap] = shootout(rng, state.teams[tie.teamA].strength, state.teams[tie.teamB].strength);
-    leg2.penalties = [hp, ap];
-    tie.winner = hp > ap ? tie.teamA : tie.teamB;
-  } else {
-    tie.winner = aGoals > bGoals ? tie.teamA : tie.teamB;
+/** Pick a realistic opponent for the user's next tie. */
+function pickOpponent(rng: Rng, state: TournamentState, round: KORoundName): string {
+  const table = computeTable(state);
+  const ids = table.map((r) => r.teamId);
+  const userPos = ids.indexOf(USER_TEAM_ID) + 1;
+  const faced = new Set(state.faced ?? []);
+  const avail = (band: string[]) => band.filter((id) => id !== USER_TEAM_ID && !faced.has(id));
+
+  if (round === "Play-off") {
+    // Swiss play-off pairing: 9v24, 10v23, 11v22 ... => opponent seed = 33 - pos
+    const oppPos = 33 - userPos;
+    const cand = ids[oppPos - 1];
+    if (cand && cand !== USER_TEAM_ID && !faced.has(cand)) return cand;
   }
-  for (const [result, userSide] of [
-    [leg1, tie.teamA === USER_TEAM_ID ? 1 : tie.teamB === USER_TEAM_ID ? 0 : null],
-    [leg2, tie.teamA === USER_TEAM_ID ? 0 : tie.teamB === USER_TEAM_ID ? 1 : null],
-  ] as const) {
-    if (userSide !== null) trackUserStats(state, result, userSide, userPlayers);
+  if (round === "Round of 16") {
+    // Top-8 seeds face a side from the 9-24 band; play-off qualifiers face a top-8 seed.
+    const band = userPos <= 8 ? ids.slice(8, 24) : ids.slice(0, 8);
+    const pool = avail(band);
+    if (pool.length) return weightedPick(rng, pool, pool.map((id) => state.teams[id].strength));
   }
+  // QF onwards: the deeper you go, the stronger the field you face.
+  const depth = round === "Quarter-final" ? 12 : round === "Semi-final" ? 8 : 4;
+  let pool = avail(ids.slice(0, depth));
+  if (!pool.length) pool = avail(ids.slice(0, 24));
+  if (!pool.length) pool = avail(ids);
+  return weightedPick(rng, pool, pool.map((id) => state.teams[id].strength * state.teams[id].strength));
+}
+
+function openUserTie(rng: Rng, state: TournamentState, round: KORoundName) {
+  const opp = pickOpponent(rng, state, round);
+  state.faced = [...(state.faced ?? []), opp];
+  state.ties.push({ round, teamA: USER_TEAM_ID, teamB: opp });
 }
 
 const FINAL_VENUES = [
@@ -269,17 +308,18 @@ export function finalVenue(rng: Rng): string {
   return FINAL_VENUES[Math.floor(rng() * FINAL_VENUES.length)];
 }
 
-/** Advance one knockout stage. Mutates state. */
+/**
+ * Play the user's next knockout tie (two legs, or a single neutral final).
+ * Win → advance to the next round. Lose → the run is over immediately.
+ */
 export function playKnockoutStage(rng: Rng, state: TournamentState, userPlayers: Player[]): KOTie[] {
-  const stage = state.phase;
-  const current = state.ties.filter((t) => !t.winner);
+  const tie = state.ties.find((t) => !t.winner);
+  if (!tie) return [];
+  const isFinal = tie.round === "Final";
 
-  if (stage === "final") {
-    const tie = current[0];
+  if (isFinal) {
     const result = simulateMatch(
-      rng,
-      ctx(state, tie.teamA, userPlayers, true),
-      ctx(state, tie.teamB, userPlayers, true),
+      rng, ctx(state, tie.teamA, userPlayers, true), ctx(state, tie.teamB, userPlayers, true),
       { neutral: true, knockout: true },
     );
     if (result.homeGoals === result.awayGoals) {
@@ -290,71 +330,57 @@ export function playKnockoutStage(rng: Rng, state: TournamentState, userPlayers:
       tie.winner = result.homeGoals > result.awayGoals ? tie.teamA : tie.teamB;
     }
     tie.leg1 = result;
-    if (tie.teamA === USER_TEAM_ID) trackUserStats(state, result, 0, userPlayers);
-    if (tie.teamB === USER_TEAM_ID) trackUserStats(state, result, 1, userPlayers);
-    state.champion = tie.winner;
+    trackUserStats(state, result, tie.teamA === USER_TEAM_ID ? 0 : 1, userPlayers);
+  } else {
+    const leg1 = simulateMatch(rng, ctx(state, tie.teamB, userPlayers, true), ctx(state, tie.teamA, userPlayers, true), { knockout: true });
+    const leg2 = simulateMatch(rng, ctx(state, tie.teamA, userPlayers, true), ctx(state, tie.teamB, userPlayers, true), { knockout: true });
+    tie.leg1 = leg1;
+    tie.leg2 = leg2;
+    const aGoals = leg1.awayGoals + leg2.homeGoals;
+    const bGoals = leg1.homeGoals + leg2.awayGoals;
+    if (aGoals === bGoals) {
+      const [hp, ap] = shootout(rng, state.teams[tie.teamA].strength, state.teams[tie.teamB].strength);
+      leg2.penalties = [hp, ap];
+      tie.winner = hp > ap ? tie.teamA : tie.teamB;
+    } else {
+      tie.winner = aGoals > bGoals ? tie.teamA : tie.teamB;
+    }
+    trackUserStats(state, leg1, tie.teamA === USER_TEAM_ID ? 1 : 0, userPlayers);
+    trackUserStats(state, leg2, tie.teamA === USER_TEAM_ID ? 0 : 1, userPlayers);
+  }
+
+  if (tie.winner !== USER_TEAM_ID) {
+    // Knocked out — the run ends here, no further simulation.
+    state.userAlive = false;
     state.phase = "done";
-    if (tie.winner !== USER_TEAM_ID) state.userAlive = false;
-    computeAwards(rng, state, userPlayers);
+    state.exit = { stage: tie.round, text: `Knocked out in the ${tie.round}` };
     return [tie];
   }
 
-  for (const tie of current) playTwoLegs(rng, state, tie, userPlayers);
-  if (current.some((t) => t.teamA === USER_TEAM_ID || t.teamB === USER_TEAM_ID)) {
-    const userTie = current.find((t) => t.teamA === USER_TEAM_ID || t.teamB === USER_TEAM_ID)!;
-    if (userTie.winner !== USER_TEAM_ID) state.userAlive = false;
+  const next = KO_NEXT[tie.round];
+  if (!next) {
+    // Won the final — champions of Europe.
+    state.champion = USER_TEAM_ID;
+    state.phase = "done";
+    state.exit = { stage: "Champions", text: "Champions of Europe" };
+    computeAwards(state, userPlayers);
+    return [tie];
   }
-
-  // build next round
-  const winners = current.map((t) => t.winner!) as string[];
-  const table = computeTable(state);
-  const ids = table.map((r) => r.teamId);
-
-  if (stage === "playoffs") {
-    // R16: top 8 + 8 play-off winners, seeded pairing 1v(worst playoff winner)…
-    const top8 = ids.slice(0, 8);
-    const sortedWinners = winners.sort((a, b) => ids.indexOf(b) - ids.indexOf(a));
-    const ties: KOTie[] = top8.map((seed, i) => ({ round: "Round of 16" as const, teamA: seed, teamB: sortedWinners[i] }));
-    state.ties.push(...ties);
-    state.phase = "r16";
-    return current;
-  }
-
-  const nextRound = stage === "r16" ? "Quarter-final" : stage === "qf" ? "Semi-final" : "Final";
-  const nextPhase = stage === "r16" ? "qf" : stage === "qf" ? "sf" : "final";
-  const ties: KOTie[] = [];
-  for (let i = 0; i < winners.length; i += 2) {
-    ties.push({ round: nextRound, teamA: winners[i], teamB: winners[i + 1] });
-  }
-  state.ties.push(...ties);
-  state.phase = nextPhase as TournamentState["phase"];
-  return current;
+  state.phase = next.phase;
+  openUserTie(rng, state, next.round);
+  return [tie];
 }
 
-function computeAwards(rng: Rng, state: TournamentState, userPlayers: Player[]) {
-  // count goals per player across every simulated match
-  const goals: Record<string, number> = {};
-  const collect = (r?: MatchResult) => {
-    if (!r) return;
-    for (const e of r.events) if (e.type === "goal") goals[e.player] = (goals[e.player] ?? 0) + 1;
-  };
-  state.fixtures.forEach((f) => collect(f.result));
-  state.ties.forEach((t) => { collect(t.leg1); collect(t.leg2); });
-
-  const topScorer = Object.entries(goals).sort((a, b) => b[1] - a[1])[0] ?? ["—", 0];
-  const championTeam = state.champion ? state.teams[state.champion] : undefined;
-  const userWon = state.champion === USER_TEAM_ID;
-
-  const gks = userPlayers.filter((p) => p.position === "GK");
+function computeAwards(state: TournamentState, userPlayers: Player[]) {
+  const topUserScorer = Object.entries(state.userGoals).sort((a, b) => b[1] - a[1])[0];
+  const topUserAssist = Object.entries(state.userAssists).sort((a, b) => b[1] - a[1])[0];
+  const gk = userPlayers.find((p) => p.position === "GK");
   state.awards = {
-    goldenBall: userWon
-      ? (Object.entries(state.userGoals).sort((a, b) => b[1] - a[1])[0]?.[0] ?? userPlayers[0]?.name ?? "—")
-      : `${championTeam?.name ?? "—"}'s playmaker`,
-    goldenBoot: `${topScorer[0]}`,
-    goldenGlove: userWon && gks.length ? gks[0].name : `${championTeam?.name ?? "—"}'s keeper`,
-    topScorerGoals: topScorer[1],
+    goldenBall: topUserScorer?.[0] ?? topUserAssist?.[0] ?? userPlayers[0]?.name ?? "—",
+    goldenBoot: topUserScorer?.[0] ?? "—",
+    goldenGlove: gk?.name ?? "—",
+    topScorerGoals: topUserScorer?.[1] ?? 0,
   };
-  void rng;
 }
 
 export function qualificationBand(pos: number): "direct" | "playoff" | "out" {

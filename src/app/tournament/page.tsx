@@ -72,6 +72,7 @@ export default function TournamentPage() {
   };
 
   const nextTie = tournament.ties.find((t) => !t.winner);
+  const eliminatedInLeague = isDone && tournament.exit?.stage === "League Phase";
 
   return (
     <div className="mx-auto max-w-5xl px-4 pb-24 pt-24 sm:pt-28">
@@ -85,9 +86,9 @@ export default function TournamentPage() {
           <div className="text-sm text-muted">
             {isLeague
               ? `Matchday ${Math.min(tournament.matchday, 8)} of 8 · Currently ${ordinal(userRow)}`
-              : tournament.userAlive
-                ? "Still alive in the knockouts"
-                : "Eliminated — following the run to the final"}
+              : isDone
+                ? tournament.exit?.text ?? "Run complete"
+                : `Finished ${ordinal(tournament.userSeed ?? userRow)} in the league phase · your road to the final`}
           </div>
         </div>
         <div className="flex gap-2">
@@ -135,23 +136,35 @@ export default function TournamentPage() {
             </div>
           </div>
         </div>
+      ) : eliminatedInLeague ? (
+        <div className="mt-8 space-y-6">
+          <div className="glass-strong rounded-2xl p-6 text-center">
+            <div className="text-4xl">🚪</div>
+            <h2 className="mt-2 font-display text-2xl font-extrabold">Run Over</h2>
+            <p className="mt-1 text-muted">{tournament.exit?.text}</p>
+            <p className="mt-1 text-sm text-cyan">Only the top 24 advance — you missed the knockouts.</p>
+          </div>
+          <LeagueTable rows={table} tournament={tournament} />
+        </div>
       ) : (
         <div className="mt-8 space-y-6">
           <div className="glass rounded-2xl p-4">
+            <h3 className="mb-3 text-center text-sm font-bold uppercase tracking-widest text-muted">
+              Your Road to the Final
+            </h3>
             <KnockoutBracket
               tournament={tournament}
               onTieClick={(tie: KOTie) => {
                 const r = tie.leg2 ?? tie.leg1;
-                if (r) setModal({ result: r, title: `${tie.round} · ${tie.leg2 ? "2nd Leg" : ""}` });
+                if (r) setModal({ result: r, title: `${tie.round}${tie.leg2 ? " · 2nd Leg" : ""}` });
               }}
             />
           </div>
-          {nextTie && (tournament.phase !== "done") && (
+          {nextTie && !isDone && (
             <p className="text-center text-sm text-muted">
-              Next: <span className="text-gold">{PHASE_LABEL[tournament.phase]}</span> — press play to simulate the round.
+              Next: <span className="text-gold">{PHASE_LABEL[tournament.phase]}</span> — win or your run ends here.
             </p>
           )}
-          {/* keep table visible in knockouts too */}
           <details className="glass rounded-2xl p-4">
             <summary className="cursor-pointer text-sm font-bold uppercase tracking-widest text-muted">
               Final League Table

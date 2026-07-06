@@ -6,7 +6,7 @@ import type {
   DraftRecord, Fixture, Formation, GameMode, KOTie, Player, Profile,
   TeamAnalysis, TournamentState,
 } from "./types";
-import { getFormation, POSITION_GROUP, positionFit } from "./formations";
+import { getFormation, positionFit } from "./formations";
 import { getAllPlayers, squadPlayers } from "./players";
 import { pickDraftSquad, draftOrder } from "./draft";
 import { analyzeTeam } from "./analysis";
@@ -179,12 +179,18 @@ export const useGame = create<StoreState>()(
         const chosenNames = new Set(
           Object.values(picks).map((id) => getAllPlayers().find((p) => p.id === id)?.name),
         );
-        const roster = squadPlayers(round.squadIndex).filter(
-          (p) => !chosenIds.has(p.id) && !chosenNames.has(p.name),
-        );
-        // rank by fit then overall, offer the 5 best sensible options
-        return roster
-          .map((p) => ({ p, fit: positionFit(p.position, p.altPositions, pos), grp: POSITION_GROUP[p.position] === POSITION_GROUP[pos] }))
+        const roster = squadPlayers(round.squadIndex)
+          .filter((p) => !chosenIds.has(p.id) && !chosenNames.has(p.name))
+          .map((p) => ({ p, fit: positionFit(p.position, p.altPositions, pos) }));
+
+        // Only offer players who can genuinely play this slot: natural (1) or a
+        // close family fit (0.9). Fall back to same line (0.75) only if we would
+        // otherwise have fewer than 3 options — never offer a striker at CB.
+        const natural = roster.filter((x) => x.fit >= 0.9);
+        const sameGroup = roster.filter((x) => x.fit >= 0.75 && x.fit < 0.9);
+        const chosen = [...natural];
+        if (chosen.length < 3) chosen.push(...sameGroup);
+        return chosen
           .sort((a, b) => b.fit - a.fit || b.p.overall - a.p.overall)
           .slice(0, 5)
           .map((x) => x.p);
@@ -258,14 +264,14 @@ export const useGame = create<StoreState>()(
         const userPos = table.findIndex((r) => r.teamId === USER_TEAM_ID) + 1;
         const champion = tournament.champion === USER_TEAM_ID;
 
+        const STAGE_RESULT: Record<string, DraftRecord["result"]> = {
+          "Final": "final", "Semi-final": "semi", "Quarter-final": "quarter",
+          "Round of 16": "r16", "Play-off": "playoff", "League Phase": "league",
+        };
         let result: DraftRecord["result"] = "league";
         if (champion) result = "champion";
-        else if (!tournament.userAlive) {
-          const phase = tournament.phase;
-          result = phase === "final" || tournament.ties.some((t) => t.round === "Final" && (t.teamA === USER_TEAM_ID || t.teamB === USER_TEAM_ID))
-            ? "final"
-            : deepestUserRound(tournament);
-        }
+        else if (tournament.exit) result = STAGE_RESULT[tournament.exit.stage] ?? "league";
+        else if (!tournament.userAlive) result = deepestUserRound(tournament);
 
         const goals = Object.values(tournament.userGoals).reduce((s, g) => s + g, 0);
         const record: DraftRecord = {

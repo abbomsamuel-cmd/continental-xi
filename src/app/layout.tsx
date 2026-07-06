@@ -3,6 +3,7 @@ import { Sora, Manrope } from "next/font/google";
 import "./globals.css";
 import { StadiumBackground } from "@/components/StadiumBackground";
 import { NavBar } from "@/components/NavBar";
+import { SiteCredit } from "@/components/SiteCredit";
 
 const display = Sora({
   subsets: ["latin"],
@@ -21,8 +22,6 @@ export const metadata: Metadata = {
     "Draft legendary footballers from every European Cup era, build the ultimate XI, and lead your squad through the modern 36-team league phase to continental glory.",
   keywords: ["football draft", "champions league simulator", "ultimate team", "tournament simulator"],
   applicationName: "Continental XI",
-  manifest: "/manifest.webmanifest",
-  icons: { icon: "/icon.svg" },
   authors: [{ name: "Continental XI" }],
   openGraph: {
     title: "Continental XI — Champions Draft Simulator",
@@ -44,6 +43,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <StadiumBackground />
         <NavBar />
         <main className="relative z-10">{children}</main>
+        <SiteCredit />
       </body>
     </html>
   );

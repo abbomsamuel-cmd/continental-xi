@@ -39,11 +39,11 @@ export default function DatabasePage() {
     <div className="mx-auto max-w-6xl px-4 pb-24 pt-24 sm:pt-28">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
         <h1 className="font-display text-3xl font-extrabold sm:text-5xl">
-          Historical <span className="text-gradient-gold">Database</span>
+          The <span className="text-gradient-gold">Archive</span>
         </h1>
         <p className="mt-2 text-muted">
           {players.length} rated players · {SQUADS.length} legendary squads · {CLUB_REGISTRY.length} clubs.
-          Search instantly by player, club, nation, league, manager, stadium or era.
+          Browse and search instantly by player, club, nation, league, manager, stadium or era.
         </p>
       </motion.div>
 

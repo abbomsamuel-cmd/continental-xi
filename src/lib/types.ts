@@ -205,7 +205,7 @@ export interface TournamentState {
   teams: Record<string, SimTeam>;
   fixtures: Fixture[];
   matchday: number; // next matchday to play (1-8), 9 = league done
-  ties: KOTie[];
+  ties: KOTie[]; // only the USER's knockout ties (their road to the final)
   userAlive: boolean;
   champion?: string;
   awards?: { goldenBall: string; goldenBoot: string; goldenGlove: string; topScorerGoals: number };
@@ -213,6 +213,9 @@ export interface TournamentState {
   userAssists: Record<string, number>;
   userCleanSheets: number;
   prevPositions?: Record<string, number>;
+  userSeed?: number; // final league-phase position
+  faced?: string[]; // team ids already faced in the knockouts
+  exit?: { stage: string; text: string }; // where the user's run ended
 }
 
 export interface DraftRecord {

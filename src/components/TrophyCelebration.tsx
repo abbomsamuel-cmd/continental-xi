@@ -49,8 +49,9 @@ interface Props {
 
 export function TrophyCelebration({ tournament, teamName, onContinue }: Props) {
   const won = tournament.champion === USER_TEAM_ID;
-  const championName = tournament.champion ? tournament.teams[tournament.champion].name : "—";
   const awards = tournament.awards;
+  const exitText = tournament.exit?.text ?? "Your run has ended";
+  const reachedFinal = tournament.exit?.stage === "Final";
 
   useEffect(() => { play(won ? "trophy" : "lose"); }, [won]);
 
@@ -67,25 +68,25 @@ export function TrophyCelebration({ tournament, teamName, onContinue }: Props) {
           transition={{ type: "spring", stiffness: 120, damping: 12, delay: 0.2 }}
           className="text-[8rem] leading-none drop-shadow-[0_0_40px_rgba(212,175,55,0.6)]"
         >
-          {won ? "🏆" : "🥈"}
+          {won ? "🏆" : reachedFinal ? "🥈" : "🚪"}
         </motion.div>
 
         <motion.h1
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}
           className="font-display text-4xl font-extrabold sm:text-5xl"
         >
-          {won ? <span className="text-gradient-gold">Champions of Europe</span> : <span className="text-white/80">So Close</span>}
+          {won ? <span className="text-gradient-gold">Champions of Europe</span>
+            : reachedFinal ? <span className="text-white/80">Runners-up</span>
+            : <span className="text-white/80">Run Over</span>}
         </motion.h1>
         <motion.p
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.7 }}
           className="mt-2 text-muted"
         >
-          {won
-            ? `${teamName} lift the trophy. A dynasty begins.`
-            : `${championName} were crowned champions. Your run ends in glory's shadow.`}
+          {won ? `${teamName} lift the trophy. A dynasty begins.` : `${teamName} — ${exitText}.`}
         </motion.p>
 
-        {awards && (
+        {won && awards && (
           <motion.div
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.9 }}
             className="mt-6 grid grid-cols-3 gap-3"

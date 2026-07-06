@@ -34,6 +34,10 @@ league phase** and knockouts to continental glory.
 - **Full knockouts + trophy.** Two-legged play-offs and ties, single-match
   neutral final, penalty shootouts, confetti celebration and tournament awards
   (Golden Ball / Boot / Glove).
+- **Runs end where you finish.** Just like 38-0 / 48-0: only *your* matches are
+  simulated. Finish 25th–36th in the league phase and the run stops there; lose
+  a knockout tie and it ends immediately. No account, no login — progress saves
+  on your device.
 - **Meta systems.** 18 achievements, a lifetime stats dashboard with charts, a
   deterministic **daily challenge** (identical draft worldwide), and instant
   search across players, clubs, squads, managers, stadiums and eras.
@@ -44,12 +48,14 @@ league phase** and knockouts to continental glory.
 
 - **Next.js 16** (App Router, Turbopack) · **React 19** · **TypeScript** (strict)
 - **Tailwind CSS v4** · **Framer Motion** (animations, page transitions)
-- **Zustand** + `persist` (state + localStorage save)
+- **Zustand** + `persist` (all progress saved on-device via `localStorage` — no
+  accounts, no server, no database)
 - Canvas-based stadium background (particles / stars / light beams) and
   synthesized **Web Audio** sound manager — no external asset files, fully
   mutable.
-- PWA manifest, SEO metadata, `prefers-reduced-motion` support, mobile-first
-  responsive layout.
+- Ships as a fully **static site** (`next build` → `out/`), auto-deployed to
+  **GitHub Pages**. PWA manifest, SEO metadata, `prefers-reduced-motion`
+  support, mobile-first responsive layout.
 
 ## Getting started
 
@@ -77,7 +83,7 @@ src/
     draft.ts chemistry.ts analysis.ts   # core game logic
     store.ts           # Zustand store (draft + tournament + profile)
     achievements.ts sound.ts rng.ts formations.ts
-prisma/schema.prisma   # scale-up database blueprint (see below)
+.github/workflows/deploy.yml   # static export -> GitHub Pages
 ```
 
 ## Adding data (no code changes)
@@ -104,24 +110,21 @@ a dozen short lines, and the same player always expands identically. New clubs
 for the AI opponent pool go in `src/lib/data/clubs.ts`; new partnerships in
 `partnerships.ts`.
 
-## Scaling up (hosted build)
+## Deploying (GitHub Pages)
 
-The shipped app is intentionally backend-free. `prisma/schema.prisma` is the
-drop-in path to a hosted, multiplayer, leaderboard-backed version:
+The app is a fully static site with **no backend and no database** — nothing
+about you is stored anywhere but your own browser. `next build` emits static
+files to `out/`, and `.github/workflows/deploy.yml` publishes them to GitHub
+Pages on every push to `main`.
 
-1. Point `DATABASE_URL` at Postgres (Supabase) and `prisma migrate dev`.
-2. Convert `src/lib/data/*` into seed scripts (the shapes already map 1:1 to the
-   `SeasonSquad` / `PlayerRating` tables).
-3. Swap the Zustand persistence layer for server actions / TanStack Query against
-   the same store interface.
+To host your own copy: push to a GitHub repo, then **Settings → Pages → Source →
+GitHub Actions**. It goes live at `https://<user>.github.io/<repo>/`. (The repo
+name is wired via `basePath` in `next.config.ts`, gated on the `GITHUB_PAGES`
+env var so local dev still runs at the root.)
 
-The schema is **competition-agnostic** — everything hangs off `Competition` and
-`Season`, so Europa League, the World Cup or domestic leagues plug in without
-schema changes. It also models users, draft runs, tournament results,
-achievements, global/daily/weekly leaderboards and multiplayer lobbies. Social
-login (Google / Discord / Email) and an admin panel (bulk CSV/JSON import,
-rating edits, moderation, role-based access) are the natural next milestones on
-top of it.
+The data layer is competition-agnostic, so future competitions (Europa League,
+the World Cup, domestic leagues) can be added purely by dropping new squads into
+`src/lib/data/` — no schema, no migrations, no code changes.
 
 ## Design
 

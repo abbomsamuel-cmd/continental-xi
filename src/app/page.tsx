@@ -69,7 +69,7 @@ export default function Home() {
           { to: CLUB_REGISTRY.length, suffix: "+", label: "Historic Clubs" },
           { to: playerCount, suffix: "+", label: "Rated Players" },
           { to: detailedSquads, suffix: "", label: "Legendary Squads" },
-          { to: 1992, suffix: "→", label: "Every Era" },
+          { to: 34, suffix: "", label: "Years of History" },
         ].map((c) => (
           <div key={c.label} className="glass rounded-2xl px-3 py-6">
             <AnimatedCounter to={c.to} suffix={c.suffix} label={c.label} />
@@ -127,32 +127,19 @@ export default function Home() {
         </div>
       </section>
 
-      {/* LOGIN / GUEST */}
+      {/* PLAY INSTANTLY — no accounts */}
       <section className="mt-24 text-center">
         <div className="glass mx-auto max-w-2xl rounded-3xl p-8">
           <h2 className="font-display text-2xl font-extrabold sm:text-3xl">Play Instantly</h2>
           <p className="mx-auto mt-3 max-w-md text-muted">
-            Guest mode saves everything to this device — drafts, trophies, achievements and stats. No
-            account required.
+            No sign-up, no login, no accounts. Your drafts, trophies, achievements and stats are saved
+            right here on your device — pick up exactly where you left off, every time.
           </p>
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+          <div className="mt-6 flex justify-center">
             <Link href="/draft" className="btn btn-cyan" onClick={() => play("select")}>
-              Continue as Guest
+              ⚡ Start Playing
             </Link>
-            {["Google", "Discord", "Email"].map((p) => (
-              <button
-                key={p}
-                className="btn btn-ghost"
-                onClick={() => play("error")}
-                title="Cloud accounts arrive with the hosted release"
-              >
-                {p}
-              </button>
-            ))}
           </div>
-          <p className="mt-4 text-xs text-muted/70">
-            Social sign-in is wired for the hosted build (Supabase). Guest progress migrates on login.
-          </p>
         </div>
       </section>
 

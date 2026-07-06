@@ -152,10 +152,7 @@ export default function TournamentPage() {
         </div>
       ) : (
         <div className="mt-8 space-y-6">
-          <div className="glass rounded-2xl p-4">
-            <h3 className="mb-3 text-center text-sm font-bold uppercase tracking-widest text-muted">
-              Your Road to the Final
-            </h3>
+          <div className="rounded-3xl p-4">
             <KnockoutBracket
               tournament={tournament}
               onTieClick={(tie: KOTie) => {

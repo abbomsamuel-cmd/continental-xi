@@ -27,22 +27,26 @@ export const POSITION_FAMILY: Record<Position, Position[]> = {
  */
 export const SLOT_ELIGIBLE: Record<Position, Position[]> = {
   GK: ["GK"],
-  RB: ["RB", "RWB", "RM"],
-  LB: ["LB", "LWB", "LM"],
-  CB: ["CB", "RB", "LB", "CDM"],
+  // Full-backs & wing-backs interchange with their own side only. Center-backs
+  // stay center-backs. No CB-at-CDM or full-back-at-CB.
+  CB: ["CB"],
+  RB: ["RB", "RWB"],
+  LB: ["LB", "LWB"],
   RWB: ["RWB", "RB", "RM", "RW"],
   LWB: ["LWB", "LB", "LM", "LW"],
-  CDM: ["CDM", "CM", "CB"],
+  // Central midfield trio interchange among themselves — never a defender.
+  CDM: ["CDM", "CM"],
   CM: ["CM", "CDM", "CAM"],
-  CAM: ["CAM", "CM", "CF", "RW", "LW"],
-  RM: ["RM", "RW", "RWB", "LM"],
-  LM: ["LM", "LW", "LWB", "RM"],
-  // Front-three positions interchange (wingers play up top, forwards drift wide)
-  // but never drop into central midfield.
-  RW: ["RW", "RM", "LW", "CF", "ST", "CAM"],
-  LW: ["LW", "LM", "RW", "CF", "ST", "CAM"],
-  CF: ["CF", "ST", "CAM", "RW", "LW"],
-  ST: ["ST", "CF", "CAM", "RW", "LW"],
+  CAM: ["CAM", "CM", "CF"],
+  // Wide midfielders pair with their winger.
+  RM: ["RM", "RW"],
+  LM: ["LM", "LW"],
+  // Front three interchange (wingers ↔ wings, forwards ↔ striker) but never
+  // drop into central midfield.
+  RW: ["RW", "RM", "LW"],
+  LW: ["LW", "LM", "RW"],
+  CF: ["CF", "ST", "CAM"],
+  ST: ["ST", "CF", "CAM"],
 };
 
 /** True if a player (by natural + alt positions) can legally fill the given slot. */

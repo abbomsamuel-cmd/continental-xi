@@ -27,7 +27,7 @@ export function createTournament(
   // Chemistry is a major multiplier on how the squad actually performs: a
   // perfectly-linked XI plays well above the sum of its ratings, a disjointed
   // one well below. High chem => a genuinely better chance to win.
-  const chemBonus = (analysis.chemistry - 55) * 0.28; // chem 100 => +12.6, chem 20 => -9.8
+  const chemBonus = (analysis.chemistry - 48) * 0.2; // chem 100 => +10.4, chem 20 => -5.6
   const userStrength = Math.min(99, analysis.overall + chemBonus);
   teams[USER_TEAM_ID] = {
     id: USER_TEAM_ID,

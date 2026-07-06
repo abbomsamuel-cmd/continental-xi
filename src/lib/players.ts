@@ -1,6 +1,7 @@
 import type { Attributes, Player, Position, RawSquad } from "./types";
 import { SQUADS_CLASSIC } from "./data/squads-classic";
 import { SQUADS_MODERN } from "./data/squads-modern";
+import { SQUAD_DEPTH } from "./data/squads-depth";
 import { POSITION_GROUP } from "./formations";
 import { hashString, mulberry32 } from "./rng";
 
@@ -65,7 +66,16 @@ export function getAllPlayers(): Player[] {
   if (cache) return cache;
   const players: Player[] = [];
   for (const squad of SQUADS) {
-    for (const raw of squad.players) {
+    // merge in extra depth players, deduped by name (starters win)
+    const depth = SQUAD_DEPTH[`${squad.club}|${squad.season}`] ?? [];
+    const seen = new Set<string>();
+    const roster: typeof squad.players = [];
+    for (const p of [...squad.players, ...depth]) {
+      if (seen.has(p[0])) continue;
+      seen.add(p[0]);
+      roster.push(p);
+    }
+    for (const raw of roster) {
       const [name, nationality, position, overall, altPositions = [], stats = {}] = raw;
       const seed = hashString(`${name}|${squad.club}|${squad.season}`);
       const rng = mulberry32(seed + 7);

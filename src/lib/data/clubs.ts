@@ -134,4 +134,41 @@ export const CLUB_REGISTRY: ClubEntry[] = [
   { name: "APOEL", country: "Cyprus", league: "Cypriot First Division", coeff: 50, colors: ["#F58220", "#0055A5"] },
   { name: "Qarabağ", country: "Azerbaijan", league: "Azerbaijan Premier League", coeff: 52, colors: ["#000000", "#FFFFFF"] },
   { name: "Astana", country: "Kazakhstan", league: "Kazakhstan Premier League", coeff: 46, colors: ["#00AEEF", "#FFD500"] },
+  // ---- Extra depth across the big leagues (more variety for the field) ----
+  // Spain
+  { name: "Osasuna", country: "Spain", league: "La Liga", coeff: 64, colors: ["#0A346F", "#D91A21"] },
+  { name: "Rayo Vallecano", country: "Spain", league: "La Liga", coeff: 63, colors: ["#FFFFFF", "#E53027"] },
+  { name: "Getafe", country: "Spain", league: "La Liga", coeff: 64, colors: ["#005999", "#FFFFFF"] },
+  { name: "Mallorca", country: "Spain", league: "La Liga", coeff: 63, colors: ["#E30613", "#000000"] },
+  // England
+  { name: "Brighton", country: "England", league: "Premier League", coeff: 72, colors: ["#0057B8", "#FFFFFF"] },
+  { name: "Crystal Palace", country: "England", league: "Premier League", coeff: 69, colors: ["#1B458F", "#C4122E"] },
+  { name: "Nottingham Forest", country: "England", league: "Premier League", coeff: 70, colors: ["#DD0000", "#FFFFFF"] },
+  { name: "Wolverhampton", country: "England", league: "Premier League", coeff: 68, colors: ["#FDB913", "#231F20"] },
+  { name: "Fulham", country: "England", league: "Premier League", coeff: 68, colors: ["#FFFFFF", "#000000"] },
+  { name: "Brentford", country: "England", league: "Premier League", coeff: 67, colors: ["#E30613", "#FFFFFF"] },
+  // Germany
+  { name: "Freiburg", country: "Germany", league: "Bundesliga", coeff: 69, colors: ["#000000", "#E2001A"] },
+  { name: "Union Berlin", country: "Germany", league: "Bundesliga", coeff: 67, colors: ["#EB1923", "#FFED00"] },
+  { name: "Hoffenheim", country: "Germany", league: "Bundesliga", coeff: 66, colors: ["#1961B5", "#FFFFFF"] },
+  { name: "Mainz 05", country: "Germany", league: "Bundesliga", coeff: 64, colors: ["#C3141E", "#FFFFFF"] },
+  // Italy
+  { name: "Torino", country: "Italy", league: "Serie A", coeff: 66, colors: ["#881600", "#FFFFFF"] },
+  { name: "Udinese", country: "Italy", league: "Serie A", coeff: 65, colors: ["#000000", "#FFFFFF"] },
+  { name: "Genoa", country: "Italy", league: "Serie A", coeff: 63, colors: ["#B01B2E", "#1B3A6B"] },
+  { name: "Sassuolo", country: "Italy", league: "Serie A", coeff: 64, colors: ["#00A752", "#000000"] },
+  // France
+  { name: "Rennes", country: "France", league: "Ligue 1", coeff: 69, colors: ["#E00023", "#000000"] },
+  { name: "Nantes", country: "France", league: "Ligue 1", coeff: 64, colors: ["#FCD405", "#009B48"] },
+  { name: "Strasbourg", country: "France", league: "Ligue 1", coeff: 64, colors: ["#009FE3", "#FFFFFF"] },
+  { name: "Montpellier", country: "France", league: "Ligue 1", coeff: 63, colors: ["#F27CA5", "#0055A4"] },
+  // Portugal / Netherlands
+  { name: "Vitória SC", country: "Portugal", league: "Primeira Liga", coeff: 60, colors: ["#FFFFFF", "#000000"] },
+  { name: "Boavista", country: "Portugal", league: "Primeira Liga", coeff: 58, colors: ["#000000", "#FFFFFF"] },
+  { name: "Utrecht", country: "Netherlands", league: "Eredivisie", coeff: 60, colors: ["#E30613", "#FFFFFF"] },
+  { name: "Vitesse", country: "Netherlands", league: "Eredivisie", coeff: 59, colors: ["#FFED00", "#000000"] },
+  // Turkey / Greece / Scotland extra
+  { name: "İstanbul Başakşehir", country: "Turkey", league: "Süper Lig", coeff: 60, colors: ["#EF7D00", "#003882"] },
+  { name: "AEK Athens", country: "Greece", league: "Super League Greece", coeff: 60, colors: ["#FFD500", "#000000"] },
+  { name: "Aberdeen", country: "Scotland", league: "Scottish Premiership", coeff: 55, colors: ["#E2001A", "#FFFFFF"] },
 ];

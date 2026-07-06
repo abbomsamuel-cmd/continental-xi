@@ -16,21 +16,26 @@ export function DraftRoundView() {
   const formation = useGame((s) => s.formation)!;
   const rounds = useGame((s) => s.rounds);
   const currentRound = useGame((s) => s.currentRound);
+  const rerollNonce = useGame((s) => s.rerollNonce);
+  const rerolls = useGame((s) => s.rerolls);
   const choosePlayer = useGame((s) => s.choosePlayer);
+  const rerollTeam = useGame((s) => s.rerollTeam);
+  const rerollSeason = useGame((s) => s.rerollSeason);
   const resetDraft = useGame((s) => s.resetDraft);
   const getOffered = useGame((s) => s.getOfferedPlayers);
   const getXI = useGame((s) => s.getXI);
-  const [revealedIndex, setRevealedIndex] = useState(-1);
+  const [revealedKey, setRevealedKey] = useState("");
 
   const round = rounds[currentRound];
   const squad = SQUADS[round.squadIndex];
   const offered = getOffered();
   const xi = getXI();
   const slot = formation.slots[round.slotIndex];
-  const progress = ((currentRound) / rounds.length) * 100;
+  const progress = (currentRound / rounds.length) * 100;
 
   if (!squad) return null;
-  const spinning = revealedIndex !== currentRound;
+  const key = `${currentRound}:${rerollNonce}`;
+  const spinning = revealedKey !== key;
 
   return (
     <div className="mx-auto max-w-6xl px-4 pb-24 pt-24 sm:pt-28">
@@ -71,15 +76,38 @@ export function DraftRoundView() {
           {spinning ? (
             <div className="py-6">
               <SquadSpinner
-                key={`spin-${currentRound}`}
+                key={`spin-${key}`}
                 club={squad.club}
                 seasonLabel={`${squad.season - 1}-${String(squad.season).slice(2)}`}
                 colors={squad.colors}
-                onDone={() => setRevealedIndex(currentRound)}
+                onDone={() => setRevealedKey(key)}
               />
             </div>
           ) : (
             <>
+              {/* reroll controls */}
+              <div className="mb-4 flex flex-wrap items-center justify-center gap-2">
+                <button
+                  className="btn btn-ghost text-[0.68rem] disabled:opacity-40"
+                  disabled={rerolls.team <= 0}
+                  onClick={rerollTeam}
+                  title="Draw a different club"
+                >
+                  🔄 Re-roll Team {rerolls.team > 0 ? `(${rerolls.team})` : ""}
+                </button>
+                <button
+                  className="btn btn-ghost text-[0.68rem] disabled:opacity-40"
+                  disabled={rerolls.season <= 0}
+                  onClick={rerollSeason}
+                  title="Draw a different squad / season"
+                >
+                  📅 Re-roll Season {rerolls.season > 0 ? `(${rerolls.season})` : ""}
+                </button>
+                {setup.difficulty === "hard" && (
+                  <span className="chip bg-danger/15 text-danger">🔥 Hard · no re-rolls</span>
+                )}
+              </div>
+
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
                 {offered.map((p, i) => (
                   <PlayerCard

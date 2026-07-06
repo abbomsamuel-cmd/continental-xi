@@ -9,6 +9,7 @@ import { MatchModal } from "@/components/MatchModal";
 import { KnockoutBracket } from "@/components/KnockoutBracket";
 import { TrophyCelebration } from "@/components/TrophyCelebration";
 import { AchievementToast } from "@/components/AchievementToast";
+import { CrestLogo } from "@/components/CrestLogo";
 import { USER_TEAM_ID } from "@/lib/engine/tournament";
 import type { Fixture, KOTie, MatchResult } from "@/lib/types";
 import { play } from "@/lib/sound";
@@ -78,7 +79,9 @@ export default function TournamentPage() {
     <div className="mx-auto max-w-5xl px-4 pb-24 pt-24 sm:pt-28">
       {/* header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
+        <div className="flex items-center gap-3">
+          <CrestLogo size={44} />
+          <div>
           <div className="text-xs font-bold uppercase tracking-widest text-cyan">{PHASE_LABEL[tournament.phase]}</div>
           <h1 className="font-display text-2xl font-extrabold sm:text-4xl">
             {tournament.teams[USER_TEAM_ID].name}
@@ -89,6 +92,7 @@ export default function TournamentPage() {
               : isDone
                 ? tournament.exit?.text ?? "Run complete"
                 : `Finished ${ordinal(tournament.userSeed ?? userRow)} in the league phase · your road to the final`}
+          </div>
           </div>
         </div>
         <div className="flex gap-2">

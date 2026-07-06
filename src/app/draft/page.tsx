@@ -8,7 +8,14 @@ import { FORMATIONS } from "@/lib/formations";
 import { Pitch } from "@/components/Pitch";
 import { DraftRoundView } from "@/components/DraftRoundView";
 import type { GameMode } from "@/lib/types";
+import type { Difficulty } from "@/lib/store";
 import { play } from "@/lib/sound";
+
+const DIFFICULTIES: { id: Difficulty; title: string; body: string; rerolls: string }[] = [
+  { id: "easy", title: "Easy", body: "Plenty of re-rolls to shape a dream squad.", rerolls: "3 team + 3 season re-rolls" },
+  { id: "medium", title: "Medium", body: "One re-roll each — pick your moments.", rerolls: "1 team + 1 season re-roll" },
+  { id: "hard", title: "Hard", body: "No re-rolls. Take what the reel gives you.", rerolls: "No re-rolls" },
+];
 
 export default function DraftPage() {
   const router = useRouter();
@@ -18,6 +25,7 @@ export default function DraftPage() {
 
   const [mode, setMode] = useState<GameMode>("classic");
   const [formation, setFormation] = useState("4-3-3");
+  const [difficulty, setDifficulty] = useState<Difficulty>("medium");
 
   // If a completed draft exists, jump to squad review
   useEffect(() => {
@@ -98,10 +106,35 @@ export default function DraftPage() {
         </div>
       </section>
 
+      {/* DIFFICULTY */}
+      <section className="mt-10">
+        <h2 className="mb-3 text-sm font-bold uppercase tracking-widest text-muted">Difficulty</h2>
+        <div className="grid gap-3 sm:grid-cols-3">
+          {DIFFICULTIES.map((d) => (
+            <button
+              key={d.id}
+              onClick={() => { setDifficulty(d.id); play("click"); }}
+              className={`glass rounded-2xl p-4 text-left transition-all ${
+                difficulty === d.id ? "ring-2 ring-gold" : "hover:ring-1 hover:ring-white/20"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <h3 className="font-display text-lg font-bold">{d.title}</h3>
+                <span className={`chip ${difficulty === d.id ? "bg-gold/20 text-gold" : "bg-white/8 text-muted"}`}>
+                  {d.id === "hard" ? "🔥" : d.id === "medium" ? "⚖️" : "🎯"}
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-muted">{d.body}</p>
+              <p className="mt-2 text-[0.68rem] font-semibold text-cyan">{d.rerolls}</p>
+            </button>
+          ))}
+        </div>
+      </section>
+
       <div className="mt-12 flex justify-center">
         <button
           className="btn btn-gold px-10"
-          onClick={() => { startDraft(mode, formation); play("select"); }}
+          onClick={() => { startDraft(mode, formation, difficulty); play("select"); }}
         >
           Begin Draft →
         </button>

@@ -19,6 +19,38 @@ export const POSITION_FAMILY: Record<Position, Position[]> = {
   CF: ["CF", "ST", "CAM"], ST: ["ST", "CF"],
 };
 
+/**
+ * Which positions may genuinely fill each slot. Football-correct: a winger can
+ * cover the wings and wide midfield, NOT central midfield; a central mid can't
+ * play out wide, etc. Used to decide which players a round offers and whether a
+ * manual swap is legal.
+ */
+export const SLOT_ELIGIBLE: Record<Position, Position[]> = {
+  GK: ["GK"],
+  RB: ["RB", "RWB", "RM"],
+  LB: ["LB", "LWB", "LM"],
+  CB: ["CB", "RB", "LB", "CDM"],
+  RWB: ["RWB", "RB", "RM", "RW"],
+  LWB: ["LWB", "LB", "LM", "LW"],
+  CDM: ["CDM", "CM", "CB"],
+  CM: ["CM", "CDM", "CAM"],
+  CAM: ["CAM", "CM", "CF", "RW", "LW"],
+  RM: ["RM", "RW", "RWB", "LM"],
+  LM: ["LM", "LW", "LWB", "RM"],
+  // Front-three positions interchange (wingers play up top, forwards drift wide)
+  // but never drop into central midfield.
+  RW: ["RW", "RM", "LW", "CF", "ST", "CAM"],
+  LW: ["LW", "LM", "RW", "CF", "ST", "CAM"],
+  CF: ["CF", "ST", "CAM", "RW", "LW"],
+  ST: ["ST", "CF", "CAM", "RW", "LW"],
+};
+
+/** True if a player (by natural + alt positions) can legally fill the given slot. */
+export function canPlaySlot(playerPos: Position, alts: Position[], slotPos: Position): boolean {
+  const ok = SLOT_ELIGIBLE[slotPos];
+  return ok.includes(playerPos) || alts.some((a) => ok.includes(a));
+}
+
 // x: 0 (left) → 100 (right); y: 0 (own goal) → 100 (attack)
 export const FORMATIONS: Formation[] = [
   {
@@ -95,6 +127,36 @@ export const FORMATIONS: Formation[] = [
       { pos: "RWB", x: 90, y: 32 }, { pos: "CB", x: 70, y: 18 }, { pos: "CB", x: 50, y: 15 }, { pos: "CB", x: 30, y: 18 }, { pos: "LWB", x: 10, y: 32 },
       { pos: "RM", x: 82, y: 56 }, { pos: "CM", x: 60, y: 50 }, { pos: "CM", x: 40, y: 50 }, { pos: "LM", x: 18, y: 56 },
       { pos: "ST", x: 50, y: 84 },
+    ],
+  },
+  {
+    name: "4-3-2-1",
+    slots: [
+      { pos: "GK", x: 50, y: 5 },
+      { pos: "RB", x: 85, y: 24 }, { pos: "CB", x: 63, y: 19 }, { pos: "CB", x: 37, y: 19 }, { pos: "LB", x: 15, y: 24 },
+      { pos: "CDM", x: 50, y: 38 }, { pos: "CM", x: 70, y: 50 }, { pos: "CM", x: 30, y: 50 },
+      { pos: "CAM", x: 66, y: 68 }, { pos: "CAM", x: 34, y: 68 },
+      { pos: "ST", x: 50, y: 85 },
+    ],
+  },
+  {
+    name: "4-4-1-1",
+    slots: [
+      { pos: "GK", x: 50, y: 5 },
+      { pos: "RB", x: 85, y: 24 }, { pos: "CB", x: 63, y: 19 }, { pos: "CB", x: 37, y: 19 }, { pos: "LB", x: 15, y: 24 },
+      { pos: "RM", x: 84, y: 50 }, { pos: "CM", x: 62, y: 46 }, { pos: "CM", x: 38, y: 46 }, { pos: "LM", x: 16, y: 50 },
+      { pos: "CF", x: 50, y: 68 },
+      { pos: "ST", x: 50, y: 86 },
+    ],
+  },
+  {
+    name: "3-4-1-2",
+    slots: [
+      { pos: "GK", x: 50, y: 5 },
+      { pos: "CB", x: 72, y: 19 }, { pos: "CB", x: 50, y: 16 }, { pos: "CB", x: 28, y: 19 },
+      { pos: "RWB", x: 88, y: 46 }, { pos: "CM", x: 62, y: 44 }, { pos: "CM", x: 38, y: 44 }, { pos: "LWB", x: 12, y: 46 },
+      { pos: "CAM", x: 50, y: 64 },
+      { pos: "ST", x: 62, y: 84 }, { pos: "ST", x: 38, y: 84 },
     ],
   },
 ];

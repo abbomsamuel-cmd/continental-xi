@@ -28,7 +28,7 @@ export default function DailyPage() {
   const alreadyPlayed = drafts.find((d) => d.daily === key);
 
   const start = () => {
-    startDraft(cfg.mode, cfg.formation, key);
+    startDraft(cfg.mode, cfg.formation, "medium", key);
     play("select");
     router.push("/draft");
   };

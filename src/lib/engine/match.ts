@@ -70,16 +70,18 @@ export function simulateMatch(
   const hEff = home.team.strength + home.form * 3 + homeAdv + (home.bigMatch ? 1.5 : 0);
   const aEff = away.team.strength + away.form * 3 + (away.bigMatch ? 1.5 : 0);
 
-  // expected goals from attack vs defense mismatch
-  const hLambda = Math.max(0.15, 1.35 + (home.team.attack - away.team.defense) * 0.045 + (hEff - aEff) * 0.02);
-  const aLambda = Math.max(0.12, 1.1 + (away.team.attack - home.team.defense) * 0.045 + (aEff - hEff) * 0.02);
+  // Expected goals from attack vs defense mismatch. Tuned to real football:
+  // ~1.3 goals/side on average, mismatches nudge it a little, and blowouts are
+  // rare — a dominant side wins ~3-0/4-1, not 7-0.
+  const hLambda = Math.max(0.18, 1.28 + (home.team.attack - away.team.defense) * 0.026 + (hEff - aEff) * 0.012);
+  const aLambda = Math.max(0.15, 1.05 + (away.team.attack - home.team.defense) * 0.026 + (aEff - hEff) * 0.012);
 
-  // football variance: occasionally a chaotic match
-  const chaos = rng() < 0.12 ? 1.6 : 1;
-  let hGoals = poisson(rng, hLambda * chaos);
-  let aGoals = poisson(rng, aLambda * chaos);
-  hGoals = Math.min(hGoals, 7);
-  aGoals = Math.min(aGoals, 7);
+  // football variance: occasionally a slightly more open match
+  const chaos = rng() < 0.08 ? 1.35 : 1;
+  // cap each side at 5, and only rarely allow a 5th (keeps scorelines believable)
+  const clampGoals = (g: number) => (g >= 5 ? (rng() < 0.35 ? 5 : 4) : g);
+  const hGoals = clampGoals(poisson(rng, hLambda * chaos));
+  const aGoals = clampGoals(poisson(rng, aLambda * chaos));
 
   // events
   const events: MatchEvent[] = [];

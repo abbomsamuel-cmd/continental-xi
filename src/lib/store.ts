@@ -6,7 +6,7 @@ import type {
   DraftRecord, Fixture, Formation, GameMode, KOTie, Player, Profile,
   TeamAnalysis, TournamentState,
 } from "./types";
-import { getFormation, positionFit, POSITION_GROUP } from "./formations";
+import { getFormation, positionFit, canPlaySlot } from "./formations";
 import { getAllPlayers, squadPlayers } from "./players";
 import { pickDraftSquad, draftOrder } from "./draft";
 import { analyzeTeam } from "./analysis";
@@ -25,11 +25,25 @@ export interface DraftRound {
   chosenPlayerId?: string;
 }
 
+export type Difficulty = "easy" | "medium" | "hard";
+
 interface DraftSetup {
   mode: GameMode;
   formationName: string;
+  difficulty: Difficulty;
   daily?: string;
 }
+
+export interface RerollState {
+  team: number;
+  season: number;
+}
+
+const REROLLS_FOR: Record<Difficulty, RerollState> = {
+  easy: { team: 3, season: 3 },
+  medium: { team: 1, season: 1 },
+  hard: { team: 0, season: 0 },
+};
 
 interface StoreState {
   hydrated: boolean;
@@ -44,6 +58,8 @@ interface StoreState {
   draftComplete: boolean;
   lastUnlocked: string[];
   rngSeed: string | null;
+  rerolls: RerollState;
+  rerollNonce: number;
 
   // tournament
   tournament: TournamentState | null;
@@ -52,8 +68,11 @@ interface StoreState {
   init: () => void;
   setProfileName: (name: string) => void;
   toggleSound: () => void;
-  startDraft: (mode: GameMode, formationName: string, daily?: string) => void;
+  startDraft: (mode: GameMode, formationName: string, difficulty: Difficulty, daily?: string) => void;
   choosePlayer: (playerId: string) => void;
+  rerollTeam: () => void;
+  rerollSeason: () => void;
+  swapSlots: (a: number, b: number) => boolean;
   getOfferedPlayers: () => Player[];
   getXI: () => (Player | null)[];
   getAnalysis: () => TeamAnalysis | null;
@@ -109,6 +128,8 @@ export const useGame = create<StoreState>()(
       draftComplete: false,
       lastUnlocked: [],
       rngSeed: null,
+      rerolls: { team: 0, season: 0 },
+      rerollNonce: 0,
       tournament: null,
 
       init: () => {
@@ -124,7 +145,7 @@ export const useGame = create<StoreState>()(
         return { profile: { ...s.profile, soundOn } };
       }),
 
-      startDraft: (mode, formationName, daily) => {
+      startDraft: (mode, formationName, difficulty, daily) => {
         const formation = getFormation(formationName);
         const seed = daily ?? `draft-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
         const rng = daily ? seededRng(daily) : randomRng();
@@ -132,7 +153,7 @@ export const useGame = create<StoreState>()(
         // pre-assign the first squad
         rounds[0].squadIndex = assignSquadForRound(rng, formation, rounds, 0, []);
         set({
-          setup: { mode, formationName, daily },
+          setup: { mode, formationName, difficulty, daily },
           formation,
           rounds,
           currentRound: 0,
@@ -141,7 +162,70 @@ export const useGame = create<StoreState>()(
           tournament: null,
           rngSeed: seed,
           lastUnlocked: [],
+          rerolls: { ...REROLLS_FOR[difficulty] },
+          rerollNonce: 0,
         });
+      },
+
+      rerollTeam: () => {
+        const { rounds, currentRound, formation, rngSeed, rerolls, rerollNonce } = get();
+        if (!formation || !rngSeed || rerolls.team <= 0) return;
+        const round = rounds[currentRound];
+        const pos = formation.slots[round.slotIndex].pos;
+        const usedSquads = rounds.slice(0, currentRound).map((r) => r.squadIndex).filter((i) => i >= 0);
+        const currentClub = SQUAD_META[round.squadIndex].club;
+        const recent = rounds.slice(Math.max(0, currentRound - 4), currentRound).map((r) => r.squadIndex).filter((i) => i >= 0);
+        const rng = seededRng(`${rngSeed}-rrt-${currentRound}-${rerolls.team}-${Math.random()}`);
+        // exclude the current squad AND its club → a genuinely different team
+        const newIdx = pickDraftSquad(
+          rng, pos, [...usedSquads, round.squadIndex], currentClub,
+          recent.map((i) => SQUAD_META[i].club), recent.map((i) => SQUAD_META[i].league),
+        );
+        const next = [...rounds];
+        next[currentRound] = { ...round, squadIndex: newIdx };
+        play("flip");
+        set({ rounds: next, rerolls: { ...rerolls, team: rerolls.team - 1 }, rerollNonce: rerollNonce + 1 });
+      },
+
+      rerollSeason: () => {
+        const { rounds, currentRound, formation, rngSeed, rerolls, rerollNonce } = get();
+        if (!formation || !rngSeed || rerolls.season <= 0) return;
+        const round = rounds[currentRound];
+        const pos = formation.slots[round.slotIndex].pos;
+        const usedSquads = rounds.slice(0, currentRound).map((r) => r.squadIndex).filter((i) => i >= 0);
+        const recent = rounds.slice(Math.max(0, currentRound - 4), currentRound).map((r) => r.squadIndex).filter((i) => i >= 0);
+        const rng = seededRng(`${rngSeed}-rrs-${currentRound}-${rerolls.season}-${Math.random()}`);
+        // a fresh draw excluding only the current squad (a different season/team)
+        const newIdx = pickDraftSquad(
+          rng, pos, [...usedSquads, round.squadIndex], null,
+          recent.map((i) => SQUAD_META[i].club), recent.map((i) => SQUAD_META[i].league),
+        );
+        const next = [...rounds];
+        next[currentRound] = { ...round, squadIndex: newIdx };
+        play("flip");
+        set({ rounds: next, rerolls: { ...rerolls, season: rerolls.season - 1 }, rerollNonce: rerollNonce + 1 });
+      },
+
+      // Swap the players in two formation slots — only if each can legally play
+      // the other's position. Returns true if the swap happened.
+      swapSlots: (a, b) => {
+        const { formation, picks } = get();
+        if (!formation || a === b) return false;
+        const idA = picks[a];
+        const idB = picks[b];
+        const pA = idA ? getAllPlayers().find((p) => p.id === idA) : null;
+        const pB = idB ? getAllPlayers().find((p) => p.id === idB) : null;
+        const slotA = formation.slots[a].pos;
+        const slotB = formation.slots[b].pos;
+        // each moved player must be eligible for its new slot
+        if (pA && !canPlaySlot(pA.position, pA.altPositions, slotB)) return false;
+        if (pB && !canPlaySlot(pB.position, pB.altPositions, slotA)) return false;
+        const next = { ...picks };
+        if (idB) next[a] = idB; else delete next[a];
+        if (idA) next[b] = idA; else delete next[b];
+        play("click");
+        set({ picks: next });
+        return true;
       },
 
       choosePlayer: (playerId) => {
@@ -179,27 +263,13 @@ export const useGame = create<StoreState>()(
         const chosenNames = new Set(
           Object.values(picks).map((id) => getAllPlayers().find((p) => p.id === id)?.name),
         );
-        const slotGroup = POSITION_GROUP[pos];
-        // Adjacent positions that can plausibly fill a slot's line, so each round
-        // reveals as many sensible options as the squad holds (up to 9): attacking
-        // mids/wide mids for forward slots, holding mids for defensive slots, wide
-        // forwards for midfield slots. GK stays keepers-only.
-        const ADJACENT: Record<string, string[]> = {
-          ATT: ["CAM", "RM", "LM"],
-          MID: ["RW", "LW"],
-          DEF: ["CDM"],
-          GK: [],
-        };
-        const adj = ADJACENT[slotGroup] ?? [];
+        // Only players who can genuinely fill this slot (football-correct: a
+        // winger can't be offered at CM, etc.), naturals first, up to 9.
         const roster = squadPlayers(round.squadIndex)
           .filter((p) => !chosenIds.has(p.id) && !chosenNames.has(p.name))
+          .filter((p) => canPlaySlot(p.position, p.altPositions, pos))
           .map((p) => ({ p, fit: positionFit(p.position, p.altPositions, pos) }));
-
-        const pool = roster.filter(
-          (x) => x.fit >= 0.75 || POSITION_GROUP[x.p.position] === slotGroup || adj.includes(x.p.position),
-        );
-        const final = pool.length >= 2 ? pool : roster.filter((x) => x.fit >= 0.55);
-        return final
+        return roster
           .sort((a, b) => b.fit - a.fit || b.p.overall - a.p.overall)
           .slice(0, 9)
           .map((x) => x.p);
@@ -328,13 +398,28 @@ export const useGame = create<StoreState>()(
       resetDraft: () => set({
         setup: null, formation: null, rounds: [], currentRound: 0, picks: {},
         draftComplete: false, tournament: null, rngSeed: null, lastUnlocked: [],
+        rerolls: { team: 0, season: 0 }, rerollNonce: 0,
       }),
 
       clearUnlocked: () => set({ lastUnlocked: [] }),
     }),
     {
       name: "champions-draft-v1",
-      partialize: (s) => ({ profile: s.profile }),
+      version: 2,
+      // Persist the whole active game so a refresh never re-rolls or reloads
+      // squads — you resume exactly where you left off.
+      partialize: (s) => ({
+        profile: s.profile,
+        setup: s.setup,
+        formation: s.formation,
+        rounds: s.rounds,
+        currentRound: s.currentRound,
+        picks: s.picks,
+        draftComplete: s.draftComplete,
+        rngSeed: s.rngSeed,
+        tournament: s.tournament,
+        rerolls: s.rerolls,
+      }),
       onRehydrateStorage: () => (state) => {
         state?.init();
       },

@@ -1,6 +1,7 @@
 import type { Position, Rng } from "./draft-deps";
 import { SQUADS } from "./players";
-import { POSITION_FAMILY, POSITION_GROUP } from "./formations";
+import { canPlaySlot, POSITION_GROUP } from "./formations";
+import { SQUAD_DEPTH } from "./data/squads-depth";
 import { weightedPick } from "./rng";
 
 /**
@@ -26,12 +27,9 @@ export function pickDraftSquad(
     if (usedSquadIndexes.includes(i)) continue;
     const s = SQUADS[i];
     if (lastClub && s.club === lastClub) continue;
-    // must offer at least 2 players who can play the slot (or same group)
-    const fits = s.players.filter(([, , pos, , alts = []]) => {
-      if (pos === slotPos || alts.includes(slotPos)) return true;
-      if (slotPos === "GK" || pos === "GK") return false;
-      return POSITION_FAMILY[pos].includes(slotPos) || POSITION_GROUP[pos] === POSITION_GROUP[slotPos];
-    });
+    // must offer at least 2 eligible players for the slot (incl. depth players)
+    const allPlayers = [...s.players, ...(SQUAD_DEPTH[`${s.club}|${s.season}`] ?? [])];
+    const fits = allPlayers.filter(([, , pos, , alts = []]) => canPlaySlot(pos, alts, slotPos));
     if (fits.length < 2 && !(slotPos === "GK" && fits.length >= 1)) continue;
 
     let w = 10;

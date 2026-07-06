@@ -24,8 +24,10 @@ export function createTournament(
   const clubs = shuffle(rng, CLUB_REGISTRY).slice(0, 35);
   const teams: Record<string, SimTeam> = {};
 
-  // user strength: overall carries most weight, chemistry is a real multiplier
-  const chemBonus = (analysis.chemistry - 50) * 0.1;
+  // Chemistry is a major multiplier on how the squad actually performs: a
+  // perfectly-linked XI plays well above the sum of its ratings, a disjointed
+  // one well below. High chem => a genuinely better chance to win.
+  const chemBonus = (analysis.chemistry - 55) * 0.28; // chem 100 => +12.6, chem 20 => -9.8
   const userStrength = Math.min(99, analysis.overall + chemBonus);
   teams[USER_TEAM_ID] = {
     id: USER_TEAM_ID,

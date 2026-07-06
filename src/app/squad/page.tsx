@@ -28,8 +28,11 @@ export default function SquadPage() {
   const getXI = useGame((s) => s.getXI);
   const getAnalysis = useGame((s) => s.getAnalysis);
   const finish = useGame((s) => s.finishDraftIntoTournament);
+  const swapSlots = useGame((s) => s.swapSlots);
   const profileName = useGame((s) => s.profile.name);
   const [teamName, setTeamName] = useState("");
+  const [swapSel, setSwapSel] = useState<number | null>(null);
+  const [swapMsg, setSwapMsg] = useState("");
 
   const invalid = !formation || !setup || !draftComplete;
   useEffect(() => {
@@ -48,6 +51,21 @@ export default function SquadPage() {
     router.push("/tournament");
   };
 
+  const onSlotTap = (i: number) => {
+    if (swapSel === null) {
+      setSwapSel(i);
+      setSwapMsg("");
+      return;
+    }
+    if (swapSel === i) {
+      setSwapSel(null);
+      return;
+    }
+    const ok = swapSlots(swapSel, i);
+    setSwapMsg(ok ? "Swapped! Chemistry updated." : "Those players can't cover each other's positions.");
+    setSwapSel(null);
+  };
+
   return (
     <div className="mx-auto max-w-6xl px-4 pb-24 pt-24 sm:pt-28">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center">
@@ -61,7 +79,12 @@ export default function SquadPage() {
         {/* pitch + radar */}
         <div className="space-y-6">
           <div className="glass rounded-2xl p-4">
-            <Pitch formation={formation} players={xi} showChem />
+            <Pitch formation={formation} players={xi} showChem activeSlot={swapSel ?? undefined} onSlotClick={onSlotTap} />
+            <p className="mt-2 text-center text-[0.68rem] text-muted">
+              {swapSel !== null
+                ? "Now tap another player to swap positions"
+                : swapMsg || "Tap two players to swap them and boost chemistry (positions must match)"}
+            </p>
           </div>
           <div className="glass rounded-2xl p-4">
             <h3 className="mb-2 text-center text-sm font-bold uppercase tracking-widest text-muted">Team Radar</h3>

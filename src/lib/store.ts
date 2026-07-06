@@ -6,7 +6,7 @@ import type {
   DraftRecord, Fixture, Formation, GameMode, KOTie, Player, Profile,
   TeamAnalysis, TournamentState,
 } from "./types";
-import { getFormation, positionFit } from "./formations";
+import { getFormation, positionFit, POSITION_GROUP } from "./formations";
 import { getAllPlayers, squadPlayers } from "./players";
 import { pickDraftSquad, draftOrder } from "./draft";
 import { analyzeTeam } from "./analysis";
@@ -179,22 +179,29 @@ export const useGame = create<StoreState>()(
         const chosenNames = new Set(
           Object.values(picks).map((id) => getAllPlayers().find((p) => p.id === id)?.name),
         );
+        const slotGroup = POSITION_GROUP[pos];
+        // Adjacent positions that can plausibly fill a slot's line, so each round
+        // reveals as many sensible options as the squad holds (up to 9): attacking
+        // mids/wide mids for forward slots, holding mids for defensive slots, wide
+        // forwards for midfield slots. GK stays keepers-only.
+        const ADJACENT: Record<string, string[]> = {
+          ATT: ["CAM", "RM", "LM"],
+          MID: ["RW", "LW"],
+          DEF: ["CDM"],
+          GK: [],
+        };
+        const adj = ADJACENT[slotGroup] ?? [];
         const roster = squadPlayers(round.squadIndex)
           .filter((p) => !chosenIds.has(p.id) && !chosenNames.has(p.name))
           .map((p) => ({ p, fit: positionFit(p.position, p.altPositions, pos) }));
 
-        // Offer every player who can genuinely play this slot — natural (1) or a
-        // close family fit (0.9) — so the whole squad (down to 75-rated depth
-        // options) is available, not just the top handful. Same-line (0.75)
-        // players fill in only if we'd otherwise have too few. Never a striker
-        // at CB. Cap the reveal at 10 so the grid stays readable.
-        const natural = roster.filter((x) => x.fit >= 0.9);
-        const sameGroup = roster.filter((x) => x.fit >= 0.75 && x.fit < 0.9);
-        const chosen = [...natural];
-        if (chosen.length < 4) chosen.push(...sameGroup);
-        return chosen
+        const pool = roster.filter(
+          (x) => x.fit >= 0.75 || POSITION_GROUP[x.p.position] === slotGroup || adj.includes(x.p.position),
+        );
+        const final = pool.length >= 2 ? pool : roster.filter((x) => x.fit >= 0.55);
+        return final
           .sort((a, b) => b.fit - a.fit || b.p.overall - a.p.overall)
-          .slice(0, 10)
+          .slice(0, 9)
           .map((x) => x.p);
       },
 

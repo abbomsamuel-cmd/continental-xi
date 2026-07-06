@@ -1,10 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { useGame } from "@/lib/store";
 import { PlayerCard } from "@/components/PlayerCard";
 import { Pitch } from "@/components/Pitch";
+import { SquadSpinner } from "@/components/SquadSpinner";
 import { SQUADS } from "@/lib/players";
 import { play } from "@/lib/sound";
 
@@ -18,6 +20,7 @@ export function DraftRoundView() {
   const resetDraft = useGame((s) => s.resetDraft);
   const getOffered = useGame((s) => s.getOfferedPlayers);
   const getXI = useGame((s) => s.getXI);
+  const [revealedIndex, setRevealedIndex] = useState(-1);
 
   const round = rounds[currentRound];
   const squad = SQUADS[round.squadIndex];
@@ -27,6 +30,7 @@ export function DraftRoundView() {
   const progress = ((currentRound) / rounds.length) * 100;
 
   if (!squad) return null;
+  const spinning = revealedIndex !== currentRound;
 
   return (
     <div className="mx-auto max-w-6xl px-4 pb-24 pt-24 sm:pt-28">
@@ -37,10 +41,14 @@ export function DraftRoundView() {
             Round {currentRound + 1} / {rounds.length} · Filling {slot.pos}
           </div>
           <h1 className="font-display text-2xl font-extrabold sm:text-3xl">
-            Pick from <span className="text-gradient-gold">{squad.club}</span>
+            {spinning ? (
+              <span className="text-muted">Spinning…</span>
+            ) : (
+              <>Pick from <span className="text-gradient-gold">{squad.club}</span></>
+            )}
           </h1>
           <div className="text-sm text-muted">
-            {squad.season - 1}-{String(squad.season).slice(2)} · {squad.coach} · {squad.honor ?? squad.league}
+            {spinning ? "The reel decides which legendary squad you draft from" : `${squad.season - 1}-${String(squad.season).slice(2)} · ${squad.coach} · ${squad.honor ?? squad.league}`}
           </div>
         </div>
         <button className="btn btn-ghost text-xs" onClick={() => { resetDraft(); play("click"); router.push("/draft"); }}>
@@ -58,28 +66,37 @@ export function DraftRoundView() {
       </div>
 
       <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_320px]">
-        {/* cards */}
+        {/* cards or spinner */}
         <div>
-          <AnimatePresence mode="popLayout">
-            <motion.div
-              key={currentRound}
-              className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5"
-            >
-              {offered.map((p, i) => (
-                <PlayerCard
-                  key={p.id}
-                  player={p}
-                  mode={setup.mode}
-                  index={i}
-                  onSelect={() => choosePlayer(p.id)}
-                />
-              ))}
-            </motion.div>
-          </AnimatePresence>
-          <p className="mt-4 text-center text-xs text-muted">
-            Tap a card to lock that player into your <span className="text-gold">{slot.pos}</span> slot.
-            No duplicate players or seasons.
-          </p>
+          {spinning ? (
+            <div className="py-6">
+              <SquadSpinner
+                key={`spin-${currentRound}`}
+                club={squad.club}
+                seasonLabel={`${squad.season - 1}-${String(squad.season).slice(2)}`}
+                colors={squad.colors}
+                onDone={() => setRevealedIndex(currentRound)}
+              />
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+                {offered.map((p, i) => (
+                  <PlayerCard
+                    key={p.id}
+                    player={p}
+                    mode={setup.mode}
+                    index={i}
+                    onSelect={() => choosePlayer(p.id)}
+                  />
+                ))}
+              </div>
+              <p className="mt-4 text-center text-xs text-muted">
+                Tap a card to lock that player into your <span className="text-gold">{slot.pos}</span> slot ·{" "}
+                {offered.length} available · no duplicate players or seasons.
+              </p>
+            </>
+          )}
         </div>
 
         {/* live pitch */}

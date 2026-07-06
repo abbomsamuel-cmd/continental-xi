@@ -1,0 +1,137 @@
+import type { ClubEntry } from "../types";
+
+// Registry of 110+ European clubs used for AI opponents, search and seeding.
+// `coeff` approximates historical European strength (0-100).
+// New clubs can be appended here without touching any application code.
+
+export const CLUB_REGISTRY: ClubEntry[] = [
+  // Spain
+  { name: "Real Madrid", country: "Spain", league: "La Liga", coeff: 98, colors: ["#FEBE10", "#FFFFFF"] },
+  { name: "Barcelona", country: "Spain", league: "La Liga", coeff: 95, colors: ["#A50044", "#004D98"] },
+  { name: "Atlético Madrid", country: "Spain", league: "La Liga", coeff: 88, colors: ["#CB3524", "#FFFFFF"] },
+  { name: "Sevilla", country: "Spain", league: "La Liga", coeff: 78, colors: ["#F43333", "#FFFFFF"] },
+  { name: "Valencia", country: "Spain", league: "La Liga", coeff: 76, colors: ["#F7A800", "#000000"] },
+  { name: "Villarreal", country: "Spain", league: "La Liga", coeff: 77, colors: ["#FFE667", "#005187"] },
+  { name: "Athletic Club", country: "Spain", league: "La Liga", coeff: 74, colors: ["#EE2523", "#FFFFFF"] },
+  { name: "Real Sociedad", country: "Spain", league: "La Liga", coeff: 74, colors: ["#0067B1", "#FFFFFF"] },
+  { name: "Real Betis", country: "Spain", league: "La Liga", coeff: 72, colors: ["#00954C", "#FFFFFF"] },
+  { name: "Girona", country: "Spain", league: "La Liga", coeff: 70, colors: ["#CD2534", "#FFFFFF"] },
+  { name: "Deportivo La Coruña", country: "Spain", league: "La Liga", coeff: 68, colors: ["#004F9E", "#FFFFFF"] },
+  { name: "Celta Vigo", country: "Spain", league: "La Liga", coeff: 66, colors: ["#8AC3EE", "#FFFFFF"] },
+  // England
+  { name: "Manchester City", country: "England", league: "Premier League", coeff: 94, colors: ["#6CABDD", "#FFFFFF"] },
+  { name: "Liverpool", country: "England", league: "Premier League", coeff: 93, colors: ["#C8102E", "#F6EB61"] },
+  { name: "Manchester United", country: "England", league: "Premier League", coeff: 87, colors: ["#DA291C", "#FBE122"] },
+  { name: "Chelsea", country: "England", league: "Premier League", coeff: 88, colors: ["#034694", "#FFFFFF"] },
+  { name: "Arsenal", country: "England", league: "Premier League", coeff: 90, colors: ["#EF0107", "#FFFFFF"] },
+  { name: "Tottenham Hotspur", country: "England", league: "Premier League", coeff: 82, colors: ["#132257", "#FFFFFF"] },
+  { name: "Newcastle United", country: "England", league: "Premier League", coeff: 78, colors: ["#241F20", "#FFFFFF"] },
+  { name: "Aston Villa", country: "England", league: "Premier League", coeff: 79, colors: ["#95BFE5", "#670E36"] },
+  { name: "Leicester City", country: "England", league: "Premier League", coeff: 70, colors: ["#003090", "#FDBE11"] },
+  { name: "Leeds United", country: "England", league: "Premier League", coeff: 66, colors: ["#FFCD00", "#1D428A"] },
+  { name: "West Ham United", country: "England", league: "Premier League", coeff: 70, colors: ["#7A263A", "#1BB1E7"] },
+  { name: "Everton", country: "England", league: "Premier League", coeff: 65, colors: ["#003399", "#FFFFFF"] },
+  // Germany
+  { name: "Bayern Munich", country: "Germany", league: "Bundesliga", coeff: 94, colors: ["#DC052D", "#0066B2"] },
+  { name: "Borussia Dortmund", country: "Germany", league: "Bundesliga", coeff: 85, colors: ["#FDE100", "#000000"] },
+  { name: "Bayer Leverkusen", country: "Germany", league: "Bundesliga", coeff: 82, colors: ["#E32221", "#000000"] },
+  { name: "RB Leipzig", country: "Germany", league: "Bundesliga", coeff: 80, colors: ["#DD0741", "#FFFFFF"] },
+  { name: "Eintracht Frankfurt", country: "Germany", league: "Bundesliga", coeff: 74, colors: ["#E1000F", "#000000"] },
+  { name: "Schalke 04", country: "Germany", league: "Bundesliga", coeff: 68, colors: ["#004D9D", "#FFFFFF"] },
+  { name: "VfB Stuttgart", country: "Germany", league: "Bundesliga", coeff: 71, colors: ["#E32219", "#FFFFFF"] },
+  { name: "Werder Bremen", country: "Germany", league: "Bundesliga", coeff: 66, colors: ["#1D9053", "#FFFFFF"] },
+  { name: "Hamburger SV", country: "Germany", league: "Bundesliga", coeff: 62, colors: ["#0A3F86", "#FFFFFF"] },
+  { name: "Borussia Mönchengladbach", country: "Germany", league: "Bundesliga", coeff: 68, colors: ["#000000", "#FFFFFF"] },
+  { name: "Wolfsburg", country: "Germany", league: "Bundesliga", coeff: 67, colors: ["#65B32E", "#FFFFFF"] },
+  // Italy
+  { name: "Inter Milan", country: "Italy", league: "Serie A", coeff: 89, colors: ["#0068A8", "#221F20"] },
+  { name: "Milan", country: "Italy", league: "Serie A", coeff: 84, colors: ["#FB090B", "#000000"] },
+  { name: "Juventus", country: "Italy", league: "Serie A", coeff: 85, colors: ["#000000", "#FFFFFF"] },
+  { name: "Napoli", country: "Italy", league: "Serie A", coeff: 81, colors: ["#12A0D7", "#FFFFFF"] },
+  { name: "Roma", country: "Italy", league: "Serie A", coeff: 77, colors: ["#8E1F2F", "#F0BC42"] },
+  { name: "Lazio", country: "Italy", league: "Serie A", coeff: 75, colors: ["#87D8F7", "#FFFFFF"] },
+  { name: "Atalanta", country: "Italy", league: "Serie A", coeff: 79, colors: ["#1E71B8", "#000000"] },
+  { name: "Fiorentina", country: "Italy", league: "Serie A", coeff: 72, colors: ["#5A2D81", "#FFFFFF"] },
+  { name: "Parma", country: "Italy", league: "Serie A", coeff: 63, colors: ["#FFE600", "#004C99"] },
+  { name: "Bologna", country: "Italy", league: "Serie A", coeff: 68, colors: ["#A21C26", "#12285C"] },
+  // France
+  { name: "Paris Saint-Germain", country: "France", league: "Ligue 1", coeff: 93, colors: ["#004170", "#DA291C"] },
+  { name: "Marseille", country: "France", league: "Ligue 1", coeff: 75, colors: ["#2FAEE0", "#FFFFFF"] },
+  { name: "Monaco", country: "France", league: "Ligue 1", coeff: 76, colors: ["#E63312", "#FFFFFF"] },
+  { name: "Lyon", country: "France", league: "Ligue 1", coeff: 72, colors: ["#DA001A", "#1D3E9C"] },
+  { name: "Lille", country: "France", league: "Ligue 1", coeff: 72, colors: ["#E01E13", "#12285C"] },
+  { name: "Nice", country: "France", league: "Ligue 1", coeff: 68, colors: ["#000000", "#CE0E2D"] },
+  { name: "Lens", country: "France", league: "Ligue 1", coeff: 69, colors: ["#FFD700", "#EC1C24"] },
+  { name: "Brest", country: "France", league: "Ligue 1", coeff: 66, colors: ["#E30613", "#FFFFFF"] },
+  // Portugal
+  { name: "Benfica", country: "Portugal", league: "Primeira Liga", coeff: 81, colors: ["#E83030", "#FFFFFF"] },
+  { name: "Porto", country: "Portugal", league: "Primeira Liga", coeff: 80, colors: ["#00428C", "#FFFFFF"] },
+  { name: "Sporting CP", country: "Portugal", league: "Primeira Liga", coeff: 79, colors: ["#008457", "#FFFFFF"] },
+  { name: "Braga", country: "Portugal", league: "Primeira Liga", coeff: 68, colors: ["#DD1922", "#FFFFFF"] },
+  // Netherlands
+  { name: "Ajax", country: "Netherlands", league: "Eredivisie", coeff: 76, colors: ["#D2122E", "#FFFFFF"] },
+  { name: "PSV Eindhoven", country: "Netherlands", league: "Eredivisie", coeff: 77, colors: ["#ED1C24", "#FFFFFF"] },
+  { name: "Feyenoord", country: "Netherlands", league: "Eredivisie", coeff: 74, colors: ["#008457", "#D30535"] },
+  { name: "AZ Alkmaar", country: "Netherlands", league: "Eredivisie", coeff: 66, colors: ["#DA1F26", "#FFFFFF"] },
+  { name: "Twente", country: "Netherlands", league: "Eredivisie", coeff: 62, colors: ["#DA1F26", "#FFFFFF"] },
+  // Belgium
+  { name: "Club Brugge", country: "Belgium", league: "Pro League", coeff: 70, colors: ["#0055A4", "#000000"] },
+  { name: "Anderlecht", country: "Belgium", league: "Pro League", coeff: 63, colors: ["#5C2E91", "#FFFFFF"] },
+  { name: "Genk", country: "Belgium", league: "Pro League", coeff: 62, colors: ["#0A4A9C", "#FFFFFF"] },
+  { name: "Union Saint-Gilloise", country: "Belgium", league: "Pro League", coeff: 64, colors: ["#FFD800", "#1B4499"] },
+  { name: "Gent", country: "Belgium", league: "Pro League", coeff: 61, colors: ["#003C7E", "#FFFFFF"] },
+  // Scotland
+  { name: "Celtic", country: "Scotland", league: "Scottish Premiership", coeff: 68, colors: ["#018749", "#FFFFFF"] },
+  { name: "Rangers", country: "Scotland", league: "Scottish Premiership", coeff: 65, colors: ["#1B458F", "#FFFFFF"] },
+  // Turkey
+  { name: "Galatasaray", country: "Turkey", league: "Süper Lig", coeff: 70, colors: ["#A90432", "#FDB912"] },
+  { name: "Fenerbahçe", country: "Turkey", league: "Süper Lig", coeff: 66, colors: ["#FFED00", "#00205B"] },
+  { name: "Beşiktaş", country: "Turkey", league: "Süper Lig", coeff: 63, colors: ["#000000", "#FFFFFF"] },
+  { name: "Trabzonspor", country: "Turkey", league: "Süper Lig", coeff: 60, colors: ["#841E41", "#5BC2E7"] },
+  // Greece
+  { name: "Olympiacos", country: "Greece", league: "Super League Greece", coeff: 66, colors: ["#D6001C", "#FFFFFF"] },
+  { name: "Panathinaikos", country: "Greece", league: "Super League Greece", coeff: 61, colors: ["#005138", "#FFFFFF"] },
+  { name: "PAOK", country: "Greece", league: "Super League Greece", coeff: 61, colors: ["#000000", "#FFFFFF"] },
+  { name: "AEK Athens", country: "Greece", league: "Super League Greece", coeff: 60, colors: ["#FFD500", "#000000"] },
+  // Serbia / Croatia / Balkans
+  { name: "Red Star Belgrade", country: "Serbia", league: "Serbian SuperLiga", coeff: 62, colors: ["#D50000", "#FFFFFF"] },
+  { name: "Partizan", country: "Serbia", league: "Serbian SuperLiga", coeff: 57, colors: ["#000000", "#FFFFFF"] },
+  { name: "Dinamo Zagreb", country: "Croatia", league: "HNL", coeff: 63, colors: ["#004B93", "#FFFFFF"] },
+  { name: "Hajduk Split", country: "Croatia", league: "HNL", coeff: 55, colors: ["#FFFFFF", "#0044A9"] },
+  // Ukraine / Russia-era clubs
+  { name: "Shakhtar Donetsk", country: "Ukraine", league: "Ukrainian Premier League", coeff: 70, colors: ["#F36F21", "#231F20"] },
+  { name: "Dynamo Kyiv", country: "Ukraine", league: "Ukrainian Premier League", coeff: 64, colors: ["#0057B8", "#FFFFFF"] },
+  { name: "CSKA Moscow", country: "Russia", league: "Russian Premier League", coeff: 62, colors: ["#C8102E", "#003DA5"] },
+  { name: "Zenit", country: "Russia", league: "Russian Premier League", coeff: 66, colors: ["#0098DA", "#FFFFFF"] },
+  { name: "Lokomotiv Moscow", country: "Russia", league: "Russian Premier League", coeff: 58, colors: ["#C8102E", "#005138"] },
+  { name: "Rubin Kazan", country: "Russia", league: "Russian Premier League", coeff: 55, colors: ["#7B1C2E", "#005138"] },
+  { name: "Spartak Moscow", country: "Russia", league: "Russian Premier League", coeff: 59, colors: ["#C8102E", "#FFFFFF"] },
+  // Nordics
+  { name: "FC Copenhagen", country: "Denmark", league: "Superliga", coeff: 62, colors: ["#003E7E", "#FFFFFF"] },
+  { name: "Malmö FF", country: "Sweden", league: "Allsvenskan", coeff: 55, colors: ["#69A9DD", "#FFFFFF"] },
+  { name: "Bodø/Glimt", country: "Norway", league: "Eliteserien", coeff: 58, colors: ["#FFD500", "#000000"] },
+  { name: "Rosenborg", country: "Norway", league: "Eliteserien", coeff: 52, colors: ["#000000", "#FFFFFF"] },
+  { name: "HJK Helsinki", country: "Finland", league: "Veikkausliiga", coeff: 45, colors: ["#0055A5", "#FFFFFF"] },
+  // Switzerland / Austria
+  { name: "Basel", country: "Switzerland", league: "Swiss Super League", coeff: 60, colors: ["#E30613", "#004F9F"] },
+  { name: "Young Boys", country: "Switzerland", league: "Swiss Super League", coeff: 60, colors: ["#FFD800", "#000000"] },
+  { name: "Red Bull Salzburg", country: "Austria", league: "Austrian Bundesliga", coeff: 67, colors: ["#DD0741", "#FFFFFF"] },
+  { name: "Rapid Wien", country: "Austria", league: "Austrian Bundesliga", coeff: 54, colors: ["#005138", "#FFFFFF"] },
+  { name: "Sturm Graz", country: "Austria", league: "Austrian Bundesliga", coeff: 58, colors: ["#000000", "#FFFFFF"] },
+  // Czechia / Poland / Central Europe
+  { name: "Sparta Prague", country: "Czechia", league: "Czech First League", coeff: 59, colors: ["#7B0C22", "#FFD500"] },
+  { name: "Slavia Prague", country: "Czechia", league: "Czech First League", coeff: 61, colors: ["#C8102E", "#FFFFFF"] },
+  { name: "Legia Warsaw", country: "Poland", league: "Ekstraklasa", coeff: 55, colors: ["#005138", "#FFFFFF"] },
+  { name: "Ferencváros", country: "Hungary", league: "NB I", coeff: 55, colors: ["#005138", "#FFFFFF"] },
+  // Romania / Bulgaria / Moldova / Belarus
+  { name: "Steaua București", country: "Romania", league: "Liga I", coeff: 54, colors: ["#DA2128", "#1B449C"] },
+  { name: "CFR Cluj", country: "Romania", league: "Liga I", coeff: 52, colors: ["#7B1C2E", "#FFFFFF"] },
+  { name: "Ludogorets", country: "Bulgaria", league: "First League", coeff: 53, colors: ["#005138", "#FFFFFF"] },
+  { name: "Sheriff Tiraspol", country: "Moldova", league: "Super Liga", coeff: 48, colors: ["#FFD500", "#000000"] },
+  { name: "BATE Borisov", country: "Belarus", league: "Vysshaya Liga", coeff: 48, colors: ["#FFD500", "#0055A5"] },
+  // Israel / Cyprus / Azerbaijan / Kazakhstan
+  { name: "Maccabi Haifa", country: "Israel", league: "Israeli Premier League", coeff: 51, colors: ["#005138", "#FFFFFF"] },
+  { name: "APOEL", country: "Cyprus", league: "Cypriot First Division", coeff: 50, colors: ["#F58220", "#0055A5"] },
+  { name: "Qarabağ", country: "Azerbaijan", league: "Azerbaijan Premier League", coeff: 52, colors: ["#000000", "#FFFFFF"] },
+  { name: "Astana", country: "Kazakhstan", league: "Kazakhstan Premier League", coeff: 46, colors: ["#00AEEF", "#FFD500"] },
+];

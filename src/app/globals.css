@@ -1,26 +1,241 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --midnight: #061a40;
+  --midnight-2: #030f26;
+  --uefa: #003b8e;
+  --gold: #d4af37;
+  --gold-bright: #f2d472;
+  --cyan: #22e0ff;
+  --cyan-dim: #0fb5d6;
+  --ink: #eaf1ff;
+  --muted: #9fb3d1;
+  --danger: #ff5a6a;
+  --green: #2ee6a6;
+  --amber: #ffcf5c;
+
+  --background: var(--midnight-2);
+  --foreground: var(--ink);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-midnight: var(--midnight);
+  --color-uefa: var(--uefa);
+  --color-gold: var(--gold);
+  --color-cyan: var(--cyan);
+  --color-muted: var(--muted);
+  --color-danger: var(--danger);
+  --color-green: var(--green);
+  --font-sans: var(--font-geist-sans), system-ui, sans-serif;
+  --font-display: var(--font-display), system-ui, sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
+  background:
+    radial-gradient(1200px 600px at 50% -10%, rgba(0, 59, 142, 0.35), transparent 60%),
+    radial-gradient(900px 500px at 100% 0%, rgba(34, 224, 255, 0.08), transparent 55%),
+    linear-gradient(180deg, #061a40 0%, #030f26 55%, #020814 100%);
+  background-attachment: fixed;
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ---------- Typography ---------- */
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+.text-gradient-gold {
+  background: linear-gradient(120deg, var(--gold-bright), var(--gold) 45%, #b8912a);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.text-gradient-cyan {
+  background: linear-gradient(120deg, #ffffff, var(--cyan));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* ---------- Glassmorphism ---------- */
+.glass {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+.glass-strong {
+  background: linear-gradient(160deg, rgba(10, 30, 66, 0.85), rgba(3, 15, 38, 0.9));
+  border: 1px solid rgba(212, 175, 55, 0.2);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+.gold-border {
+  border: 1px solid rgba(212, 175, 55, 0.4);
+}
+
+/* ---------- Buttons ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.85rem 1.6rem;
+  border-radius: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
+  border: none;
+  color: #041022;
+}
+.btn:hover {
+  transform: translateY(-2px);
+}
+.btn:active {
+  transform: translateY(0);
+}
+.btn-gold {
+  background: linear-gradient(120deg, var(--gold-bright), var(--gold));
+  box-shadow: 0 8px 30px rgba(212, 175, 55, 0.35);
+}
+.btn-gold:hover {
+  box-shadow: 0 12px 40px rgba(212, 175, 55, 0.55);
+}
+.btn-cyan {
+  background: linear-gradient(120deg, #7ff0ff, var(--cyan));
+  box-shadow: 0 8px 30px rgba(34, 224, 255, 0.3);
+}
+.btn-ghost {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--ink);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+.btn-ghost:hover {
+  border-color: rgba(212, 175, 55, 0.5);
+}
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ---------- Utility ---------- */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.stadium-glow {
+  position: relative;
+}
+.stadium-glow::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(120deg, rgba(212, 175, 55, 0.6), rgba(34, 224, 255, 0.35), transparent);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+.scanlines {
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(255, 255, 255, 0.03) 0px,
+    rgba(255, 255, 255, 0.03) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+/* scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.03);
+}
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(var(--uefa), var(--midnight));
+  border-radius: 999px;
+  border: 2px solid transparent;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--gold);
+}
+
+/* animations */
+@keyframes float-up {
+  0% { transform: translateY(100vh) scale(0.5); opacity: 0; }
+  10% { opacity: 0.8; }
+  90% { opacity: 0.5; }
+  100% { transform: translateY(-10vh) scale(1); opacity: 0; }
+}
+@keyframes twinkle {
+  0%, 100% { opacity: 0.2; }
+  50% { opacity: 1; }
+}
+@keyframes sweep {
+  0% { transform: translateX(-100%) skewX(-15deg); }
+  100% { transform: translateX(250%) skewX(-15deg); }
+}
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.4); }
+  50% { box-shadow: 0 0 30px 6px rgba(212, 175, 55, 0.15); }
+}
+.shimmer {
+  position: relative;
+  overflow: hidden;
+}
+.shimmer::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.14), transparent);
+  animation: sweep 2.6s ease-in-out infinite;
+}
+.skeleton {
+  background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.09) 37%, rgba(255,255,255,0.04) 63%);
+  background-size: 400% 100%;
+  animation: sweep 1.4s ease infinite;
+  border-radius: 0.5rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }

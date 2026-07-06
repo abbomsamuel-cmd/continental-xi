@@ -1,0 +1,280 @@
+// ---------------------------------------------------------------------------
+// Continental XI — scale-up database blueprint.
+//
+// The shipped app runs fully client-side with local persistence (Zustand +
+// localStorage) so guests can play instantly with zero backend. This schema is
+// the drop-in path for the hosted build: point DATABASE_URL at Postgres
+// (Supabase), run `prisma migrate`, and move the in-memory data modules
+// (src/lib/data/*) into seed scripts.
+//
+// The design is normalized and competition-agnostic: every table hangs off
+// Competition/Season so future tournaments (Europa League, World Cup, domestic
+// leagues) plug in without schema changes.
+// ---------------------------------------------------------------------------
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- Reference / catalog ----------
+
+model Competition {
+  id        String   @id @default(cuid())
+  name      String   @unique // "UEFA Champions League"
+  shortName String
+  format    String   @default("league-phase") // league-phase | group-stage | knockout
+  createdAt DateTime @default(now())
+  seasons   Season[]
+}
+
+model Country {
+  id     String  @id @default(cuid())
+  name   String  @unique
+  code   String? // ISO
+  clubs  Club[]
+  players Player[]
+}
+
+model Club {
+  id           String        @id @default(cuid())
+  name         String        @unique
+  countryId    String
+  country      Country       @relation(fields: [countryId], references: [id])
+  league       String
+  coeff        Int           @default(60) // European strength 0-100
+  primaryColor String
+  secondColor  String
+  seasonSquads SeasonSquad[]
+  history      ClubHistory[]
+
+  @@index([league])
+  @@index([coeff])
+}
+
+model Season {
+  id            String        @id @default(cuid())
+  competitionId String
+  competition   Competition   @relation(fields: [competitionId], references: [id])
+  year          Int // year the final was played (2011 = 2010-11)
+  label         String // "2010-11"
+  finalVenue    String?
+  squads        SeasonSquad[]
+
+  @@unique([competitionId, year])
+  @@index([year])
+}
+
+model Manager {
+  id       String        @id @default(cuid())
+  name     String        @unique
+  nation   String?
+  squads   SeasonSquad[]
+}
+
+// A club's participation in one competition-season = one drafted "card set".
+model SeasonSquad {
+  id        String        @id @default(cuid())
+  clubId    String
+  club      Club          @relation(fields: [clubId], references: [id])
+  seasonId  String
+  season    Season        @relation(fields: [seasonId], references: [id])
+  managerId String?
+  manager   Manager?      @relation(fields: [managerId], references: [id])
+  stadium   String?
+  honor     String? // "Champions", "Runners-up", ...
+  ratings   PlayerRating[]
+
+  @@unique([clubId, seasonId])
+}
+
+model Player {
+  id           String         @id @default(cuid())
+  name         String
+  nationId     String
+  nation       Country        @relation(fields: [nationId], references: [id])
+  height       Int? // cm
+  weight       Int? // kg
+  foot         String         @default("Right")
+  bodyType     String?
+  ratings      PlayerRating[]
+
+  @@index([name])
+}
+
+// A player's rating FOR a specific squad-season (the core of season-accuracy).
+model PlayerRating {
+  id            String      @id @default(cuid())
+  playerId      String
+  player        Player      @relation(fields: [playerId], references: [id])
+  seasonSquadId String
+  seasonSquad   SeasonSquad @relation(fields: [seasonSquadId], references: [id])
+  position      String
+  altPositions  String[] // e.g. ["ST","LW"]
+  overall       Int
+  pace          Int
+  shooting      Int
+  passing       Int
+  dribbling     Int
+  defending     Int
+  physical      Int
+  goals         Int         @default(0)
+  assists       Int         @default(0)
+  appearances   Int         @default(0)
+  cleanSheets   Int?
+  traits        String[]
+  skillMoves    Int         @default(3)
+  weakFoot      Int         @default(3)
+  age           Int?
+
+  @@unique([playerId, seasonSquadId])
+  @@index([overall])
+  @@index([position])
+}
+
+model ChemistryLink {
+  id       String @id @default(cuid())
+  label    String // "MSN", "BBC"
+  playerAId String
+  playerBId String
+  bonus    Int    @default(3)
+
+  @@index([playerAId])
+  @@index([playerBId])
+}
+
+model ClubHistory {
+  id      String @id @default(cuid())
+  clubId  String
+  club    Club   @relation(fields: [clubId], references: [id])
+  year    Int
+  event   String // "Won the European Cup", "Reached the final"
+}
+
+// ---------- Users & gameplay ----------
+
+model User {
+  id            String        @id @default(cuid())
+  email         String?       @unique
+  username      String        @unique
+  provider      String        @default("guest") // guest | google | discord | email
+  role          String        @default("player") // player | moderator | admin
+  createdAt     DateTime      @default(now())
+  trophies      Int           @default(0)
+  drafts        DraftRun[]
+  achievements  UserAchievement[]
+  leaderboards  LeaderboardEntry[]
+}
+
+model DraftRun {
+  id          String            @id @default(cuid())
+  userId      String
+  user        User              @relation(fields: [userId], references: [id])
+  mode        String // classic | expert
+  formation   String
+  overall     Int
+  chemistry   Int
+  result      String            @default("league") // champion | final | semi | ...
+  goals       Int               @default(0)
+  dailyKey    String? // set when it was a daily challenge
+  createdAt   DateTime          @default(now())
+  picks       DraftPick[]
+  tournament  TournamentResult?
+
+  @@index([userId])
+  @@index([dailyKey])
+}
+
+model DraftPick {
+  id             String   @id @default(cuid())
+  draftRunId     String
+  draftRun       DraftRun @relation(fields: [draftRunId], references: [id])
+  slotIndex      Int
+  playerRatingId String
+  playerName     String
+  club           String
+  seasonYear     Int
+  position       String
+  overall        Int
+}
+
+model TournamentResult {
+  id          String   @id @default(cuid())
+  draftRunId  String   @unique
+  draftRun    DraftRun @relation(fields: [draftRunId], references: [id])
+  finalPos    Int // league-phase finishing position
+  champion    Boolean  @default(false)
+  goldenBall  String?
+  goldenBoot  String?
+  goldenGlove String?
+  standings   Json // frozen final table
+  knockouts   Json // frozen bracket
+}
+
+model Achievement {
+  id          String            @id // matches src/lib/achievements.ts ids
+  name        String
+  description String
+  tier        String
+  users       UserAchievement[]
+}
+
+model UserAchievement {
+  id            String      @id @default(cuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id])
+  achievementId String
+  achievement   Achievement @relation(fields: [achievementId], references: [id])
+  unlockedAt    DateTime    @default(now())
+
+  @@unique([userId, achievementId])
+}
+
+model Leaderboard {
+  id      String             @id @default(cuid())
+  key     String             @unique // "daily-2026-07-05", "highest-chemistry", "most-titles"
+  scope   String             @default("global") // global | daily | weekly | friends
+  entries LeaderboardEntry[]
+}
+
+model LeaderboardEntry {
+  id            String      @id @default(cuid())
+  leaderboardId String
+  leaderboard   Leaderboard @relation(fields: [leaderboardId], references: [id])
+  userId        String
+  user          User        @relation(fields: [userId], references: [id])
+  value         Int
+  detail        Json?
+  createdAt     DateTime    @default(now())
+
+  @@unique([leaderboardId, userId])
+  @@index([leaderboardId, value])
+}
+
+// ---------- Multiplayer (private lobbies) ----------
+
+model Lobby {
+  id        String   @id @default(cuid())
+  code      String   @unique // invite code
+  hostId    String
+  mode      String   @default("draft") // draft | tournament
+  status    String   @default("open") // open | drafting | playing | done
+  config    Json // formation, mode, seed
+  createdAt DateTime @default(now())
+  members   LobbyMember[]
+}
+
+model LobbyMember {
+  id       String @id @default(cuid())
+  lobbyId  String
+  lobby    Lobby  @relation(fields: [lobbyId], references: [id])
+  userId   String
+  ready    Boolean @default(false)
+  squad    Json?
+
+  @@unique([lobbyId, userId])
+}

@@ -1,0 +1,113 @@
+import type { Formation, Position, PositionGroup } from "./types";
+
+export const POSITION_GROUP: Record<Position, PositionGroup> = {
+  GK: "GK",
+  RB: "DEF", CB: "DEF", LB: "DEF", RWB: "DEF", LWB: "DEF",
+  CDM: "MID", CM: "MID", CAM: "MID", RM: "MID", LM: "MID",
+  RW: "ATT", LW: "ATT", CF: "ATT", ST: "ATT",
+};
+
+/** Positions considered interchangeable without a chemistry/rating penalty. */
+export const POSITION_FAMILY: Record<Position, Position[]> = {
+  GK: ["GK"],
+  RB: ["RB", "RWB"], RWB: ["RWB", "RB", "RM"],
+  LB: ["LB", "LWB"], LWB: ["LWB", "LB", "LM"],
+  CB: ["CB"],
+  CDM: ["CDM", "CM"], CM: ["CM", "CDM", "CAM"], CAM: ["CAM", "CM", "CF"],
+  RM: ["RM", "RW", "RWB"], LM: ["LM", "LW", "LWB"],
+  RW: ["RW", "RM"], LW: ["LW", "LM"],
+  CF: ["CF", "ST", "CAM"], ST: ["ST", "CF"],
+};
+
+// x: 0 (left) → 100 (right); y: 0 (own goal) → 100 (attack)
+export const FORMATIONS: Formation[] = [
+  {
+    name: "4-3-3",
+    slots: [
+      { pos: "GK", x: 50, y: 5 },
+      { pos: "RB", x: 85, y: 24 }, { pos: "CB", x: 63, y: 19 }, { pos: "CB", x: 37, y: 19 }, { pos: "LB", x: 15, y: 24 },
+      { pos: "CDM", x: 50, y: 40 }, { pos: "CM", x: 70, y: 53 }, { pos: "CM", x: 30, y: 53 },
+      { pos: "RW", x: 82, y: 76 }, { pos: "ST", x: 50, y: 85 }, { pos: "LW", x: 18, y: 76 },
+    ],
+  },
+  {
+    name: "4-2-3-1",
+    slots: [
+      { pos: "GK", x: 50, y: 5 },
+      { pos: "RB", x: 85, y: 24 }, { pos: "CB", x: 63, y: 19 }, { pos: "CB", x: 37, y: 19 }, { pos: "LB", x: 15, y: 24 },
+      { pos: "CDM", x: 62, y: 40 }, { pos: "CDM", x: 38, y: 40 },
+      { pos: "RM", x: 82, y: 62 }, { pos: "CAM", x: 50, y: 63 }, { pos: "LM", x: 18, y: 62 },
+      { pos: "ST", x: 50, y: 86 },
+    ],
+  },
+  {
+    name: "4-4-2",
+    slots: [
+      { pos: "GK", x: 50, y: 5 },
+      { pos: "RB", x: 85, y: 24 }, { pos: "CB", x: 63, y: 19 }, { pos: "CB", x: 37, y: 19 }, { pos: "LB", x: 15, y: 24 },
+      { pos: "RM", x: 84, y: 52 }, { pos: "CM", x: 62, y: 48 }, { pos: "CM", x: 38, y: 48 }, { pos: "LM", x: 16, y: 52 },
+      { pos: "ST", x: 62, y: 82 }, { pos: "ST", x: 38, y: 82 },
+    ],
+  },
+  {
+    name: "4-1-2-1-2",
+    slots: [
+      { pos: "GK", x: 50, y: 5 },
+      { pos: "RB", x: 85, y: 24 }, { pos: "CB", x: 63, y: 19 }, { pos: "CB", x: 37, y: 19 }, { pos: "LB", x: 15, y: 24 },
+      { pos: "CDM", x: 50, y: 38 },
+      { pos: "CM", x: 70, y: 52 }, { pos: "CM", x: 30, y: 52 },
+      { pos: "CAM", x: 50, y: 66 },
+      { pos: "ST", x: 62, y: 84 }, { pos: "ST", x: 38, y: 84 },
+    ],
+  },
+  {
+    name: "3-5-2",
+    slots: [
+      { pos: "GK", x: 50, y: 5 },
+      { pos: "CB", x: 72, y: 19 }, { pos: "CB", x: 50, y: 16 }, { pos: "CB", x: 28, y: 19 },
+      { pos: "RWB", x: 88, y: 46 }, { pos: "LWB", x: 12, y: 46 },
+      { pos: "CM", x: 64, y: 48 }, { pos: "CDM", x: 50, y: 38 }, { pos: "CM", x: 36, y: 48 },
+      { pos: "ST", x: 62, y: 82 }, { pos: "ST", x: 38, y: 82 },
+    ],
+  },
+  {
+    name: "3-4-3",
+    slots: [
+      { pos: "GK", x: 50, y: 5 },
+      { pos: "CB", x: 72, y: 19 }, { pos: "CB", x: 50, y: 16 }, { pos: "CB", x: 28, y: 19 },
+      { pos: "RM", x: 86, y: 50 }, { pos: "CM", x: 62, y: 44 }, { pos: "CM", x: 38, y: 44 }, { pos: "LM", x: 14, y: 50 },
+      { pos: "RW", x: 78, y: 78 }, { pos: "ST", x: 50, y: 86 }, { pos: "LW", x: 22, y: 78 },
+    ],
+  },
+  {
+    name: "5-3-2",
+    slots: [
+      { pos: "GK", x: 50, y: 5 },
+      { pos: "RWB", x: 90, y: 32 }, { pos: "CB", x: 70, y: 18 }, { pos: "CB", x: 50, y: 15 }, { pos: "CB", x: 30, y: 18 }, { pos: "LWB", x: 10, y: 32 },
+      { pos: "CM", x: 66, y: 52 }, { pos: "CDM", x: 50, y: 44 }, { pos: "CM", x: 34, y: 52 },
+      { pos: "ST", x: 62, y: 82 }, { pos: "ST", x: 38, y: 82 },
+    ],
+  },
+  {
+    name: "5-4-1",
+    slots: [
+      { pos: "GK", x: 50, y: 5 },
+      { pos: "RWB", x: 90, y: 32 }, { pos: "CB", x: 70, y: 18 }, { pos: "CB", x: 50, y: 15 }, { pos: "CB", x: 30, y: 18 }, { pos: "LWB", x: 10, y: 32 },
+      { pos: "RM", x: 82, y: 56 }, { pos: "CM", x: 60, y: 50 }, { pos: "CM", x: 40, y: 50 }, { pos: "LM", x: 18, y: 56 },
+      { pos: "ST", x: 50, y: 84 },
+    ],
+  },
+];
+
+export function getFormation(name: string): Formation {
+  return FORMATIONS.find((f) => f.name === name) ?? FORMATIONS[0];
+}
+
+/** How well a player with `playerPos` (+alts) fits a formation slot. 1 = natural, 0.9 = family, 0.75 = same group, 0.55 = off. */
+export function positionFit(playerPos: Position, alts: Position[], slotPos: Position): number {
+  if (playerPos === slotPos || alts.includes(slotPos)) return 1;
+  if (POSITION_FAMILY[playerPos].includes(slotPos) || alts.some((a) => POSITION_FAMILY[a]?.includes(slotPos))) return 0.9;
+  if (POSITION_GROUP[playerPos] === POSITION_GROUP[slotPos]) return 0.75;
+  if (playerPos === "GK" || slotPos === "GK") return 0.2;
+  return 0.55;
+}

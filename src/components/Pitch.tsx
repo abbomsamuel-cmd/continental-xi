@@ -101,41 +101,41 @@ export function Pitch({ formation, players, activeSlot, onSlotClick, showChem = 
             >
               {player ? (
                 <div
-                  className={`relative w-[52px] overflow-hidden rounded-[10px] ${active ? "ring-2 ring-gold" : ""}`}
+                  className={`relative w-[62px] overflow-hidden rounded-xl ${active ? "ring-2 ring-gold" : ""}`}
                   style={{
-                    boxShadow: active ? "0 0 16px rgba(212,175,55,0.6)" : "0 5px 14px rgba(0,0,0,0.5)",
+                    boxShadow: active ? "0 0 18px rgba(212,175,55,0.65)" : "0 6px 16px rgba(0,0,0,0.55)",
                     background: `linear-gradient(160deg, ${player.colors[0]}, ${player.colors[1]})`,
                   }}
                 >
                   <div className="absolute inset-0 bg-black/45" />
-                  <div className="relative px-1 pt-0.5">
-                    <div className="flex items-center justify-between leading-none">
-                      {showRatings ? (
-                        <span className="font-display text-[0.62rem] font-extrabold" style={{ color: ratingColor(player.overall) }}>
-                          {player.overall}
-                        </span>
-                      ) : <span />}
-                      <span className="text-[0.5rem] font-bold uppercase tracking-wide text-cyan">{slot.pos}</span>
-                    </div>
-                    <div className="py-0.5 text-center font-display text-[0.72rem] font-extrabold leading-none text-white drop-shadow">
-                      {initials(player.name)}
-                    </div>
+                  {/* top row: rating (left) + chem (right) — separate corners, no overlap */}
+                  <div className="relative flex items-start justify-between px-1.5 pt-1 leading-none">
+                    {showRatings ? (
+                      <span className="font-display text-[0.72rem] font-extrabold" style={{ color: ratingColor(player.overall) }}>
+                        {player.overall}
+                      </span>
+                    ) : <span />}
+                    {chem && (
+                      <span
+                        className="grid h-3.5 w-3.5 place-items-center rounded-full text-[0.46rem] font-extrabold text-[#041022]"
+                        style={{ background: LINK_COLORS[Math.min(3, Math.max(1, Math.round(chem.perSlot[i] / 3.4))) as 1 | 2 | 3] }}
+                      >
+                        {chem.perSlot[i]}
+                      </span>
+                    )}
                   </div>
-                  <div className="relative truncate bg-black/55 px-1 py-[1px] text-center text-[0.5rem] font-semibold text-white/95">
-                    {surname(player.name)}
+                  <div className="relative pb-1 pt-0.5 text-center font-display text-[0.9rem] font-extrabold leading-none text-white drop-shadow">
+                    {initials(player.name)}
                   </div>
-                  {chem && (
-                    <span
-                      className="absolute right-0 top-0 grid h-3 w-3 place-items-center rounded-bl-[6px] text-[0.42rem] font-bold text-[#041022]"
-                      style={{ background: LINK_COLORS[Math.min(3, Math.max(1, Math.round(chem.perSlot[i] / 3.4))) as 1 | 2 | 3] }}
-                    >
-                      {chem.perSlot[i]}
-                    </span>
-                  )}
+                  {/* banner: position · surname */}
+                  <div className="relative flex items-center justify-center gap-1 truncate bg-black/60 px-1 py-[2px] text-[0.5rem]">
+                    <span className="font-bold uppercase tracking-wide text-cyan">{slot.pos}</span>
+                    <span className="truncate font-semibold text-white/95">{surname(player.name)}</span>
+                  </div>
                 </div>
               ) : (
                 <div
-                  className={`grid h-11 w-[52px] place-items-center rounded-[10px] border border-dashed text-[0.55rem] font-bold ${
+                  className={`grid h-[52px] w-[62px] place-items-center rounded-xl border border-dashed text-[0.6rem] font-bold ${
                     active ? "border-gold text-gold" : "border-white/35 text-white/55"
                   }`}
                   style={{ background: "rgba(6,18,50,0.55)" }}

@@ -27,11 +27,11 @@ export const POSITION_FAMILY: Record<Position, Position[]> = {
  */
 export const SLOT_ELIGIBLE: Record<Position, Position[]> = {
   GK: ["GK"],
-  // Center-backs stay center-backs. Full-backs interchange with their own-side
-  // wing-back only — never a winger or forward at a strict full-back slot.
-  CB: ["CB"],
-  RB: ["RB", "RWB"],
-  LB: ["LB", "LWB"],
+  // Defenders interchange within the back line (full-backs can cover CB), but a
+  // winger or forward can NEVER play full-back or CB.
+  CB: ["CB", "RB", "LB"],
+  RB: ["RB", "RWB", "CB"],
+  LB: ["LB", "LWB", "CB"],
   // Wing-back is an attacking role, so it can be covered by the same-side
   // wide midfielder / winger too.
   RWB: ["RWB", "RB", "RM", "RW"],

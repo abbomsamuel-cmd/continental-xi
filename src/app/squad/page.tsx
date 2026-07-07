@@ -109,18 +109,25 @@ export default function SquadPage() {
             <Stat label="Set Pieces" value={analysis.setPieces} />
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="glass rounded-2xl p-4">
-              <h3 className="mb-2 text-sm font-bold text-green">✓ Strengths</h3>
-              <ul className="space-y-1.5 text-sm text-white/90">
-                {analysis.strengths.map((s, i) => <li key={i}>• {s}</li>)}
-              </ul>
-            </div>
-            <div className="glass rounded-2xl p-4">
-              <h3 className="mb-2 text-sm font-bold text-danger">△ Weaknesses</h3>
-              <ul className="space-y-1.5 text-sm text-white/90">
-                {analysis.weaknesses.map((s, i) => <li key={i}>• {s}</li>)}
-              </ul>
+          {/* Star players showcase */}
+          <div className="cl-panel cl-streaks rounded-2xl p-4">
+            <h3 className="mb-3 cl-heading text-[0.62rem] tracking-[0.25em] text-cyan">Star Players</h3>
+            <div className="grid grid-cols-3 gap-3">
+              {(xi.filter(Boolean) as NonNullable<typeof xi[number]>[])
+                .slice()
+                .sort((a, b) => b.overall - a.overall)
+                .slice(0, 3)
+                .map((p) => (
+                  <div key={p.id} className="flex flex-col items-center rounded-xl bg-black/25 p-2 text-center">
+                    <span className="grid h-11 w-11 place-items-center rounded-xl font-display text-sm font-extrabold text-white shadow"
+                      style={{ background: `linear-gradient(150deg, ${p.colors[0]}, ${p.colors[1]})` }}>
+                      {p.name.split(" ").map((w) => w[0]).slice(0, 2).join("")}
+                    </span>
+                    <span className="mt-1.5 font-display text-lg font-extrabold text-gradient-gold leading-none">{p.overall}</span>
+                    <span className="mt-0.5 truncate text-[0.72rem] font-bold text-white">{p.name.split(" ").pop()}</span>
+                    <span className="truncate text-[0.6rem] text-cyan">{p.club} {p.season}</span>
+                  </div>
+                ))}
             </div>
           </div>
 

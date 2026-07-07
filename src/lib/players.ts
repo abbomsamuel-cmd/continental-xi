@@ -1,12 +1,13 @@
 import type { Attributes, Player, Position, RawSquad } from "./types";
 import { SQUADS_CLASSIC } from "./data/squads-classic";
 import { SQUADS_MODERN } from "./data/squads-modern";
+import { SQUADS_EXTRA } from "./data/squads-extra";
 import { SQUAD_DEPTH } from "./data/squads-depth";
 import { SQUAD_DEPTH_2 } from "./data/squads-depth2";
 import { POSITION_GROUP } from "./formations";
 import { hashString, mulberry32 } from "./rng";
 
-export const SQUADS: RawSquad[] = [...SQUADS_CLASSIC, ...SQUADS_MODERN];
+export const SQUADS: RawSquad[] = [...SQUADS_CLASSIC, ...SQUADS_MODERN, ...SQUADS_EXTRA];
 
 // Attribute profile per position: relative weight of each attribute vs overall.
 const PROFILES: Record<string, [number, number, number, number, number, number]> = {

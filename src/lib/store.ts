@@ -34,15 +34,10 @@ interface DraftSetup {
   daily?: string;
 }
 
-export interface RerollState {
-  team: number;
-  season: number;
-}
-
-const REROLLS_FOR: Record<Difficulty, RerollState> = {
-  easy: { team: 3, season: 3 },
-  medium: { team: 1, season: 1 },
-  hard: { team: 0, season: 0 },
+const REROLLS_FOR: Record<Difficulty, number> = {
+  easy: 3,
+  medium: 1,
+  hard: 0,
 };
 
 interface StoreState {
@@ -58,7 +53,7 @@ interface StoreState {
   draftComplete: boolean;
   lastUnlocked: string[];
   rngSeed: string | null;
-  rerolls: RerollState;
+  rerolls: number;
   rerollNonce: number;
 
   // tournament
@@ -70,8 +65,7 @@ interface StoreState {
   toggleSound: () => void;
   startDraft: (mode: GameMode, formationName: string, difficulty: Difficulty, daily?: string) => void;
   choosePlayer: (playerId: string) => void;
-  rerollTeam: () => void;
-  rerollSeason: () => void;
+  reroll: () => void;
   swapSlots: (a: number, b: number) => boolean;
   getOfferedPlayers: () => Player[];
   getXI: () => (Player | null)[];
@@ -128,7 +122,7 @@ export const useGame = create<StoreState>()(
       draftComplete: false,
       lastUnlocked: [],
       rngSeed: null,
-      rerolls: { team: 0, season: 0 },
+      rerolls: 0,
       rerollNonce: 0,
       tournament: null,
 
@@ -162,21 +156,21 @@ export const useGame = create<StoreState>()(
           tournament: null,
           rngSeed: seed,
           lastUnlocked: [],
-          rerolls: { ...REROLLS_FOR[difficulty] },
+          rerolls: REROLLS_FOR[difficulty],
           rerollNonce: 0,
         });
       },
 
-      rerollTeam: () => {
+      // Single re-roll: draws a genuinely different team (club) for this round.
+      reroll: () => {
         const { rounds, currentRound, formation, rngSeed, rerolls, rerollNonce } = get();
-        if (!formation || !rngSeed || rerolls.team <= 0) return;
+        if (!formation || !rngSeed || rerolls <= 0) return;
         const round = rounds[currentRound];
         const pos = formation.slots[round.slotIndex].pos;
         const usedSquads = rounds.slice(0, currentRound).map((r) => r.squadIndex).filter((i) => i >= 0);
         const currentClub = SQUAD_META[round.squadIndex].club;
         const recent = rounds.slice(Math.max(0, currentRound - 4), currentRound).map((r) => r.squadIndex).filter((i) => i >= 0);
-        const rng = seededRng(`${rngSeed}-rrt-${currentRound}-${rerolls.team}-${Math.random()}`);
-        // exclude the current squad AND its club → a genuinely different team
+        const rng = seededRng(`${rngSeed}-rr-${currentRound}-${rerolls}-${Math.random()}`);
         const newIdx = pickDraftSquad(
           rng, pos, [...usedSquads, round.squadIndex], currentClub,
           recent.map((i) => SQUAD_META[i].club), recent.map((i) => SQUAD_META[i].league),
@@ -184,26 +178,7 @@ export const useGame = create<StoreState>()(
         const next = [...rounds];
         next[currentRound] = { ...round, squadIndex: newIdx };
         play("flip");
-        set({ rounds: next, rerolls: { ...rerolls, team: rerolls.team - 1 }, rerollNonce: rerollNonce + 1 });
-      },
-
-      rerollSeason: () => {
-        const { rounds, currentRound, formation, rngSeed, rerolls, rerollNonce } = get();
-        if (!formation || !rngSeed || rerolls.season <= 0) return;
-        const round = rounds[currentRound];
-        const pos = formation.slots[round.slotIndex].pos;
-        const usedSquads = rounds.slice(0, currentRound).map((r) => r.squadIndex).filter((i) => i >= 0);
-        const recent = rounds.slice(Math.max(0, currentRound - 4), currentRound).map((r) => r.squadIndex).filter((i) => i >= 0);
-        const rng = seededRng(`${rngSeed}-rrs-${currentRound}-${rerolls.season}-${Math.random()}`);
-        // a fresh draw excluding only the current squad (a different season/team)
-        const newIdx = pickDraftSquad(
-          rng, pos, [...usedSquads, round.squadIndex], null,
-          recent.map((i) => SQUAD_META[i].club), recent.map((i) => SQUAD_META[i].league),
-        );
-        const next = [...rounds];
-        next[currentRound] = { ...round, squadIndex: newIdx };
-        play("flip");
-        set({ rounds: next, rerolls: { ...rerolls, season: rerolls.season - 1 }, rerollNonce: rerollNonce + 1 });
+        set({ rounds: next, rerolls: rerolls - 1, rerollNonce: rerollNonce + 1 });
       },
 
       // Swap the players in two formation slots — only if each can legally play
@@ -398,7 +373,7 @@ export const useGame = create<StoreState>()(
       resetDraft: () => set({
         setup: null, formation: null, rounds: [], currentRound: 0, picks: {},
         draftComplete: false, tournament: null, rngSeed: null, lastUnlocked: [],
-        rerolls: { team: 0, season: 0 }, rerollNonce: 0,
+        rerolls: 0, rerollNonce: 0,
       }),
 
       clearUnlocked: () => set({ lastUnlocked: [] }),

@@ -19,8 +19,7 @@ export function DraftRoundView() {
   const rerollNonce = useGame((s) => s.rerollNonce);
   const rerolls = useGame((s) => s.rerolls);
   const choosePlayer = useGame((s) => s.choosePlayer);
-  const rerollTeam = useGame((s) => s.rerollTeam);
-  const rerollSeason = useGame((s) => s.rerollSeason);
+  const reroll = useGame((s) => s.reroll);
   const resetDraft = useGame((s) => s.resetDraft);
   const getOffered = useGame((s) => s.getOfferedPlayers);
   const getXI = useGame((s) => s.getXI);
@@ -85,23 +84,15 @@ export function DraftRoundView() {
             </div>
           ) : (
             <>
-              {/* reroll controls */}
+              {/* reroll control */}
               <div className="mb-4 flex flex-wrap items-center justify-center gap-2">
                 <button
                   className="btn btn-ghost text-[0.68rem] disabled:opacity-40"
-                  disabled={rerolls.team <= 0}
-                  onClick={rerollTeam}
-                  title="Draw a different club"
+                  disabled={rerolls <= 0}
+                  onClick={reroll}
+                  title="Draw a different team for this round"
                 >
-                  🔄 Re-roll Team {rerolls.team > 0 ? `(${rerolls.team})` : ""}
-                </button>
-                <button
-                  className="btn btn-ghost text-[0.68rem] disabled:opacity-40"
-                  disabled={rerolls.season <= 0}
-                  onClick={rerollSeason}
-                  title="Draw a different squad / season"
-                >
-                  📅 Re-roll Season {rerolls.season > 0 ? `(${rerolls.season})` : ""}
+                  🔄 Re-roll Team {rerolls > 0 ? `(${rerolls} left)` : ""}
                 </button>
                 {setup.difficulty === "hard" && (
                   <span className="chip bg-danger/15 text-danger">🔥 Hard · no re-rolls</span>

@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
-import type { TournamentState } from "@/lib/types";
-import { USER_TEAM_ID } from "@/lib/engine/tournament";
+import type { MatchResult, TournamentState } from "@/lib/types";
+import { USER_TEAM_ID, teamLabel } from "@/lib/engine/tournament";
 import { CrestLogo } from "@/components/CrestLogo";
 import { play } from "@/lib/sound";
 
@@ -44,10 +44,11 @@ function frac(n: number): number {
 interface Props {
   tournament: TournamentState;
   teamName: string;
+  match?: MatchResult;
   onContinue: () => void;
 }
 
-export function TrophyCelebration({ tournament, teamName, onContinue }: Props) {
+export function TrophyCelebration({ tournament, teamName, match, onContinue }: Props) {
   const won = tournament.champion === USER_TEAM_ID;
   const awards = tournament.awards;
   const reachedFinal = tournament.exit?.stage === "Final";
@@ -150,8 +151,36 @@ export function TrophyCelebration({ tournament, teamName, onContinue }: Props) {
           </motion.div>
         )}
 
+        {!won && match && (() => {
+          const home = tournament.teams[match.home];
+          const away = tournament.teams[match.away];
+          const s = match.stats;
+          return (
+            <motion.div
+              initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1 }}
+              className="cl-panel mx-auto mt-6 max-w-sm rounded-2xl p-4"
+            >
+              <div className="cl-heading mb-2 text-[0.55rem] tracking-[0.25em] text-cyan">Your Final Match</div>
+              <div className="flex items-center justify-between text-sm font-bold">
+                <span className="flex-1 truncate text-left">{teamLabel(home)}</span>
+                <span className="font-display text-2xl">{match.homeGoals}<span className="mx-1 text-white/40">-</span>{match.awayGoals}</span>
+                <span className="flex-1 truncate text-right">{teamLabel(away)}</span>
+              </div>
+              <div className="mt-3 grid grid-cols-3 gap-2 text-center text-[0.6rem] text-muted">
+                {[["Poss", `${s.possession[0]}%`, `${s.possession[1]}%`], ["Shots", s.shots[0], s.shots[1]], ["xG", s.xg[0], s.xg[1]]].map(([label, a, b]) => (
+                  <div key={label} className="rounded-lg bg-black/25 p-1.5">
+                    <div className="text-white">{a} · {b}</div>
+                    <div className="uppercase tracking-widest">{label}</div>
+                  </div>
+                ))}
+              </div>
+              {match.motm && <div className="mt-2 text-[0.62rem] text-gold">MOTM · {match.motm}</div>}
+            </motion.div>
+          );
+        })()}
+
         <motion.button
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.15 }}
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.2 }}
           className="btn btn-gold mt-8" onClick={onContinue}
         >
           {won ? "Lift the Trophy & Continue" : "Save Result & Continue"}

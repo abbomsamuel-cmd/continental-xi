@@ -36,16 +36,17 @@ export const SLOT_ELIGIBLE: Record<Position, Position[]> = {
   // wide midfielder / winger too.
   RWB: ["RWB", "RB", "RM", "RW"],
   LWB: ["LWB", "LB", "LM", "LW"],
-  // The whole central-midfield trio interchanges freely (CDM↔CM↔CAM).
+  // The central-midfield trio interchanges freely (CDM↔CM↔CAM) — but a winger
+  // or wide midfielder can NEVER play a central slot.
   CDM: ["CDM", "CM", "CAM"],
   CM: ["CM", "CDM", "CAM"],
-  CAM: ["CAM", "CM", "CDM", "CF", "RW", "LW"],
-  // Wide midfielders pair with their winger.
-  RM: ["RM", "RW", "CAM"],
-  LM: ["LM", "LW", "CAM"],
-  // Wingers interchange across the front line but never drop to full-back.
-  RW: ["RW", "RM", "LW", "CAM"],
-  LW: ["LW", "LM", "RW", "CAM"],
+  CAM: ["CAM", "CM", "CDM", "CF"],
+  // Wide midfielders and wingers are WIDE only — they play their side (and the
+  // opposite wing), never central midfield.
+  RM: ["RM", "RW"],
+  LM: ["LM", "LW"],
+  RW: ["RW", "RM", "LW"],
+  LW: ["LW", "LM", "RW"],
   CF: ["CF", "ST", "CAM"],
   ST: ["ST", "CF", "CAM"],
 };

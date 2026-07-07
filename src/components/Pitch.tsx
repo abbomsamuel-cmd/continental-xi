@@ -9,7 +9,12 @@ function initials(name: string): string {
   return ((parts[0]?.[0] ?? "") + (parts[parts.length - 1]?.[0] ?? "")).toUpperCase();
 }
 
-const LINK_COLORS = ["transparent", "rgba(159,179,209,0.4)", "rgba(34,224,255,0.6)", "rgba(212,175,55,0.9)"];
+function surname(name: string): string {
+  return name.split(" ").pop() ?? name;
+}
+
+// FIFA-style chemistry links: green = strong, lime = good, amber = weak.
+const LINK_COLORS = ["transparent", "rgba(255,207,92,0.75)", "rgba(126,217,87,0.8)", "rgba(46,230,166,0.95)"];
 
 interface Props {
   formation: Formation;
@@ -22,9 +27,9 @@ interface Props {
 
 function ratingColor(ovr: number): string {
   if (ovr >= 90) return "#f2d472";
-  if (ovr >= 85) return "#d4af37";
-  if (ovr >= 80) return "#22e0ff";
-  return "#9fb3d1";
+  if (ovr >= 85) return "#ffd86b";
+  if (ovr >= 80) return "#7ff0ff";
+  return "#c8d6f0";
 }
 
 export function Pitch({ formation, players, activeSlot, onSlotClick, showChem = true, showRatings = true }: Props) {
@@ -32,21 +37,22 @@ export function Pitch({ formation, players, activeSlot, onSlotClick, showChem = 
 
   return (
     <div className="relative mx-auto aspect-[3/4] w-full max-w-md">
-      {/* pitch */}
-      <div className="absolute inset-0 overflow-hidden rounded-2xl gold-border"
+      {/* deep-blue broadcast pitch */}
+      <div
+        className="absolute inset-0 overflow-hidden rounded-2xl"
         style={{
           background:
-            "repeating-linear-gradient(0deg, #0a3d1f 0px, #0a3d1f 40px, #0c471f 40px, #0c471f 80px)",
+            "radial-gradient(120% 80% at 50% -10%, rgba(41,98,255,0.30), transparent 55%), repeating-linear-gradient(0deg, #071747 0px, #071747 42px, #0a1d55 42px, #0a1d55 84px)",
+          border: "1px solid rgba(120,160,255,0.25)",
         }}
       >
-        <div className="absolute inset-0 opacity-90"
-          style={{ background: "radial-gradient(120% 80% at 50% 0%, rgba(34,224,255,0.12), transparent 55%)" }} />
         {/* pitch markings */}
         <svg viewBox="0 0 100 133" className="absolute inset-0 h-full w-full" preserveAspectRatio="none">
-          <g fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth="0.4">
+          <g fill="none" stroke="rgba(180,205,255,0.30)" strokeWidth="0.4">
             <rect x="4" y="4" width="92" height="125" />
             <line x1="4" y1="66.5" x2="96" y2="66.5" />
             <circle cx="50" cy="66.5" r="11" />
+            <circle cx="50" cy="66.5" r="0.8" fill="rgba(180,205,255,0.4)" />
             <rect x="28" y="4" width="44" height="20" />
             <rect x="28" y="109" width="44" height="20" />
             <rect x="40" y="4" width="20" height="8" />
@@ -65,7 +71,8 @@ export function Pitch({ formation, players, activeSlot, onSlotClick, showChem = 
                   key={i}
                   x1={a.x} y1={133 - a.y * 1.33} x2={b.x} y2={133 - b.y * 1.33}
                   stroke={LINK_COLORS[l.strength]}
-                  strokeWidth={l.strength * 0.35}
+                  strokeWidth={0.35 + l.strength * 0.28}
+                  strokeLinecap="round"
                   initial={{ pathLength: 0, opacity: 0 }}
                   animate={{ pathLength: 1, opacity: 1 }}
                   transition={{ duration: 0.6, delay: i * 0.03 }}
@@ -76,7 +83,7 @@ export function Pitch({ formation, players, activeSlot, onSlotClick, showChem = 
         )}
       </div>
 
-      {/* player tokens */}
+      {/* player cards */}
       {formation.slots.map((slot, i) => {
         const player = players[i];
         const active = activeSlot === i;
@@ -84,54 +91,58 @@ export function Pitch({ formation, players, activeSlot, onSlotClick, showChem = 
           <button
             key={i}
             onClick={() => onSlotClick?.(i)}
-            className="absolute -translate-x-1/2 -translate-y-1/2 focus:outline-none"
+            className="absolute z-10 -translate-x-1/2 -translate-y-1/2 focus:outline-none"
             style={{ left: `${slot.x}%`, top: `${100 - slot.y}%` }}
           >
             <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ type: "spring", stiffness: 200, damping: 15, delay: i * 0.04 }}
-              className={`relative grid place-items-center rounded-full text-center transition-all ${
-                active ? "ring-2 ring-gold" : ""
-              }`}
+              initial={{ scale: 0, y: 8 }}
+              animate={{ scale: 1, y: 0 }}
+              transition={{ type: "spring", stiffness: 200, damping: 16, delay: i * 0.04 }}
             >
               {player ? (
                 <div
-                  className="grid h-11 w-11 place-items-center rounded-full text-[0.62rem] font-extrabold shadow-lg sm:h-12 sm:w-12"
+                  className={`relative w-[52px] overflow-hidden rounded-[10px] ${active ? "ring-2 ring-gold" : ""}`}
                   style={{
-                    background: `linear-gradient(150deg, ${player.colors[0]}, ${player.colors[1]})`,
-                    color: "#fff",
-                    boxShadow: active ? "0 0 18px rgba(212,175,55,0.6)" : "0 4px 12px rgba(0,0,0,0.5)",
+                    boxShadow: active ? "0 0 16px rgba(212,175,55,0.6)" : "0 5px 14px rgba(0,0,0,0.5)",
+                    background: `linear-gradient(160deg, ${player.colors[0]}, ${player.colors[1]})`,
                   }}
                 >
-                  {initials(player.name)}
-                  {showRatings && (
-                    <span
-                      className="absolute -left-1 -top-1 grid h-4 w-4 place-items-center rounded-full bg-[#050e22] text-[0.5rem] font-extrabold"
-                      style={{ color: ratingColor(player.overall) }}
-                    >
-                      {player.overall}
-                    </span>
-                  )}
+                  <div className="absolute inset-0 bg-black/45" />
+                  <div className="relative px-1 pt-0.5">
+                    <div className="flex items-center justify-between leading-none">
+                      {showRatings ? (
+                        <span className="font-display text-[0.62rem] font-extrabold" style={{ color: ratingColor(player.overall) }}>
+                          {player.overall}
+                        </span>
+                      ) : <span />}
+                      <span className="text-[0.5rem] font-bold uppercase tracking-wide text-cyan">{slot.pos}</span>
+                    </div>
+                    <div className="py-0.5 text-center font-display text-[0.72rem] font-extrabold leading-none text-white drop-shadow">
+                      {initials(player.name)}
+                    </div>
+                  </div>
+                  <div className="relative truncate bg-black/55 px-1 py-[1px] text-center text-[0.5rem] font-semibold text-white/95">
+                    {surname(player.name)}
+                  </div>
                   {chem && (
-                    <span className="absolute -bottom-1 -right-1 grid h-4 w-4 place-items-center rounded-full bg-[#050e22] text-[0.5rem] font-bold text-gold">
+                    <span
+                      className="absolute right-0 top-0 grid h-3 w-3 place-items-center rounded-bl-[6px] text-[0.42rem] font-bold text-[#041022]"
+                      style={{ background: LINK_COLORS[Math.min(3, Math.max(1, Math.round(chem.perSlot[i] / 3.4))) as 1 | 2 | 3] }}
+                    >
                       {chem.perSlot[i]}
                     </span>
                   )}
                 </div>
               ) : (
                 <div
-                  className={`grid h-11 w-11 place-items-center rounded-full border-2 border-dashed text-[0.55rem] font-bold sm:h-12 sm:w-12 ${
-                    active ? "border-gold text-gold animate-pulse" : "border-white/30 text-white/50"
+                  className={`grid h-11 w-[52px] place-items-center rounded-[10px] border border-dashed text-[0.55rem] font-bold ${
+                    active ? "border-gold text-gold" : "border-white/35 text-white/55"
                   }`}
-                  style={{ background: "rgba(5,14,34,0.6)" }}
+                  style={{ background: "rgba(6,18,50,0.55)" }}
                 >
                   {slot.pos}
                 </div>
               )}
-              <span className="mt-0.5 block max-w-[64px] truncate text-[0.55rem] font-semibold text-white/90 drop-shadow">
-                {player ? player.name.split(" ").pop() : ""}
-              </span>
             </motion.div>
           </button>
         );

@@ -157,7 +157,34 @@ export function buildSwissSchedule(rng: Rng, ids: string[], teams: Record<string
     }
     if (!failed) return fixtures;
   }
-  throw new Error("Could not build a valid league-phase schedule");
+  // Guaranteed fallback (circle method) — never fails, so the user can always
+  // enter the league phase even if the pot-balanced attempt above didn't gel.
+  return circleSchedule(rng, ids);
+}
+
+/**
+ * Round-robin "circle method": always yields 8 matchdays where every team faces
+ * 8 distinct opponents, with home/away alternated for balance.
+ */
+function circleSchedule(rng: Rng, ids: string[]): Fixture[] {
+  const arr = shuffle(rng, ids);
+  const n = arr.length; // 36
+  const fixtures: Fixture[] = [];
+  const homeCount: Record<string, number> = Object.fromEntries(arr.map((id) => [id, 0]));
+  const rotation = arr.slice();
+  for (let md = 1; md <= 8; md++) {
+    for (let i = 0; i < n / 2; i++) {
+      const a = rotation[i];
+      const b = rotation[n - 1 - i];
+      const home = homeCount[a] <= homeCount[b] ? a : b;
+      const away = home === a ? b : a;
+      homeCount[home]++;
+      fixtures.push({ home, away, matchday: md });
+    }
+    // rotate all but the first element
+    rotation.splice(1, 0, rotation.pop()!);
+  }
+  return fixtures;
 }
 
 // ---- table ----

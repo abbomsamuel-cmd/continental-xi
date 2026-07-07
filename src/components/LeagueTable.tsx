@@ -2,12 +2,20 @@
 
 import { motion } from "framer-motion";
 import type { TableRow, TournamentState } from "@/lib/types";
-import { qualificationBand } from "@/lib/engine/tournament";
+import { qualificationBand, teamLabel } from "@/lib/engine/tournament";
+import { TeamBadge } from "@/components/TeamBadge";
 
 const BAND_STYLES: Record<string, { bar: string; label: string }> = {
   direct: { bar: "#2ee6a6", label: "Round of 16" },
   playoff: { bar: "#ffcf5c", label: "Play-offs" },
   out: { bar: "#ff5a6a", label: "Eliminated" },
+};
+
+// Section headers dropped in at the band boundaries, like the CL standings graphic.
+const BAND_HEADER: Record<number, { text: string; color: string }> = {
+  1: { text: "Straight to Round of 16", color: "#2ee6a6" },
+  9: { text: "Knockout Phase Play-off Places", color: "#ffcf5c" },
+  25: { text: "Elimination Places", color: "#ff5a6a" },
 };
 
 function FormDots({ form }: { form: ("W" | "D" | "L")[] }) {
@@ -33,7 +41,7 @@ export function LeagueTable({ rows, tournament, highlightUser = true }: Props) {
   const prev = tournament.prevPositions;
 
   return (
-    <div className="glass overflow-hidden rounded-2xl">
+    <div className="cl-panel overflow-hidden rounded-2xl">
       <div className="grid grid-cols-[28px_1fr_repeat(5,26px)_38px_40px] items-center gap-1 border-b border-white/10 px-3 py-2 text-[0.58rem] font-bold uppercase tracking-wider text-muted sm:grid-cols-[28px_1fr_repeat(7,28px)_44px_46px_90px] sm:text-[0.6rem]">
         <span>#</span>
         <span>Club</span>
@@ -55,13 +63,21 @@ export function LeagueTable({ rows, tournament, highlightUser = true }: Props) {
           const team = tournament.teams[r.teamId];
           const isUser = team.isUser;
           const moved = prev ? prev[r.teamId] - pos : 0;
+          const header = BAND_HEADER[pos];
           return (
+            <div key={r.teamId}>
+              {header && (
+                <div className="flex items-center gap-2 px-3 pt-2 pb-1">
+                  <span className="h-2 w-2 rounded-full" style={{ background: header.color }} />
+                  <span className="cl-heading text-[0.55rem] tracking-[0.2em]" style={{ color: header.color }}>{header.text}</span>
+                  <span className="h-px flex-1" style={{ background: `${header.color}40` }} />
+                </div>
+              )}
             <motion.div
               layout
-              key={r.teamId}
               transition={{ type: "spring", stiffness: 130, damping: 20 }}
               className={`grid grid-cols-[28px_1fr_repeat(5,26px)_38px_40px] items-center gap-1 border-b border-white/5 px-3 py-2 text-xs sm:grid-cols-[28px_1fr_repeat(7,28px)_44px_46px_90px] ${
-                isUser && highlightUser ? "bg-gold/10" : "hover:bg-white/4"
+                isUser && highlightUser ? "bg-gold/15" : "hover:bg-white/4"
               }`}
             >
               <div className="flex items-center gap-1">
@@ -69,10 +85,9 @@ export function LeagueTable({ rows, tournament, highlightUser = true }: Props) {
                 <span className={`font-bold ${isUser ? "text-gold" : "text-white/70"}`}>{pos}</span>
               </div>
               <div className="flex min-w-0 items-center gap-2">
-                <span className="h-5 w-5 shrink-0 rounded-md"
-                  style={{ background: `linear-gradient(150deg, ${team.colors[0]}, ${team.colors[1]})` }} />
+                <TeamBadge colors={team.colors} code={team.short} size={20} />
                 <span className={`truncate font-semibold ${isUser ? "text-gold" : "text-white/90"}`}>
-                  {team.name}{isUser ? " ★" : ""}
+                  {isUser ? `${team.name} ★` : teamLabel(team)}
                 </span>
                 {moved !== 0 && (
                   <span className={`text-[0.6rem] ${moved > 0 ? "text-green" : "text-danger"}`}>
@@ -90,6 +105,7 @@ export function LeagueTable({ rows, tournament, highlightUser = true }: Props) {
               <span className="text-center font-display font-extrabold text-gold">{r.points}</span>
               <div className="hidden justify-center sm:flex"><FormDots form={r.form} /></div>
             </motion.div>
+            </div>
           );
         })}
       </div>

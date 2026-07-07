@@ -4,9 +4,29 @@ import type {
 import type { Rng } from "../rng";
 import { shuffle, weightedPick } from "../rng";
 import { CLUB_REGISTRY } from "../data/clubs";
+import { SQUADS } from "../players";
 import { simulateMatch, shootout, type EngineTeamContext } from "./match";
 
 export const USER_TEAM_ID = "user";
+
+// Real seasons we hold for each club (so an AI "Real Madrid" can be a specific
+// vintage like 2017). Falls back to a plausible modern year otherwise.
+const CLUB_SEASONS: Record<string, number[]> = (() => {
+  const m: Record<string, number[]> = {};
+  for (const s of SQUADS) (m[s.club] ??= []).push(s.season);
+  return m;
+})();
+
+function seasonForClub(rng: Rng, club: string): number {
+  const known = CLUB_SEASONS[club];
+  if (known && known.length) return known[Math.floor(rng() * known.length)];
+  return 2005 + Math.floor(rng() * 21); // 2005–2025
+}
+
+/** Display label for an opponent, e.g. "Real Madrid 2017". */
+export function teamLabel(team: SimTeam): string {
+  return team.season ? `${team.name} ${team.season}` : team.name;
+}
 
 function shortCode(name: string): string {
   const words = name.split(/\s+/).filter((w) => !["FC", "CF", "de", "La"].includes(w));
@@ -56,6 +76,7 @@ export function createTournament(
       defense: Math.max(40, strength + (rng() - 0.5) * 8),
       isUser: false,
       pot: 0,
+      season: seasonForClub(rng, c.name),
     };
   }
 

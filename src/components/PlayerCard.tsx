@@ -99,20 +99,22 @@ export function PlayerCard({ player, mode, onSelect, selected, compact, index = 
           </div>
         )}
 
-        {/* stats footer */}
+        {/* footer: work rate / skill / weak foot (no goals-assists) */}
         <div className="mt-2 flex items-center justify-between border-t border-white/8 pt-1.5 text-[0.62rem] text-muted">
-          {player.position === "GK" && player.cleanSheets !== undefined ? (
-            <span>🧤 {player.cleanSheets} CS</span>
-          ) : (
-            <span>⚽ {player.goals}G · {player.assists}A</span>
-          )}
           {!expert ? (
-            <span className="flex gap-1.5">
-              <span>SM {player.skillMoves}★</span>
-              <span>WF {player.weakFoot}★</span>
-            </span>
+            <>
+              <span className="truncate">{player.workRates}</span>
+              <span className="flex shrink-0 gap-1.5">
+                <span>SM {player.skillMoves}★</span>
+                <span className="opacity-40">·</span>
+                <span>WF {player.weakFoot}★</span>
+              </span>
+            </>
           ) : (
-            <span className="text-cyan">Expert</span>
+            <>
+              <span className="text-cyan">{player.position}</span>
+              <span className="shrink-0 text-cyan">Expert Mode</span>
+            </>
           )}
         </div>
 

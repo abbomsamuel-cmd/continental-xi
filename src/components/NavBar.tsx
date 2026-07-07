@@ -12,7 +12,6 @@ const LINKS = [
   { href: "/", label: "Home" },
   { href: "/draft", label: "Draft" },
   { href: "/tournament", label: "Tournament" },
-  { href: "/database", label: "Archive" },
   { href: "/daily", label: "Daily" },
   { href: "/stats", label: "Profile" },
 ];

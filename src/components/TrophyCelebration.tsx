@@ -55,18 +55,31 @@ export function TrophyCelebration({ tournament, teamName, onContinue }: Props) {
 
   useEffect(() => { play(won ? "trophy" : "lose"); }, [won]);
 
+  const glow = won ? "rgba(212,175,55,0.55)" : reachedFinal ? "rgba(160,190,255,0.4)" : "rgba(255,90,106,0.35)";
+
   return (
     <motion.div
-      className="fixed inset-0 z-[120] flex items-center justify-center overflow-y-auto bg-[#020814]/95 p-4"
+      className="fixed inset-0 z-[120] flex items-center justify-center overflow-y-auto p-4"
+      style={{ background: `radial-gradient(120% 80% at 50% 30%, ${won ? "#0a1f6e" : "#0a1330"}, #020814 70%)` }}
       initial={{ opacity: 0 }} animate={{ opacity: 1 }}
     >
       {won && <Confetti />}
+      {/* cinematic light burst */}
+      <motion.div
+        aria-hidden
+        className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+        initial={{ scale: 0.2, opacity: 0 }}
+        animate={{ scale: [0.2, 1.4, 1.1], opacity: [0, 0.9, 0.5] }}
+        transition={{ duration: 1.4, delay: 0.15, ease: "easeOut" }}
+        style={{ width: 520, height: 520, borderRadius: "50%", background: `radial-gradient(circle, ${glow}, transparent 60%)`, filter: "blur(8px)" }}
+      />
       <div className="relative z-10 w-full max-w-lg text-center">
         <motion.div
-          initial={{ scale: 0, rotate: -20 }}
-          animate={{ scale: 1, rotate: 0 }}
-          transition={{ type: "spring", stiffness: 120, damping: 12, delay: 0.2 }}
-          className="text-[8rem] leading-none drop-shadow-[0_0_40px_rgba(212,175,55,0.6)]"
+          initial={{ scale: 0, rotate: -25, y: 30 }}
+          animate={{ scale: 1, rotate: 0, y: 0 }}
+          transition={{ type: "spring", stiffness: 110, damping: 11, delay: 0.25 }}
+          className="text-[8.5rem] leading-none"
+          style={{ filter: `drop-shadow(0 0 45px ${glow})` }}
         >
           {won ? "🏆" : reachedFinal ? "🥈" : "🚪"}
         </motion.div>

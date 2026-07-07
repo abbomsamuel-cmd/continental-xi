@@ -17,9 +17,17 @@ interface Props {
   activeSlot?: number;
   onSlotClick?: (i: number) => void;
   showChem?: boolean;
+  showRatings?: boolean;
 }
 
-export function Pitch({ formation, players, activeSlot, onSlotClick, showChem = true }: Props) {
+function ratingColor(ovr: number): string {
+  if (ovr >= 90) return "#f2d472";
+  if (ovr >= 85) return "#d4af37";
+  if (ovr >= 80) return "#22e0ff";
+  return "#9fb3d1";
+}
+
+export function Pitch({ formation, players, activeSlot, onSlotClick, showChem = true, showRatings = true }: Props) {
   const chem = showChem ? computeChemistry(formation, players) : null;
 
   return (
@@ -97,6 +105,14 @@ export function Pitch({ formation, players, activeSlot, onSlotClick, showChem = 
                   }}
                 >
                   {initials(player.name)}
+                  {showRatings && (
+                    <span
+                      className="absolute -left-1 -top-1 grid h-4 w-4 place-items-center rounded-full bg-[#050e22] text-[0.5rem] font-extrabold"
+                      style={{ color: ratingColor(player.overall) }}
+                    >
+                      {player.overall}
+                    </span>
+                  )}
                   {chem && (
                     <span className="absolute -bottom-1 -right-1 grid h-4 w-4 place-items-center rounded-full bg-[#050e22] text-[0.5rem] font-bold text-gold">
                       {chem.perSlot[i]}

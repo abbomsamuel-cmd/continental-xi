@@ -134,6 +134,7 @@ export interface SimTeam {
   defense: number;
   isUser: boolean;
   pot: number;
+  season?: number; // the specific vintage this opponent represents, e.g. 2017
 }
 
 export interface MatchEvent {

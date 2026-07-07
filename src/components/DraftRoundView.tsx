@@ -134,7 +134,7 @@ export function DraftRoundView() {
               <span className="text-xs font-bold uppercase tracking-widest text-muted">Your XI</span>
               <span className="chip bg-white/8 text-cyan">{setup.formationName}</span>
             </div>
-            <Pitch formation={formation} players={xi} activeSlot={round.slotIndex} showChem />
+            <Pitch formation={formation} players={xi} activeSlot={round.slotIndex} showChem showRatings={setup.mode !== "expert"} />
           </div>
         </div>
       </div>

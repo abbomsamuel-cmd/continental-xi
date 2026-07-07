@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import type { KOTie, TournamentState } from "@/lib/types";
-import { USER_TEAM_ID } from "@/lib/engine/tournament";
+import { USER_TEAM_ID, teamLabel } from "@/lib/engine/tournament";
 import { TeamBadge } from "@/components/TeamBadge";
 import { CrestLogo } from "@/components/CrestLogo";
 
@@ -44,7 +44,7 @@ function TieCard({ tie, tournament, onClick, index }: { tie: KOTie; tournament: 
       <div className="flex items-center justify-between gap-2">
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <TeamBadge colors={a.colors} code={a.short} size={40} />
-          <span className={`truncate text-sm font-bold ${userWon ? "text-gold" : "text-white"}`}>{a.name}</span>
+          <span className={`truncate text-sm font-bold ${userWon ? "text-gold" : "text-white"}`}>{teamLabel(a)}</span>
         </div>
         <div className="px-2 text-center">
           {played ? (
@@ -58,7 +58,7 @@ function TieCard({ tie, tournament, onClick, index }: { tie: KOTie; tournament: 
           {twoLeg && <div className="text-[0.55rem] uppercase tracking-widest text-white/40">agg</div>}
         </div>
         <div className="flex min-w-0 flex-1 items-center justify-end gap-2 text-right">
-          <span className={`truncate text-sm font-bold ${tie.winner === b.id ? "text-gold" : "text-white"}`}>{b.name}</span>
+          <span className={`truncate text-sm font-bold ${tie.winner === b.id ? "text-gold" : "text-white"}`}>{teamLabel(b)}</span>
           <TeamBadge colors={b.colors} code={b.short} size={40} />
         </div>
       </div>

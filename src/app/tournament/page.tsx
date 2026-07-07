@@ -10,7 +10,7 @@ import { KnockoutBracket } from "@/components/KnockoutBracket";
 import { TrophyCelebration } from "@/components/TrophyCelebration";
 import { AchievementToast } from "@/components/AchievementToast";
 import { CrestLogo } from "@/components/CrestLogo";
-import { USER_TEAM_ID } from "@/lib/engine/tournament";
+import { USER_TEAM_ID, teamLabel } from "@/lib/engine/tournament";
 import type { Fixture, KOTie, MatchResult } from "@/lib/types";
 import { play } from "@/lib/sound";
 
@@ -31,7 +31,6 @@ export default function TournamentPage() {
 
   const [modal, setModal] = useState<{ result: MatchResult; title?: string } | null>(null);
   const [busy, setBusy] = useState(false);
-  const [celebrated, setCelebrated] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
@@ -66,10 +65,13 @@ export default function TournamentPage() {
     }, 450);
   };
 
-  const finishAndSave = () => {
+  // End of season: save the result, then LOCK it — the draft is cleared so it
+  // can never be replayed or reused. The user starts fresh next time.
+  const endSeason = () => {
     recordResult();
     setSaved(true);
-    setCelebrated(true);
+    resetDraft();
+    router.push("/stats");
   };
 
   const nextTie = tournament.ties.find((t) => !t.winner);
@@ -107,7 +109,7 @@ export default function TournamentPage() {
             </button>
           )}
           {isDone && !saved && (
-            <button className="btn btn-gold" onClick={finishAndSave}>Finish & Save</button>
+            <button className="btn btn-gold" onClick={endSeason}>Finish & Lock In</button>
           )}
         </div>
       </div>
@@ -192,11 +194,11 @@ export default function TournamentPage() {
       </AnimatePresence>
 
       <AnimatePresence>
-        {isDone && !celebrated && (
+        {isDone && !saved && (
           <TrophyCelebration
             tournament={tournament}
             teamName={tournament.teams[USER_TEAM_ID].name}
-            onContinue={finishAndSave}
+            onContinue={endSeason}
           />
         )}
       </AnimatePresence>
@@ -229,7 +231,7 @@ function FixtureRow({ fixture, onView }: { fixture: Fixture; onView: (r: MatchRe
       <div className="flex min-w-0 items-center gap-1.5">
         <span className="text-[0.6rem] text-muted">{isHome ? "H" : "A"}</span>
         <span className="h-3.5 w-3.5 shrink-0 rounded" style={{ background: `linear-gradient(150deg, ${opp.colors[0]}, ${opp.colors[1]})` }} />
-        <span className="truncate text-xs font-semibold">{opp.name}</span>
+        <span className="truncate text-xs font-semibold">{teamLabel(opp)}</span>
       </div>
       <span className={`font-display text-sm font-bold ${color}`}>{outcome || "–"}</span>
     </button>

@@ -27,24 +27,25 @@ export const POSITION_FAMILY: Record<Position, Position[]> = {
  */
 export const SLOT_ELIGIBLE: Record<Position, Position[]> = {
   GK: ["GK"],
-  // Full-backs & wing-backs interchange with their own side only. Center-backs
-  // stay center-backs. No CB-at-CDM or full-back-at-CB.
+  // Center-backs stay center-backs. Full-backs interchange with their own-side
+  // wing-back only — never a winger or forward at a strict full-back slot.
   CB: ["CB"],
   RB: ["RB", "RWB"],
   LB: ["LB", "LWB"],
+  // Wing-back is an attacking role, so it can be covered by the same-side
+  // wide midfielder / winger too.
   RWB: ["RWB", "RB", "RM", "RW"],
   LWB: ["LWB", "LB", "LM", "LW"],
-  // Central midfield trio interchange among themselves — never a defender.
-  CDM: ["CDM", "CM"],
+  // The whole central-midfield trio interchanges freely (CDM↔CM↔CAM).
+  CDM: ["CDM", "CM", "CAM"],
   CM: ["CM", "CDM", "CAM"],
-  CAM: ["CAM", "CM", "CF"],
+  CAM: ["CAM", "CM", "CDM", "CF", "RW", "LW"],
   // Wide midfielders pair with their winger.
-  RM: ["RM", "RW"],
-  LM: ["LM", "LW"],
-  // Front three interchange (wingers ↔ wings, forwards ↔ striker) but never
-  // drop into central midfield.
-  RW: ["RW", "RM", "LW"],
-  LW: ["LW", "LM", "RW"],
+  RM: ["RM", "RW", "CAM"],
+  LM: ["LM", "LW", "CAM"],
+  // Wingers interchange across the front line but never drop to full-back.
+  RW: ["RW", "RM", "LW", "CAM"],
+  LW: ["LW", "LM", "RW", "CAM"],
   CF: ["CF", "ST", "CAM"],
   ST: ["ST", "CF", "CAM"],
 };
@@ -161,6 +162,26 @@ export const FORMATIONS: Formation[] = [
       { pos: "RWB", x: 88, y: 46 }, { pos: "CM", x: 62, y: 44 }, { pos: "CM", x: 38, y: 44 }, { pos: "LWB", x: 12, y: 46 },
       { pos: "CAM", x: 50, y: 64 },
       { pos: "ST", x: 62, y: 84 }, { pos: "ST", x: 38, y: 84 },
+    ],
+  },
+  {
+    name: "4-2-2-2",
+    slots: [
+      { pos: "GK", x: 50, y: 5 },
+      { pos: "RB", x: 85, y: 24 }, { pos: "CB", x: 63, y: 19 }, { pos: "CB", x: 37, y: 19 }, { pos: "LB", x: 15, y: 24 },
+      { pos: "CDM", x: 62, y: 41 }, { pos: "CDM", x: 38, y: 41 },
+      { pos: "CAM", x: 74, y: 62 }, { pos: "CAM", x: 26, y: 62 },
+      { pos: "ST", x: 60, y: 85 }, { pos: "ST", x: 40, y: 85 },
+    ],
+  },
+  {
+    name: "4-2-4",
+    slots: [
+      { pos: "GK", x: 50, y: 5 },
+      { pos: "RB", x: 85, y: 24 }, { pos: "CB", x: 63, y: 19 }, { pos: "CB", x: 37, y: 19 }, { pos: "LB", x: 15, y: 24 },
+      { pos: "CM", x: 62, y: 46 }, { pos: "CM", x: 38, y: 46 },
+      { pos: "RW", x: 87, y: 72 }, { pos: "LW", x: 13, y: 72 },
+      { pos: "ST", x: 63, y: 86 }, { pos: "ST", x: 37, y: 86 },
     ],
   },
 ];

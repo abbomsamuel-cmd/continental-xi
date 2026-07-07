@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import type { MatchResult, TournamentState } from "@/lib/types";
 import { TeamBadge } from "@/components/TeamBadge";
+import { teamLabel } from "@/lib/engine/tournament";
 
 function StatBar({ label, a, b, suffix = "" }: { label: string; a: number; b: number; suffix?: string }) {
   const total = a + b || 1;
@@ -50,7 +51,7 @@ export function MatchModal({ result, tournament, title, onClose }: Props) {
 
           {/* scoreline */}
           <div className="flex items-center justify-between gap-2">
-            <TeamHead name={home.name} colors={home.colors} code={home.short} align="left" />
+            <TeamHead name={teamLabel(home)} colors={home.colors} code={home.short} align="left" />
             <div className="text-center">
               <div className="font-display text-4xl font-extrabold">
                 {result.homeGoals}<span className="mx-1 text-muted">-</span>{result.awayGoals}
@@ -62,7 +63,7 @@ export function MatchModal({ result, tournament, title, onClose }: Props) {
               )}
               <div className="mt-1 text-[0.55rem] uppercase tracking-widest text-muted">Full Time</div>
             </div>
-            <TeamHead name={away.name} colors={away.colors} code={away.short} align="right" />
+            <TeamHead name={teamLabel(away)} colors={away.colors} code={away.short} align="right" />
           </div>
 
           {/* MOTM */}

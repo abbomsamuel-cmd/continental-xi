@@ -16,6 +16,8 @@ interface Props {
   club: string;
   seasonLabel: string;
   colors: [string, string];
+  /** custom filler entries (e.g. national squads) — defaults to the club registry */
+  reel?: { name: string; colors: [string, string] }[];
   onDone: () => void;
 }
 
@@ -26,7 +28,7 @@ function shortCode(name: string): string {
 }
 
 /** Slot-machine reel that scrolls through clubs and lands on the drafted squad. */
-export function SquadSpinner({ club, seasonLabel, colors, onDone }: Props) {
+export function SquadSpinner({ club, seasonLabel, colors, reel: reelPool, onDone }: Props) {
   const done = useRef(false);
   const finish = () => {
     if (done.current) return;
@@ -52,17 +54,21 @@ export function SquadSpinner({ club, seasonLabel, colors, onDone }: Props) {
 
   const reel = useMemo(() => {
     const rng = seededRng(`${club}-${seasonLabel}`);
-    const fillers = shuffle(rng, CLUB_REGISTRY).slice(0, TARGET_INDEX + 10);
+    const source = reelPool && reelPool.length ? reelPool : CLUB_REGISTRY;
+    // repeat the source so short pools (e.g. 16 nations) still fill the reel
+    const looped: { name: string; colors: [string, string] }[] = [];
+    while (looped.length < TARGET_INDEX + 10) looped.push(...source.map((c) => ({ name: c.name, colors: c.colors })));
+    const fillers = shuffle(rng, looped).slice(0, TARGET_INDEX + 10);
     const items = fillers.map((c) => ({ name: c.name, colors: c.colors, code: shortCode(c.name), season: "" }));
     items[TARGET_INDEX] = { name: club, colors, code: shortCode(club), season: seasonLabel };
     for (let i = 0; i < items.length; i++) {
       if (i !== TARGET_INDEX && items[i].name === club) {
-        const alt = CLUB_REGISTRY[(hashString(club) + i) % CLUB_REGISTRY.length];
+        const alt = source[(hashString(club) + i) % source.length];
         items[i] = { name: alt.name, colors: alt.colors, code: shortCode(alt.name), season: "" };
       }
     }
     return items;
-  }, [club, seasonLabel, colors]);
+  }, [club, seasonLabel, colors, reelPool]);
 
   return (
     <div className="mx-auto w-full max-w-2xl">

@@ -232,6 +232,14 @@ export interface DraftRecord {
   daily?: string; // date key if it was a daily challenge
 }
 
+export interface IntlRecord {
+  comp: "euro" | "copa";
+  nation: string;
+  year: number;
+  result: "champion" | "final" | "semi" | "quarter" | "groups";
+  date: string;
+}
+
 export interface Profile {
   name: string;
   createdAt: string;
@@ -239,4 +247,5 @@ export interface Profile {
   achievements: string[];
   drafts: DraftRecord[];
   soundOn: boolean;
+  intlResults?: IntlRecord[];
 }

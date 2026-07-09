@@ -200,7 +200,7 @@ export default function TournamentPage() {
 
       <AnimatePresence>
         {modal && (
-          <MatchModal result={modal.result} tournament={tournament} title={modal.title} onClose={() => setModal(null)} />
+          <MatchModal result={modal.result} teams={tournament.teams} title={modal.title} onClose={() => setModal(null)} />
         )}
       </AnimatePresence>
 

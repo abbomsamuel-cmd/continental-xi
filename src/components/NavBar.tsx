@@ -12,6 +12,7 @@ const LINKS = [
   { href: "/", label: "Home" },
   { href: "/draft", label: "Draft" },
   { href: "/tournament", label: "Tournament" },
+  { href: "/international", label: "International" },
   { href: "/daily", label: "Daily" },
   { href: "/stats", label: "Profile" },
 ];

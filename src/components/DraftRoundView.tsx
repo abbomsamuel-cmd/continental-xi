@@ -7,8 +7,12 @@ import { useGame } from "@/lib/store";
 import { PlayerCard } from "@/components/PlayerCard";
 import { Pitch } from "@/components/Pitch";
 import { SquadSpinner } from "@/components/SquadSpinner";
-import { SQUADS } from "@/lib/players";
+import { getPool } from "@/lib/players";
 import { play } from "@/lib/sound";
+
+const POOL_BADGE: Record<string, string | null> = {
+  clubs: null, euro: "🏆 UEFA EURO DRAFT", copa: "🏆 COPA AMÉRICA DRAFT",
+};
 
 export function DraftRoundView() {
   const router = useRouter();
@@ -25,8 +29,11 @@ export function DraftRoundView() {
   const getXI = useGame((s) => s.getXI);
   const [revealedKey, setRevealedKey] = useState("");
 
+  const pool = setup.pool ?? "clubs";
+  const squads = getPool(pool);
+  const isIntl = pool !== "clubs";
   const round = rounds[currentRound];
-  const squad = SQUADS[round.squadIndex];
+  const squad = squads[round.squadIndex];
   const offered = getOffered();
   const xi = getXI();
   const slot = formation.slots[round.slotIndex];
@@ -35,6 +42,7 @@ export function DraftRoundView() {
   if (!squad) return null;
   const key = `${currentRound}:${rerollNonce}`;
   const spinning = revealedKey !== key;
+  const seasonText = isIntl ? `${squad.season}` : `${squad.season - 1}-${String(squad.season).slice(2)}`;
 
   return (
     <div className="mx-auto max-w-6xl px-4 pb-24 pt-24 sm:pt-28">
@@ -42,17 +50,19 @@ export function DraftRoundView() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="text-xs font-bold uppercase tracking-widest text-cyan">
-            Round {currentRound + 1} / {rounds.length} · Filling {slot.pos}
+            {POOL_BADGE[pool] ? `${POOL_BADGE[pool]} · ` : ""}Round {currentRound + 1} / {rounds.length} · Filling {slot.pos}
           </div>
           <h1 className="font-display text-2xl font-extrabold sm:text-3xl">
             {spinning ? (
               <span className="text-muted">Spinning…</span>
             ) : (
-              <>Pick from <span className="text-gradient-gold">{squad.club}</span></>
+              <>Pick from <span className="text-gradient-gold">{squad.club} {isIntl ? squad.season : ""}</span></>
             )}
           </h1>
           <div className="text-sm text-muted">
-            {spinning ? "The reel decides which legendary squad you draft from" : `${squad.season - 1}-${String(squad.season).slice(2)} · ${squad.coach} · ${squad.honor ?? squad.league}`}
+            {spinning
+              ? (isIntl ? "The reel decides which national squad you draft from" : "The reel decides which legendary squad you draft from")
+              : `${seasonText} · ${squad.coach} · ${squad.honor ?? squad.league}`}
           </div>
         </div>
         <button className="btn btn-ghost text-xs" onClick={() => { resetDraft(); play("click"); router.push("/draft"); }}>
@@ -76,9 +86,10 @@ export function DraftRoundView() {
             <div className="py-6">
               <SquadSpinner
                 key={`spin-${key}`}
-                club={squad.club}
-                seasonLabel={`${squad.season - 1}-${String(squad.season).slice(2)}`}
+                club={isIntl ? `${squad.club} ${squad.season}` : squad.club}
+                seasonLabel={seasonText}
                 colors={squad.colors}
+                reel={isIntl ? squads.map((s) => ({ name: `${s.club} ${s.season}`, colors: s.colors })) : undefined}
                 onDone={() => setRevealedKey(key)}
               />
             </div>

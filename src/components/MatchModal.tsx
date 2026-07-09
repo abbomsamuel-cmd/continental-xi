@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import type { MatchResult, TournamentState } from "@/lib/types";
+import type { MatchResult, SimTeam } from "@/lib/types";
 import { TeamBadge } from "@/components/TeamBadge";
 import { teamLabel } from "@/lib/engine/tournament";
 
@@ -25,14 +25,15 @@ function StatBar({ label, a, b, suffix = "" }: { label: string; a: number; b: nu
 
 interface Props {
   result: MatchResult;
-  tournament: TournamentState;
+  /** team lookup — works for both club tournaments and international mode */
+  teams: Record<string, SimTeam>;
   title?: string;
   onClose: () => void;
 }
 
-export function MatchModal({ result, tournament, title, onClose }: Props) {
-  const home = tournament.teams[result.home];
-  const away = tournament.teams[result.away];
+export function MatchModal({ result, teams, title, onClose }: Props) {
+  const home = teams[result.home];
+  const away = teams[result.away];
   const s = result.stats;
 
   return (

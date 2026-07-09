@@ -17,11 +17,18 @@ const DIFFICULTIES: { id: Difficulty; title: string; body: string; rerolls: stri
   { id: "hard", title: "Hard", body: "No re-rolls. Take what the reel gives you.", rerolls: "No re-rolls" },
 ];
 
+const POOL_INFO = {
+  euro: { title: "UEFA EURO Draft", body: "Your XI is drafted from historic EURO national squads, then enters the tournament.", accent: "#8fd0ff" },
+  copa: { title: "Copa América Draft", body: "Your XI is drafted from historic Copa América squads, then enters the tournament.", accent: "#ffd76b" },
+} as const;
+
 export default function DraftPage() {
   const router = useRouter();
   const setup = useGame((s) => s.setup);
   const draftComplete = useGame((s) => s.draftComplete);
   const startDraft = useGame((s) => s.startDraft);
+  const pendingPool = useGame((s) => s.pendingPool);
+  const setPendingPool = useGame((s) => s.setPendingPool);
 
   const [mode, setMode] = useState<GameMode>("classic");
   const [formation, setFormation] = useState("4-3-3");
@@ -35,6 +42,8 @@ export default function DraftPage() {
   if (draftComplete) return null;
   if (setup) return <DraftRoundView />;
 
+  const intlInfo = pendingPool !== "clubs" ? POOL_INFO[pendingPool] : null;
+
   return (
     <div className="mx-auto max-w-5xl px-4 pb-24 pt-28 sm:pt-32">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center">
@@ -43,6 +52,24 @@ export default function DraftPage() {
         </h1>
         <p className="mt-3 text-muted">Choose your challenge and shape, then build your XI.</p>
       </motion.div>
+
+      {intlInfo && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+          className="cl-panel cl-streaks mx-auto mt-6 flex max-w-2xl flex-wrap items-center justify-between gap-3 rounded-2xl p-4"
+        >
+          <div>
+            <div className="cl-heading text-[0.6rem] tracking-[0.3em]" style={{ color: intlInfo.accent }}>
+              International Mode
+            </div>
+            <div className="font-display font-extrabold">{intlInfo.title}</div>
+            <div className="text-xs text-muted">{intlInfo.body}</div>
+          </div>
+          <button className="btn btn-ghost text-[0.65rem]" onClick={() => { setPendingPool("clubs"); play("click"); }}>
+            Switch to Club Draft
+          </button>
+        </motion.div>
+      )}
 
       {/* MODE */}
       <section className="mt-10">
@@ -134,9 +161,9 @@ export default function DraftPage() {
       <div className="mt-12 flex justify-center">
         <button
           className="btn btn-gold px-10"
-          onClick={() => { startDraft(mode, formation, difficulty); play("select"); }}
+          onClick={() => { startDraft(mode, formation, difficulty, undefined, pendingPool); play("select"); }}
         >
-          Begin Draft →
+          {intlInfo ? `Begin ${intlInfo.title} →` : "Begin Draft →"}
         </button>
       </div>
     </div>

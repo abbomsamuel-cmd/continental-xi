@@ -177,6 +177,26 @@ export default function StatsPage() {
 
       {tab === "history" && (
         <div className="mt-6 space-y-2">
+          {(profile.intlResults?.length ?? 0) > 0 && (
+            <>
+              <h3 className="pt-1 text-xs font-bold uppercase tracking-widest text-muted">International Campaigns</h3>
+              {profile.intlResults!.map((r, i) => (
+                <div key={i} className="glass flex flex-wrap items-center justify-between gap-3 rounded-xl p-3">
+                  <div className="flex items-center gap-3">
+                    <span className="chip bg-white/8 text-cyan">{r.comp === "euro" ? "🇪🇺 EURO" : "🌎 Copa América"}</span>
+                    <div>
+                      <div className="text-sm font-bold">{r.nation} {r.year}</div>
+                      <div className="text-xs text-muted">{new Date(r.date).toLocaleDateString()}</div>
+                    </div>
+                  </div>
+                  <span className={`chip capitalize ${r.result === "champion" ? "bg-gold/20 text-gold" : "bg-white/8 text-muted"}`}>
+                    {r.result === "champion" ? "🏆 Champion" : r.result}
+                  </span>
+                </div>
+              ))}
+              <h3 className="pt-3 text-xs font-bold uppercase tracking-widest text-muted">Champions Draft Runs</h3>
+            </>
+          )}
           {profile.drafts.length === 0 && <p className="text-muted">No drafts yet. Go build an XI!</p>}
           {profile.drafts.map((d) => (
             <div key={d.id} className="glass flex flex-wrap items-center justify-between gap-3 rounded-xl p-3">

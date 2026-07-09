@@ -76,10 +76,9 @@ export default function TournamentPage() {
 
   const nextTie = tournament.ties.find((t) => !t.winner);
   const eliminatedInLeague = isDone && tournament.exit?.stage === "League Phase";
-  // the user's final match played (the deciding leg) — shown on the end screen
+  // the user's final knockout tie — both legs shown on the end screen
   const userTies = tournament.ties.filter((t) => t.teamA === USER_TEAM_ID || t.teamB === USER_TEAM_ID);
   const lastTie = userTies[userTies.length - 1];
-  const decidingMatch = lastTie?.leg2 ?? lastTie?.leg1;
 
   return (
     <div className="mx-auto max-w-5xl px-4 pb-24 pt-24 sm:pt-28">
@@ -198,11 +197,12 @@ export default function TournamentPage() {
       </AnimatePresence>
 
       <AnimatePresence>
-        {isDone && !saved && (
+        {isDone && !saved && !modal && (
           <TrophyCelebration
             tournament={tournament}
             teamName={tournament.teams[USER_TEAM_ID].name}
-            match={decidingMatch}
+            tie={lastTie}
+            onViewStats={(leg) => setModal({ result: leg, title: "Match statistics" })}
             onContinue={endSeason}
           />
         )}

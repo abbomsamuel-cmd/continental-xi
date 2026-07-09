@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence } from "framer-motion";
 import { useGame } from "@/lib/store";
@@ -32,6 +32,10 @@ export default function TournamentPage() {
   const [modal, setModal] = useState<{ result: MatchResult; title?: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
+  // Synchronous double-click guard: React state alone lets two fast clicks both
+  // see busy=false and advance TWO rounds at once — you'd watch one opponent
+  // and "lose" to the next round's team you never saw. The ref closes that gap.
+  const busyRef = useRef(false);
 
   useEffect(() => {
     if (!tournament) router.replace("/draft");
@@ -48,19 +52,25 @@ export default function TournamentPage() {
   );
 
   const playLeague = () => {
+    if (busyRef.current) return;
+    busyRef.current = true;
     setBusy(true);
     play("whistle");
     setTimeout(() => {
       advanceLeague();
+      busyRef.current = false;
       setBusy(false);
     }, 450);
   };
 
   const playKO = () => {
+    if (busyRef.current) return;
+    busyRef.current = true;
     setBusy(true);
     play("whistle");
     setTimeout(() => {
       advanceKnockout();
+      busyRef.current = false;
       setBusy(false);
     }, 450);
   };
@@ -74,12 +84,11 @@ export default function TournamentPage() {
     router.push("/stats");
   };
 
-  const nextTie = tournament.ties.find((t) => !t.winner);
   const eliminatedInLeague = isDone && tournament.exit?.stage === "League Phase";
-  // the user's final match played (the deciding leg) — shown on the end screen
+  // ties now cover the WHOLE field — the user's road is the filtered subset
   const userTies = tournament.ties.filter((t) => t.teamA === USER_TEAM_ID || t.teamB === USER_TEAM_ID);
   const lastTie = userTies[userTies.length - 1];
-  const decidingMatch = lastTie?.leg2 ?? lastTie?.leg1;
+  const nextTie = userTies.find((t) => !t.winner);
 
   return (
     <div className="mx-auto max-w-5xl px-4 pb-24 pt-24 sm:pt-28">
@@ -158,15 +167,13 @@ export default function TournamentPage() {
         </div>
       ) : (
         <div className="mt-8 space-y-6">
-          <div className="rounded-3xl p-4">
-            <KnockoutBracket
-              tournament={tournament}
-              onTieClick={(tie: KOTie) => {
-                const r = tie.leg2 ?? tie.leg1;
-                if (r) setModal({ result: r, title: `${tie.round}${tie.leg2 ? " · 2nd Leg" : ""}` });
-              }}
-            />
-          </div>
+          <KnockoutBracket
+            tournament={tournament}
+            onTieClick={(tie: KOTie) => {
+              const r = tie.leg2 ?? tie.leg1;
+              if (r) setModal({ result: r, title: `${tie.round}${tie.leg2 ? " · 2nd Leg" : ""}` });
+            }}
+          />
           {nextTie && !isDone && (
             <p className="text-center text-sm text-muted">
               Next: <span className="text-gold">{PHASE_LABEL[tournament.phase]}</span> — win or your run ends here.
@@ -198,11 +205,12 @@ export default function TournamentPage() {
       </AnimatePresence>
 
       <AnimatePresence>
-        {isDone && !saved && (
+        {isDone && !saved && !modal && (
           <TrophyCelebration
             tournament={tournament}
             teamName={tournament.teams[USER_TEAM_ID].name}
-            match={decidingMatch}
+            tie={lastTie}
+            onViewStats={(leg) => setModal({ result: leg, title: "Match statistics" })}
             onContinue={endSeason}
           />
         )}

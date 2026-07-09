@@ -281,7 +281,8 @@ export const useGame = create<StoreState>()(
 
       advanceLeague: () => {
         const { tournament, rngSeed } = get();
-        if (!tournament || !rngSeed) return [];
+        // phase guard: a stray second call must never replay/resolve the league
+        if (!tournament || !rngSeed || tournament.phase !== "league") return [];
         const rng = seededRng(`${rngSeed}-md${tournament.matchday}-${Math.random()}`);
         const players = get().getXI().filter(Boolean) as Player[];
         const played = playMatchday(rng, tournament, players);
@@ -291,7 +292,9 @@ export const useGame = create<StoreState>()(
 
       advanceKnockout: () => {
         const { tournament, rngSeed } = get();
+        // phase guard: only live knockout phases may advance a round
         if (!tournament || !rngSeed) return [];
+        if (!["playoffs", "r16", "qf", "sf", "final"].includes(tournament.phase)) return [];
         const rng = seededRng(`${rngSeed}-ko-${tournament.phase}-${Math.random()}`);
         const players = get().getXI().filter(Boolean) as Player[];
         const ties = playKnockoutStage(rng, tournament, players);
@@ -380,7 +383,26 @@ export const useGame = create<StoreState>()(
     }),
     {
       name: "champions-draft-v1",
-      version: 2,
+      version: 3,
+      // v3 reworked knockout ties to cover the whole field — keep the profile,
+      // drop any in-flight game saved under the old shape.
+      migrate: (persisted, version) => {
+        const p = persisted as Partial<StoreState>;
+        const fresh = {
+          setup: null, formation: null, rounds: [] as DraftRound[], currentRound: 0,
+          picks: {} as Record<number, string>, draftComplete: false, rngSeed: null,
+          tournament: null, rerolls: 0,
+        };
+        if (version < 3) return { profile: p.profile ?? emptyProfile(), ...fresh };
+        return {
+          profile: p.profile ?? emptyProfile(),
+          setup: p.setup ?? null, formation: p.formation ?? null,
+          rounds: p.rounds ?? [], currentRound: p.currentRound ?? 0,
+          picks: p.picks ?? {}, draftComplete: p.draftComplete ?? false,
+          rngSeed: p.rngSeed ?? null, tournament: p.tournament ?? null,
+          rerolls: p.rerolls ?? 0,
+        };
+      },
       // Persist the whole active game so a refresh never re-rolls or reloads
       // squads — you resume exactly where you left off.
       partialize: (s) => ({

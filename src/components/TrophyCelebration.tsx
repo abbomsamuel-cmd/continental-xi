@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
-import type { MatchResult, TournamentState } from "@/lib/types";
+import type { KOTie, MatchResult, TournamentState } from "@/lib/types";
 import { USER_TEAM_ID, teamLabel } from "@/lib/engine/tournament";
 import { CrestLogo } from "@/components/CrestLogo";
 import { play } from "@/lib/sound";
@@ -44,11 +44,14 @@ function frac(n: number): number {
 interface Props {
   tournament: TournamentState;
   teamName: string;
-  match?: MatchResult;
+  /** the user's final knockout tie — both legs shown so the aggregate is never confusing */
+  tie?: KOTie;
+  /** open the full match-statistics modal for one leg */
+  onViewStats?: (leg: MatchResult) => void;
   onContinue: () => void;
 }
 
-export function TrophyCelebration({ tournament, teamName, match, onContinue }: Props) {
+export function TrophyCelebration({ tournament, teamName, tie, onViewStats, onContinue }: Props) {
   const won = tournament.champion === USER_TEAM_ID;
   const awards = tournament.awards;
   const reachedFinal = tournament.exit?.stage === "Final";
@@ -151,30 +154,66 @@ export function TrophyCelebration({ tournament, teamName, match, onContinue }: P
           </motion.div>
         )}
 
-        {!won && match && (() => {
-          const home = tournament.teams[match.home];
-          const away = tournament.teams[match.away];
-          const s = match.stats;
+        {tie && (tie.leg1 || tie.leg2) && (() => {
+          // Team A of a user tie is always the user. Aggregate over both legs:
+          // leg1 = user away, leg2 = user home (a single-leg final = leg1 only).
+          const twoLegs = !!(tie.leg1 && tie.leg2);
+          const userAgg = twoLegs ? tie.leg1!.awayGoals + tie.leg2!.homeGoals : tie.leg1!.homeGoals;
+          const oppAgg = twoLegs ? tie.leg1!.homeGoals + tie.leg2!.awayGoals : tie.leg1!.awayGoals;
+          const decider = tie.leg2 ?? tie.leg1!;
+          const pens = decider.penalties;
+          const oppId = tie.teamB;
+          const opp = tournament.teams[oppId];
+          const legs: { label: string; leg: MatchResult }[] = twoLegs
+            ? [{ label: "1st Leg · Away", leg: tie.leg1! }, { label: "2nd Leg · Home", leg: tie.leg2! }]
+            : [{ label: "Final · Neutral venue", leg: tie.leg1! }];
           return (
             <motion.div
               initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1 }}
-              className="cl-panel mx-auto mt-6 max-w-sm rounded-2xl p-4"
+              className="cl-panel mx-auto mt-6 max-w-sm rounded-2xl p-4 text-left"
             >
-              <div className="cl-heading mb-2 text-[0.55rem] tracking-[0.25em] text-cyan">Your Final Match</div>
-              <div className="flex items-center justify-between text-sm font-bold">
-                <span className="flex-1 truncate text-left">{teamLabel(home)}</span>
-                <span className="font-display text-2xl">{match.homeGoals}<span className="mx-1 text-white/40">-</span>{match.awayGoals}</span>
-                <span className="flex-1 truncate text-right">{teamLabel(away)}</span>
+              <div className="cl-heading mb-2 text-center text-[0.55rem] tracking-[0.25em] text-cyan">
+                {tie.round} · {twoLegs ? "Aggregate" : "Result"}
               </div>
-              <div className="mt-3 grid grid-cols-3 gap-2 text-center text-[0.6rem] text-muted">
-                {[["Poss", `${s.possession[0]}%`, `${s.possession[1]}%`], ["Shots", s.shots[0], s.shots[1]], ["xG", s.xg[0], s.xg[1]]].map(([label, a, b]) => (
-                  <div key={label} className="rounded-lg bg-black/25 p-1.5">
-                    <div className="text-white">{a} · {b}</div>
-                    <div className="uppercase tracking-widest">{label}</div>
-                  </div>
-                ))}
+              {/* aggregate line — always both sides, never just one leg */}
+              <div className="flex items-center justify-between gap-2 text-sm font-bold">
+                <span className="flex-1 truncate">{teamName}</span>
+                <span className="font-display text-2xl">
+                  {userAgg}<span className="mx-1 text-white/40">-</span>{oppAgg}
+                </span>
+                <span className="flex-1 truncate text-right">{teamLabel(opp)}</span>
               </div>
-              {match.motm && <div className="mt-2 text-[0.62rem] text-gold">MOTM · {match.motm}</div>}
+              {pens && (
+                <div className="mt-1 text-center text-[0.65rem] font-bold text-gold">
+                  Level on aggregate — penalty shootout {pens[0]}-{pens[1]}
+                </div>
+              )}
+              {/* each leg, with its own full-stats button */}
+              <div className="mt-3 space-y-1.5">
+                {legs.map(({ label, leg }) => {
+                  const homeName = leg.home === USER_TEAM_ID ? teamName : teamLabel(tournament.teams[leg.home]);
+                  const awayName = leg.away === USER_TEAM_ID ? teamName : teamLabel(tournament.teams[leg.away]);
+                  return (
+                    <div key={label} className="flex items-center justify-between gap-2 rounded-lg bg-black/25 px-2.5 py-1.5 text-[0.62rem]">
+                      <div className="min-w-0">
+                        <div className="uppercase tracking-widest text-muted">{label}</div>
+                        <div className="truncate font-semibold text-white">
+                          {homeName} {leg.homeGoals}-{leg.awayGoals} {awayName}
+                          {leg.penalties && <span className="text-gold"> · pens {leg.penalties[0]}-{leg.penalties[1]}</span>}
+                        </div>
+                      </div>
+                      {onViewStats && (
+                        <button
+                          className="shrink-0 rounded-md border border-cyan/40 px-2 py-1 text-[0.58rem] font-bold uppercase tracking-wider text-cyan hover:bg-cyan/10"
+                          onClick={() => onViewStats(leg)}
+                        >
+                          Full stats
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </motion.div>
           );
         })()}

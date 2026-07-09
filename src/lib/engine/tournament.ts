@@ -270,6 +270,9 @@ function ordinalWord(n: number): string {
 
 /** Simulate the next league matchday in place. Returns the fixtures just played. */
 export function playMatchday(rng: Rng, state: TournamentState, userPlayers: Player[]): Fixture[] {
+  // Guard: only the league phase may play matchdays — a duplicate call after
+  // the phase resolved would re-draw the play-offs and corrupt the bracket.
+  if (state.phase !== "league") return [];
   const table = computeTable(state);
   state.prevPositions = Object.fromEntries(table.map((r, i) => [r.teamId, i + 1]));
 
@@ -281,7 +284,7 @@ export function playMatchday(rng: Rng, state: TournamentState, userPlayers: Play
     if (f.away === USER_TEAM_ID) trackUserStats(state, result, 1, userPlayers);
   }
   state.matchday++;
-  if (state.matchday > 8) resolveLeaguePhase(rng, state, userPlayers);
+  if (state.matchday > 8 && state.ties.length === 0) resolveLeaguePhase(rng, state, userPlayers);
   return todays;
 }
 

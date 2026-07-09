@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence } from "framer-motion";
 import { useGame } from "@/lib/store";
@@ -32,6 +32,10 @@ export default function TournamentPage() {
   const [modal, setModal] = useState<{ result: MatchResult; title?: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
+  // Synchronous double-click guard: React state alone lets two fast clicks both
+  // see busy=false and advance TWO rounds at once — you'd watch one opponent
+  // and "lose" to the next round's team you never saw. The ref closes that gap.
+  const busyRef = useRef(false);
 
   useEffect(() => {
     if (!tournament) router.replace("/draft");
@@ -48,19 +52,25 @@ export default function TournamentPage() {
   );
 
   const playLeague = () => {
+    if (busyRef.current) return;
+    busyRef.current = true;
     setBusy(true);
     play("whistle");
     setTimeout(() => {
       advanceLeague();
+      busyRef.current = false;
       setBusy(false);
     }, 450);
   };
 
   const playKO = () => {
+    if (busyRef.current) return;
+    busyRef.current = true;
     setBusy(true);
     play("whistle");
     setTimeout(() => {
       advanceKnockout();
+      busyRef.current = false;
       setBusy(false);
     }, 450);
   };

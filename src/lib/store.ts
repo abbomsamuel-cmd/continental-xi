@@ -281,7 +281,8 @@ export const useGame = create<StoreState>()(
 
       advanceLeague: () => {
         const { tournament, rngSeed } = get();
-        if (!tournament || !rngSeed) return [];
+        // phase guard: a stray second call must never replay/resolve the league
+        if (!tournament || !rngSeed || tournament.phase !== "league") return [];
         const rng = seededRng(`${rngSeed}-md${tournament.matchday}-${Math.random()}`);
         const players = get().getXI().filter(Boolean) as Player[];
         const played = playMatchday(rng, tournament, players);
@@ -291,7 +292,9 @@ export const useGame = create<StoreState>()(
 
       advanceKnockout: () => {
         const { tournament, rngSeed } = get();
+        // phase guard: only live knockout phases may advance a round
         if (!tournament || !rngSeed) return [];
+        if (!["playoffs", "r16", "qf", "sf", "final"].includes(tournament.phase)) return [];
         const rng = seededRng(`${rngSeed}-ko-${tournament.phase}-${Math.random()}`);
         const players = get().getXI().filter(Boolean) as Player[];
         const ties = playKnockoutStage(rng, tournament, players);

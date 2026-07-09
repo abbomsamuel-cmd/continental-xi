@@ -4,10 +4,18 @@ import { SQUADS_MODERN } from "./data/squads-modern";
 import { SQUADS_EXTRA } from "./data/squads-extra";
 import { SQUAD_DEPTH } from "./data/squads-depth";
 import { SQUAD_DEPTH_2 } from "./data/squads-depth2";
+import { EURO_SQUADS, COPA_SQUADS } from "./data/nations";
 import { POSITION_GROUP } from "./formations";
 import { hashString, mulberry32 } from "./rng";
 
 export const SQUADS: RawSquad[] = [...SQUADS_CLASSIC, ...SQUADS_MODERN, ...SQUADS_EXTRA];
+
+/** Which squad pool a draft runs on: club history, or a national tournament. */
+export type DraftPool = "clubs" | "euro" | "copa";
+
+export function getPool(pool: DraftPool): RawSquad[] {
+  return pool === "euro" ? EURO_SQUADS : pool === "copa" ? COPA_SQUADS : SQUADS;
+}
 
 // Attribute profile per position: relative weight of each attribute vs overall.
 const PROFILES: Record<string, [number, number, number, number, number, number]> = {
@@ -56,14 +64,64 @@ function deriveAttributes(pos: Position, overall: number, seed: number): Attribu
   };
 }
 
-function seasonLabel(season: number): string {
+function seasonLabel(season: number, league?: string): string {
+  // International tournaments are a single summer ("2012"), not a club season.
+  if (league === "EURO" || league === "Copa América") return String(season);
   const start = season - 1;
   return `${start}-${String(season).slice(2)}`;
 }
 
 let cache: Player[] | null = null;
 
-/** Expand every raw squad into full player objects. Deterministic across sessions. */
+/** Expand one raw squad's roster into full player objects. Deterministic. */
+export function expandSquad(squad: RawSquad, roster = squad.players): Player[] {
+  const players: Player[] = [];
+  for (const raw of roster) {
+    const [name, nationality, position, overall, altPositions = [], stats = {}] = raw;
+    const seed = hashString(`${name}|${squad.club}|${squad.season}`);
+    const rng = mulberry32(seed + 7);
+    const group = POSITION_GROUP[position];
+    const traits: string[] = [];
+    const pool = TRAIT_POOL[group];
+    const nTraits = overall >= 90 ? 3 : overall >= 84 ? 2 : 1;
+    while (traits.length < nTraits) {
+      const t = pool[Math.floor(rng() * pool.length)];
+      if (!traits.includes(t)) traits.push(t);
+    }
+    const wrAtt = group === "ATT" ? "High" : group === "MID" ? (rng() > 0.5 ? "High" : "Med") : "Med";
+    const wrDef = group === "DEF" ? "High" : group === "MID" ? "Med" : rng() > 0.7 ? "Med" : "Low";
+    players.push({
+      id: `${squad.club}-${squad.season}-${name}`.replace(/\s+/g, "_"),
+      name,
+      nationality,
+      position,
+      altPositions,
+      overall,
+      attributes: deriveAttributes(position, overall, seed),
+      club: squad.club,
+      clubCountry: squad.country,
+      league: squad.league,
+      season: squad.season,
+      seasonLabel: seasonLabel(squad.season, squad.league),
+      coach: squad.coach,
+      stadium: squad.stadium,
+      goals: stats.g ?? 0,
+      assists: stats.a ?? 0,
+      apps: 6 + Math.floor(rng() * 7),
+      cleanSheets: position === "GK" ? stats.cs ?? Math.floor(rng() * 5) : undefined,
+      traits,
+      workRates: `${wrAtt}/${wrDef}`,
+      skillMoves: position === "GK" ? 1 : Math.min(5, Math.max(2, Math.round((overall - 70) / 6) + (rng() > 0.5 ? 1 : 0))),
+      weakFoot: Math.min(5, Math.max(2, 3 + Math.floor(rng() * 2))),
+      foot: rng() > 0.24 ? "Right" : "Left",
+      bodyType: BODY_TYPES[Math.floor(rng() * BODY_TYPES.length)],
+      colors: squad.colors,
+    });
+  }
+  return players;
+}
+
+/** Expand every raw club squad (with depth merged) into full player objects. */
 export function getAllPlayers(): Player[] {
   if (cache) return cache;
   const players: Player[] = [];
@@ -78,51 +136,27 @@ export function getAllPlayers(): Player[] {
       seen.add(p[0]);
       roster.push(p);
     }
-    for (const raw of roster) {
-      const [name, nationality, position, overall, altPositions = [], stats = {}] = raw;
-      const seed = hashString(`${name}|${squad.club}|${squad.season}`);
-      const rng = mulberry32(seed + 7);
-      const group = POSITION_GROUP[position];
-      const traits: string[] = [];
-      const pool = TRAIT_POOL[group];
-      const nTraits = overall >= 90 ? 3 : overall >= 84 ? 2 : 1;
-      while (traits.length < nTraits) {
-        const t = pool[Math.floor(rng() * pool.length)];
-        if (!traits.includes(t)) traits.push(t);
-      }
-      const wrAtt = group === "ATT" ? "High" : group === "MID" ? (rng() > 0.5 ? "High" : "Med") : "Med";
-      const wrDef = group === "DEF" ? "High" : group === "MID" ? "Med" : rng() > 0.7 ? "Med" : "Low";
-      players.push({
-        id: `${squad.club}-${squad.season}-${name}`.replace(/\s+/g, "_"),
-        name,
-        nationality,
-        position,
-        altPositions,
-        overall,
-        attributes: deriveAttributes(position, overall, seed),
-        club: squad.club,
-        clubCountry: squad.country,
-        league: squad.league,
-        season: squad.season,
-        seasonLabel: seasonLabel(squad.season),
-        coach: squad.coach,
-        stadium: squad.stadium,
-        goals: stats.g ?? 0,
-        assists: stats.a ?? 0,
-        apps: 6 + Math.floor(rng() * 7),
-        cleanSheets: position === "GK" ? stats.cs ?? Math.floor(rng() * 5) : undefined,
-        traits,
-        workRates: `${wrAtt}/${wrDef}`,
-        skillMoves: position === "GK" ? 1 : Math.min(5, Math.max(2, Math.round((overall - 70) / 6) + (rng() > 0.5 ? 1 : 0))),
-        weakFoot: Math.min(5, Math.max(2, 3 + Math.floor(rng() * 2))),
-        foot: rng() > 0.24 ? "Right" : "Left",
-        bodyType: BODY_TYPES[Math.floor(rng() * BODY_TYPES.length)],
-        colors: squad.colors,
-      });
-    }
+    players.push(...expandSquad(squad, roster));
   }
   cache = players;
   return players;
+}
+
+// Pooled expansions: the club pool merges depth players; national squads expand plain.
+const poolCache = new Map<DraftPool, Player[]>();
+
+export function getPoolPlayers(pool: DraftPool): Player[] {
+  if (pool === "clubs") return getAllPlayers();
+  const cached = poolCache.get(pool);
+  if (cached) return cached;
+  const players = getPool(pool).flatMap((sq) => expandSquad(sq));
+  poolCache.set(pool, players);
+  return players;
+}
+
+export function poolSquadPlayers(pool: DraftPool, squadIndex: number): Player[] {
+  const squad = getPool(pool)[squadIndex];
+  return getPoolPlayers(pool).filter((p) => p.club === squad.club && p.season === squad.season);
 }
 
 export function getPlayer(id: string): Player | undefined {
@@ -130,9 +164,7 @@ export function getPlayer(id: string): Player | undefined {
 }
 
 export function squadPlayers(squadIndex: number): Player[] {
-  const squad = SQUADS[squadIndex];
-  const all = getAllPlayers();
-  return all.filter((p) => p.club === squad.club && p.season === squad.season);
+  return poolSquadPlayers("clubs", squadIndex);
 }
 
 export const ERAS = [

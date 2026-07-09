@@ -35,7 +35,9 @@ export function pairChemistry(a: Player, b: Player): { strength: 0 | 1 | 2 | 3; 
     pts += 1.5;
     reasons.push(`Same nation (${a.nationality})`);
   }
-  if (a.league === b.league) {
+  // Shared league links — but a whole international tournament isn't a "league",
+  // otherwise every pair in an EURO/Copa draft would get the bonus for free.
+  if (a.league === b.league && a.league !== "EURO" && a.league !== "Copa América") {
     pts += 1;
     reasons.push(`Same league (${a.league})`);
   }

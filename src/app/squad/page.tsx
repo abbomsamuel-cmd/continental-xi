@@ -45,10 +45,14 @@ export default function SquadPage() {
   const analysis = getAnalysis()!;
   const chem = computeChemistry(formation, xi);
 
+  const isIntl = setup?.pool === "euro" || setup?.pool === "copa";
+  const enterLabel = setup?.pool === "euro" ? "Enter UEFA EURO →"
+    : setup?.pool === "copa" ? "Enter Copa América →" : "Enter League Phase →";
+
   const startTournament = () => {
     finish(teamName || `${profileName}'s XI`);
     play("select");
-    router.push("/tournament");
+    router.push(isIntl ? "/international" : "/tournament");
   };
 
   const onSlotTap = (i: number) => {
@@ -162,7 +166,7 @@ export default function SquadPage() {
                 className="flex-1 rounded-xl border border-white/12 bg-black/30 px-4 py-3 text-white outline-none focus:border-gold"
               />
               <button className="btn btn-gold" onClick={startTournament}>
-                Enter League Phase →
+                {enterLabel}
               </button>
             </div>
             <button

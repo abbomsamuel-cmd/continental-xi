@@ -1,14 +1,15 @@
 import type { Position, Rng } from "./draft-deps";
-import { SQUADS } from "./players";
+import { getPool, type DraftPool } from "./players";
 import { canPlaySlot, POSITION_GROUP } from "./formations";
 import { SQUAD_DEPTH } from "./data/squads-depth";
 import { weightedPick } from "./rng";
 
 /**
- * Smart weighted squad randomization for a draft round.
+ * Smart weighted squad randomization for a draft round — works on any squad
+ * pool (club history, EURO nations, Copa América nations).
  *
  * - never repeats a season already used in this draft
- * - never shows the same club in consecutive rounds
+ * - never shows the same club/nation in consecutive rounds
  * - down-weights clubs/leagues shown recently (variety)
  * - guarantees the offered squad actually has a sensible player for the slot
  */
@@ -19,13 +20,15 @@ export function pickDraftSquad(
   lastClub: string | null,
   recentClubs: string[],
   recentLeagues: string[],
+  pool: DraftPool = "clubs",
 ): number {
+  const squads = getPool(pool);
   const candidates: number[] = [];
   const weights: number[] = [];
 
-  for (let i = 0; i < SQUADS.length; i++) {
+  for (let i = 0; i < squads.length; i++) {
     if (usedSquadIndexes.includes(i)) continue;
-    const s = SQUADS[i];
+    const s = squads[i];
     if (lastClub && s.club === lastClub) continue;
     // must offer at least 2 eligible players for the slot (incl. depth players)
     const allPlayers = [...s.players, ...(SQUAD_DEPTH[`${s.club}|${s.season}`] ?? [])];
@@ -47,7 +50,7 @@ export function pickDraftSquad(
 
   if (candidates.length === 0) {
     // fallback: relax the consecutive-club rule
-    for (let i = 0; i < SQUADS.length; i++) {
+    for (let i = 0; i < squads.length; i++) {
       if (!usedSquadIndexes.includes(i)) candidates.push(i);
     }
     return candidates[Math.floor(rng() * candidates.length)];

@@ -380,7 +380,26 @@ export const useGame = create<StoreState>()(
     }),
     {
       name: "champions-draft-v1",
-      version: 2,
+      version: 3,
+      // v3 reworked knockout ties to cover the whole field — keep the profile,
+      // drop any in-flight game saved under the old shape.
+      migrate: (persisted, version) => {
+        const p = persisted as Partial<StoreState>;
+        const fresh = {
+          setup: null, formation: null, rounds: [] as DraftRound[], currentRound: 0,
+          picks: {} as Record<number, string>, draftComplete: false, rngSeed: null,
+          tournament: null, rerolls: 0,
+        };
+        if (version < 3) return { profile: p.profile ?? emptyProfile(), ...fresh };
+        return {
+          profile: p.profile ?? emptyProfile(),
+          setup: p.setup ?? null, formation: p.formation ?? null,
+          rounds: p.rounds ?? [], currentRound: p.currentRound ?? 0,
+          picks: p.picks ?? {}, draftComplete: p.draftComplete ?? false,
+          rngSeed: p.rngSeed ?? null, tournament: p.tournament ?? null,
+          rerolls: p.rerolls ?? 0,
+        };
+      },
       // Persist the whole active game so a refresh never re-rolls or reloads
       // squads — you resume exactly where you left off.
       partialize: (s) => ({

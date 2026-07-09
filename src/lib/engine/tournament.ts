@@ -2,7 +2,7 @@ import type {
   Fixture, KORoundName, KOTie, MatchResult, Player, SimTeam, TableRow, TeamAnalysis, TournamentState,
 } from "../types";
 import type { Rng } from "../rng";
-import { shuffle, weightedPick } from "../rng";
+import { shuffle } from "../rng";
 import { CLUB_REGISTRY } from "../data/clubs";
 import { SQUADS } from "../players";
 import { simulateMatch, shootout, type EngineTeamContext } from "./match";
@@ -287,15 +287,16 @@ export function playMatchday(rng: Rng, state: TournamentState, userPlayers: Play
 
 /**
  * Once the 8 matchdays are done, the user's fate is decided by their final
- * position — and the sim ends here if they didn't qualify. Only the user's
- * onward path is ever simulated (38-0 / 48-0 style).
+ * position — and the sim ends here if they didn't qualify. If they're through,
+ * the ENTIRE knockout field is drawn (all 8 play-off ties from ranks 9-24), so
+ * the bracket fills like a real broadcast graphic. The user's run still ends
+ * the moment they lose a tie.
  */
 function resolveLeaguePhase(rng: Rng, state: TournamentState, userPlayers: Player[]) {
   const table = computeTable(state);
   const ids = table.map((r) => r.teamId);
   const pos = ids.indexOf(USER_TEAM_ID) + 1;
   state.userSeed = pos;
-  state.faced = [];
 
   if (pos >= 25) {
     // Eliminated in the league phase — the run stops right here.
@@ -304,48 +305,12 @@ function resolveLeaguePhase(rng: Rng, state: TournamentState, userPlayers: Playe
     state.exit = { stage: "League Phase", text: `Finished ${ordinalWord(pos)} — eliminated in the league phase` };
     return;
   }
-  if (pos <= 8) {
-    state.phase = "r16";
-    openUserTie(rng, state, "Round of 16");
-  } else {
-    state.phase = "playoffs";
-    openUserTie(rng, state, "Play-off");
+  // Swiss play-off pairings across the whole 9-24 band: 9v24, 10v23 … 16v17.
+  for (let i = 0; i < 8; i++) {
+    state.ties.push({ round: "Play-off", teamA: ids[8 + i], teamB: ids[23 - i] });
   }
-  void userPlayers;
-}
-
-/** Pick a realistic opponent for the user's next tie. */
-function pickOpponent(rng: Rng, state: TournamentState, round: KORoundName): string {
-  const table = computeTable(state);
-  const ids = table.map((r) => r.teamId);
-  const userPos = ids.indexOf(USER_TEAM_ID) + 1;
-  const faced = new Set(state.faced ?? []);
-  const avail = (band: string[]) => band.filter((id) => id !== USER_TEAM_ID && !faced.has(id));
-
-  if (round === "Play-off") {
-    // Swiss play-off pairing: 9v24, 10v23, 11v22 ... => opponent seed = 33 - pos
-    const oppPos = 33 - userPos;
-    const cand = ids[oppPos - 1];
-    if (cand && cand !== USER_TEAM_ID && !faced.has(cand)) return cand;
-  }
-  if (round === "Round of 16") {
-    // Top-8 seeds face a side from the 9-24 band; play-off qualifiers face a top-8 seed.
-    const band = userPos <= 8 ? ids.slice(8, 24) : ids.slice(0, 8);
-    const pool = avail(band);
-    if (pool.length) return weightedPick(rng, pool, pool.map((id) => state.teams[id].strength));
-  }
-  // QF onwards: the deeper you go, the stronger the field you face.
-  const depth = round === "Quarter-final" ? 12 : round === "Semi-final" ? 8 : 4;
-  let pool = avail(ids.slice(0, depth));
-  if (!pool.length) pool = avail(ids.slice(0, 24));
-  if (!pool.length) pool = avail(ids);
-  return weightedPick(rng, pool, pool.map((id) => state.teams[id].strength * state.teams[id].strength));
-}
-
-function openUserTie(rng: Rng, state: TournamentState, round: KORoundName) {
-  const opp = pickOpponent(rng, state, round);
-  state.faced = [...(state.faced ?? []), opp];
-  state.ties.push({ round, teamA: USER_TEAM_ID, teamB: opp });
+  state.phase = "playoffs";
+  void rng; void userPlayers;
 }
 
 const FINAL_VENUES = [
@@ -358,18 +323,21 @@ export function finalVenue(rng: Rng): string {
   return FINAL_VENUES[Math.floor(rng() * FINAL_VENUES.length)];
 }
 
-/**
- * Play the user's next knockout tie (two legs, or a single neutral final).
- * Win → advance to the next round. Lose → the run is over immediately.
- */
-export function playKnockoutStage(rng: Rng, state: TournamentState, userPlayers: Player[]): KOTie[] {
-  const tie = state.ties.find((t) => !t.winner);
-  if (!tie) return [];
-  const isFinal = tie.round === "Final";
+const PHASE_ROUND: Record<string, KORoundName> = {
+  playoffs: "Play-off", r16: "Round of 16", qf: "Quarter-final", sf: "Semi-final", final: "Final",
+};
 
-  if (isFinal) {
+function isUserTie(t: KOTie): boolean {
+  return t.teamA === USER_TEAM_ID || t.teamB === USER_TEAM_ID;
+}
+
+/** Resolve one tie in place (two legs, or a single neutral final). */
+function playTie(rng: Rng, state: TournamentState, tie: KOTie, userPlayers: Player[]) {
+  const user = isUserTie(tie);
+  const players = user ? userPlayers : null;
+  if (tie.round === "Final") {
     const result = simulateMatch(
-      rng, ctx(state, tie.teamA, userPlayers, true), ctx(state, tie.teamB, userPlayers, true),
+      rng, ctx(state, tie.teamA, players, true), ctx(state, tie.teamB, players, true),
       { neutral: true, knockout: true },
     );
     if (result.homeGoals === result.awayGoals) {
@@ -380,45 +348,87 @@ export function playKnockoutStage(rng: Rng, state: TournamentState, userPlayers:
       tie.winner = result.homeGoals > result.awayGoals ? tie.teamA : tie.teamB;
     }
     tie.leg1 = result;
-    trackUserStats(state, result, tie.teamA === USER_TEAM_ID ? 0 : 1, userPlayers);
+    if (user) trackUserStats(state, result, tie.teamA === USER_TEAM_ID ? 0 : 1, userPlayers);
+    return;
+  }
+  const leg1 = simulateMatch(rng, ctx(state, tie.teamB, players, true), ctx(state, tie.teamA, players, true), { knockout: true });
+  const leg2 = simulateMatch(rng, ctx(state, tie.teamA, players, true), ctx(state, tie.teamB, players, true), { knockout: true });
+  tie.leg1 = leg1;
+  tie.leg2 = leg2;
+  const aGoals = leg1.awayGoals + leg2.homeGoals;
+  const bGoals = leg1.homeGoals + leg2.awayGoals;
+  if (aGoals === bGoals) {
+    const [hp, ap] = shootout(rng, state.teams[tie.teamA].strength, state.teams[tie.teamB].strength);
+    leg2.penalties = [hp, ap];
+    tie.winner = hp > ap ? tie.teamA : tie.teamB;
   } else {
-    const leg1 = simulateMatch(rng, ctx(state, tie.teamB, userPlayers, true), ctx(state, tie.teamA, userPlayers, true), { knockout: true });
-    const leg2 = simulateMatch(rng, ctx(state, tie.teamA, userPlayers, true), ctx(state, tie.teamB, userPlayers, true), { knockout: true });
-    tie.leg1 = leg1;
-    tie.leg2 = leg2;
-    const aGoals = leg1.awayGoals + leg2.homeGoals;
-    const bGoals = leg1.homeGoals + leg2.awayGoals;
-    if (aGoals === bGoals) {
-      const [hp, ap] = shootout(rng, state.teams[tie.teamA].strength, state.teams[tie.teamB].strength);
-      leg2.penalties = [hp, ap];
-      tie.winner = hp > ap ? tie.teamA : tie.teamB;
-    } else {
-      tie.winner = aGoals > bGoals ? tie.teamA : tie.teamB;
-    }
+    tie.winner = aGoals > bGoals ? tie.teamA : tie.teamB;
+  }
+  if (user) {
     trackUserStats(state, leg1, tie.teamA === USER_TEAM_ID ? 1 : 0, userPlayers);
     trackUserStats(state, leg2, tie.teamA === USER_TEAM_ID ? 0 : 1, userPlayers);
   }
+}
 
-  if (tie.winner !== USER_TEAM_ID) {
-    // Knocked out — the run ends here, no further simulation.
+/** After a completed round, draw the next round's ties from the winners. */
+function buildNextRound(state: TournamentState, played: KORoundName) {
+  const winners = state.ties.filter((t) => t.round === played).map((t) => t.winner!) ;
+  if (played === "Play-off") {
+    // R16: league seeds 1-8 host the play-off winners — best seed vs the winner
+    // that came from the lowest-ranked pairing, bracket fixed from here on.
+    const table = computeTable(state);
+    const seeds = table.map((r) => r.teamId).slice(0, 8);
+    const reversed = [...winners].reverse();
+    for (let i = 0; i < 8; i++) {
+      state.ties.push({ round: "Round of 16", teamA: seeds[i], teamB: reversed[i] });
+    }
+    state.phase = "r16";
+    return;
+  }
+  const nextRound = KO_NEXT[played]!.round;
+  for (let i = 0; i < winners.length; i += 2) {
+    state.ties.push({ round: nextRound, teamA: winners[i], teamB: winners[i + 1] });
+  }
+  state.phase = KO_NEXT[played]!.phase;
+}
+
+/**
+ * Play EVERY tie of the current knockout round — the whole field, so the
+ * bracket fills like a broadcast graphic. The user's run still ends the moment
+ * their tie is lost (later rounds are never simulated), and winning the final
+ * crowns them champions.
+ */
+export function playKnockoutStage(rng: Rng, state: TournamentState, userPlayers: Player[]): KOTie[] {
+  const round = PHASE_ROUND[state.phase];
+  if (!round) return [];
+  const current = state.ties.filter((t) => t.round === round && !t.winner);
+  if (!current.length) return [];
+
+  for (const tie of current) playTie(rng, state, tie, userPlayers);
+
+  const userTie = current.find(isUserTie);
+  if (round === "Final") {
+    const final = current[0];
+    state.champion = final.winner;
+    state.phase = "done";
+    if (final.winner === USER_TEAM_ID) {
+      state.exit = { stage: "Champions", text: "Champions of Europe" };
+      computeAwards(state, userPlayers);
+    } else {
+      state.userAlive = false;
+      state.exit = { stage: "Final", text: "Knocked out in the Final" };
+    }
+    return current;
+  }
+  if (userTie && userTie.winner !== USER_TEAM_ID) {
+    // Knocked out — the run ends here; the rest of the bracket stays undrawn.
     state.userAlive = false;
     state.phase = "done";
-    state.exit = { stage: tie.round, text: `Knocked out in the ${tie.round}` };
-    return [tie];
+    state.exit = { stage: round, text: `Knocked out in the ${round}` };
+    return current;
   }
-
-  const next = KO_NEXT[tie.round];
-  if (!next) {
-    // Won the final — champions of Europe.
-    state.champion = USER_TEAM_ID;
-    state.phase = "done";
-    state.exit = { stage: "Champions", text: "Champions of Europe" };
-    computeAwards(state, userPlayers);
-    return [tie];
-  }
-  state.phase = next.phase;
-  openUserTie(rng, state, next.round);
-  return [tie];
+  buildNextRound(state, round);
+  return current;
 }
 
 function computeAwards(state: TournamentState, userPlayers: Player[]) {

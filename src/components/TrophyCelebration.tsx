@@ -8,6 +8,7 @@ import { CrestLogo } from "@/components/CrestLogo";
 import { Fireworks } from "@/components/fx/Fireworks";
 import { Confetti, CameraFlashes, RainOverlay } from "@/components/fx/Atmosphere";
 import { useGame } from "@/lib/store";
+import { shareTrophyCard } from "@/lib/trophy-card";
 import { play } from "@/lib/sound";
 
 interface Props {
@@ -287,12 +288,37 @@ export function TrophyCelebration({ tournament, teamName, tie, onViewStats, onCo
           </motion.button>
         )}
         {won && stage === "lift" && showAwards && (
-          <motion.button
+          <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.6 }}
-            className="btn btn-gold mt-8" onClick={onContinue}
+            className="mt-8 flex flex-wrap items-center justify-center gap-3"
           >
-            Continue to Your Profile
-          </motion.button>
+            <button
+              className="btn btn-ghost"
+              onClick={() => {
+                play("select");
+                const legsPlayed = tie ? ([tie.leg1, tie.leg2].filter(Boolean) as MatchResult[]) : [];
+                const userAgg = legsPlayed.reduce((s, l) => s + (l.home === USER_TEAM_ID ? l.homeGoals : l.awayGoals), 0);
+                const oppAgg = legsPlayed.reduce((s, l) => s + (l.home === USER_TEAM_ID ? l.awayGoals : l.homeGoals), 0);
+                const pens = (tie?.leg2 ?? tie?.leg1)?.penalties;
+                const opp = tie ? tournament.teams[tie.teamA === USER_TEAM_ID ? tie.teamB : tie.teamA] : null;
+                void shareTrophyCard({
+                  compLabel: "Champions League",
+                  title: "Champions of Europe",
+                  teamName,
+                  scoreLine: opp
+                    ? `${teamName} ${userAgg}-${oppAgg} ${teamLabel(opp)}${pens ? ` · pens ${pens[0]}-${pens[1]}` : ""}`
+                    : `${teamName} · Champions`,
+                  accent: "#22e0ff",
+                  players: xi.map((p) => ({ name: p!.name, position: p!.position, overall: p!.overall })),
+                });
+              }}
+            >
+              📸 Save Trophy Card
+            </button>
+            <button className="btn btn-gold" onClick={onContinue}>
+              Continue to Your Profile
+            </button>
+          </motion.div>
         )}
         {!won && (
           <motion.button

@@ -24,6 +24,8 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      - name: Simulate every tournament format (deploy gate)
+        run: npm run simtest
       - name: Build static site
         run: npm run build
         env:

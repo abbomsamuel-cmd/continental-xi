@@ -5,9 +5,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useGame } from "@/lib/store";
 import {
-  COMP_SQUADS, groupTable, squadKey, type IntlComp, type IntlState,
+  COMP_SQUADS, groupTable, squadKey, INTL_USER, type IntlComp, type IntlState,
 } from "@/lib/engine/international";
-import type { KOTie, MatchResult, RawSquad, TableRow } from "@/lib/types";
+import { shareTrophyCard, type CardPlayer } from "@/lib/trophy-card";
+import type { KOTie, MatchResult, Player, RawSquad, TableRow } from "@/lib/types";
 import { MatchModal } from "@/components/MatchModal";
 import { TeamBadge } from "@/components/TeamBadge";
 import { CrestLogo } from "@/components/CrestLogo";
@@ -772,8 +773,44 @@ function International() {
                     View final match stats
                   </motion.button>
                 )}
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.1 }} className="mt-6 flex justify-center gap-3">
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.1 }} className="mt-6 flex flex-wrap justify-center gap-3">
                   <button className="btn btn-ghost text-xs" onClick={() => setDismissedEnd(true)}>View bracket</button>
+                  {won && (
+                    <button
+                      className="btn btn-ghost text-xs"
+                      onClick={() => {
+                        play("select");
+                        const finalTie = intl.ties.find((k) => k.round === "Final" && k.winner === intl.userKey);
+                        const leg = finalTie?.leg1;
+                        const scoreLine = leg && finalTie
+                          ? `${label(intl, leg.home)} ${leg.homeGoals}-${leg.awayGoals} ${label(intl, leg.away)}${leg.penalties ? ` · pens ${leg.penalties[0]}-${leg.penalties[1]}` : ""}`
+                          : `${userLabel} · Champions`;
+                        // drafted XIs carry their real picks; a led nation shows
+                        // its strongest XI from that vintage's squad
+                        let players: CardPlayer[];
+                        if (intl.userKey === INTL_USER) {
+                          players = (useGame.getState().getXI().filter(Boolean) as Player[])
+                            .map((p) => ({ name: p.name, position: p.position, overall: p.overall }));
+                        } else {
+                          const squad = COMP_SQUADS[intl.comp].find((s) => squadKey(s) === intl.userKey);
+                          const all = (squad?.players ?? []).map((p) => ({ name: p[0], position: p[2] as string, overall: p[3] }));
+                          const gk = all.filter((p) => p.position === "GK").sort((a, b) => b.overall - a.overall).slice(0, 1);
+                          const outfield = all.filter((p) => p.position !== "GK").sort((a, b) => b.overall - a.overall).slice(0, 10);
+                          players = [...gk, ...outfield];
+                        }
+                        void shareTrophyCard({
+                          compLabel: t.title,
+                          title: "Champions",
+                          teamName: userLabel,
+                          scoreLine,
+                          accent: t.accent,
+                          players,
+                        });
+                      }}
+                    >
+                      📸 Save Trophy Card
+                    </button>
+                  )}
                   <button className="btn btn-gold" onClick={() => { endIntl(); play("click"); }}>
                     {won ? "Lift the Trophy" : "Save & Return"}
                   </button>

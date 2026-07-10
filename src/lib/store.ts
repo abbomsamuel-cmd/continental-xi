@@ -3,8 +3,8 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type {
-  DraftRecord, Fixture, Formation, GameMode, KOTie, Player, Profile,
-  TeamAnalysis, TournamentState,
+  DraftRecord, Fixture, Formation, GameMode, IntlRecord, KOTie, LoggedMatch, Player, Profile,
+  SimTeam, TeamAnalysis, TournamentState,
 } from "./types";
 import { getFormation, positionFit, canPlaySlot } from "./formations";
 import { getPool, getPoolPlayers, poolSquadPlayers, type DraftPool } from "./players";
@@ -70,6 +70,9 @@ interface StoreState {
   /** pool the next draft should use (set by the International lobby) */
   pendingPool: DraftPool;
   setPendingPool: (pool: DraftPool) => void;
+
+  /** lifetime reviewable log of every match the user's team played */
+  matchLog: LoggedMatch[];
 
   // actions
   init: () => void;
@@ -143,6 +146,7 @@ export const useGame = create<StoreState>()(
       tournament: null,
       intl: null,
       pendingPool: "clubs",
+      matchLog: [],
       setPendingPool: (pool) => set({ pendingPool: pool }),
 
       init: () => {
@@ -316,7 +320,10 @@ export const useGame = create<StoreState>()(
         const rng = seededRng(`${rngSeed}-md${tournament.matchday}-${Math.random()}`);
         const players = get().getXI().filter(Boolean) as Player[];
         const played = playMatchday(rng, tournament, players);
-        set({ tournament: { ...tournament } });
+        const entries = played
+          .filter((f) => f.result && (f.home === USER_TEAM_ID || f.away === USER_TEAM_ID))
+          .map((f) => logEntry("cl", `Matchday ${f.matchday}`, tournament.teams, f.result!));
+        set({ tournament: { ...tournament }, matchLog: pushLog(get().matchLog, entries) });
         return played;
       },
 
@@ -328,10 +335,15 @@ export const useGame = create<StoreState>()(
         const rng = seededRng(`${rngSeed}-ko-${tournament.phase}-${Math.random()}`);
         const players = get().getXI().filter(Boolean) as Player[];
         const ties = playKnockoutStage(rng, tournament, players);
+        const entries: LoggedMatch[] = [];
+        for (const t of ties.filter((t) => t.teamA === USER_TEAM_ID || t.teamB === USER_TEAM_ID)) {
+          if (t.leg1) entries.push(logEntry("cl", t.leg2 ? `${t.round} · 1st Leg` : t.round, tournament.teams, t.leg1));
+          if (t.leg2) entries.push(logEntry("cl", `${t.round} · 2nd Leg`, tournament.teams, t.leg2));
+        }
         if (tournament.phase === "done") {
           play(tournament.champion === USER_TEAM_ID ? "trophy" : "lose");
         }
-        set({ tournament: { ...tournament } });
+        set({ tournament: { ...tournament }, matchLog: pushLog(get().matchLog, entries) });
         return ties;
       },
 
@@ -423,20 +435,31 @@ export const useGame = create<StoreState>()(
         const { intl } = get();
         // phase guard — a stray double call must never replay a matchday
         if (!intl || intl.phase !== "groups") return;
+        const md = intl.matchday;
         const userPlayers = intl.userKey === INTL_USER ? (get().getXI().filter(Boolean) as Player[]) : undefined;
         playIntlMatchday(randomRng(), intl, userPlayers);
-        set({ intl: { ...intl } });
+        const entries = intl.fixtures
+          .filter((f) => f.matchday === md && f.result && (f.home === intl.userKey || f.away === intl.userKey))
+          .map((f) => logEntry(intl.comp, `Group Stage · Matchday ${md}`, intl.teams, f.result!));
+        set({ intl: { ...intl }, matchLog: pushLog(get().matchLog, entries) });
       },
 
       advanceIntlKO: () => {
         const { intl } = get();
-        if (!intl || !["qf", "sf", "final"].includes(intl.phase)) return;
+        if (!intl || !["r16", "qf", "sf", "final"].includes(intl.phase)) return;
+        const playedRounds: KOTie["round"][] =
+          intl.phase === "r16" ? ["Round of 16"] :
+          intl.phase === "qf" ? ["Quarter-final"] :
+          intl.phase === "sf" ? ["Semi-final"] : ["Final", "Third Place"];
         const userPlayers = intl.userKey === INTL_USER ? (get().getXI().filter(Boolean) as Player[]) : undefined;
         playIntlRound(randomRng(), intl, userPlayers);
+        const entries = intl.ties
+          .filter((t) => playedRounds.includes(t.round) && t.leg1 && (t.teamA === intl.userKey || t.teamB === intl.userKey))
+          .map((t) => logEntry(intl.comp, t.round === "Final" ? "The Final" : t.round, intl.teams, t.leg1!));
         if (intl.phase === "done") {
           play(intl.champion === intl.userKey ? "trophy" : "lose");
         }
-        set({ intl: { ...intl } });
+        set({ intl: { ...intl }, matchLog: pushLog(get().matchLog, entries) });
       },
 
       endIntl: () => {
@@ -446,15 +469,17 @@ export const useGame = create<StoreState>()(
         const result =
           intl.champion === intl.userKey ? "champion" :
           stage === "Final" ? "final" :
+          stage === "Third Place" ? "third" :
           stage === "Semi-final" ? "semi" :
-          stage === "Quarter-final" ? "quarter" : "groups";
+          stage === "Quarter-final" ? "quarter" :
+          stage === "Round of 16" ? "r16" : "groups";
         const drafted = intl.userKey === INTL_USER;
         const [nation, year] = drafted
           ? [intl.teams[INTL_USER]?.name ?? "Your XI", new Date().getFullYear()]
           : (([n, y]) => [n, Number(y)] as const)(intl.userKey.split("|"));
         const record = {
           comp: intl.comp, nation: String(nation), year: Number(year),
-          result: result as "champion" | "final" | "semi" | "quarter" | "groups",
+          result: result as IntlRecord["result"],
           date: new Date().toISOString(),
         };
         set({
@@ -501,6 +526,7 @@ export const useGame = create<StoreState>()(
         tournament: s.tournament,
         rerolls: s.rerolls,
         intl: s.intl,
+        matchLog: s.matchLog,
       }),
       onRehydrateStorage: () => (state) => {
         state?.init();
@@ -508,6 +534,30 @@ export const useGame = create<StoreState>()(
     },
   ),
 );
+
+// ---- match-history log helpers ----
+
+let logSeq = 0;
+function logEntry(
+  comp: LoggedMatch["comp"], round: string, teams: Record<string, SimTeam>, result: import("./types").MatchResult,
+): LoggedMatch {
+  const ref = (t: SimTeam) => ({ name: t.name, short: t.short, colors: t.colors, season: t.season });
+  return {
+    id: `${Date.now()}-${logSeq++}`,
+    date: new Date().toISOString(),
+    comp,
+    round,
+    home: ref(teams[result.home]),
+    away: ref(teams[result.away]),
+    result,
+  };
+}
+
+/** Newest first, capped so localStorage never bloats. */
+function pushLog(log: LoggedMatch[], entries: LoggedMatch[]): LoggedMatch[] {
+  if (!entries.length) return log;
+  return [...entries.slice().reverse(), ...log].slice(0, 150);
+}
 
 function deepestUserRound(t: TournamentState): DraftRecord["result"] {
   const rounds = t.ties

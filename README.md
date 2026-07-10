@@ -1,22 +1,35 @@
 # Continental XI — Champions Draft & Tournament Simulator
 
-An original, **unofficial fan-made** football draft game inspired by the addictive
-"pick-one-per-round" loop and the prestige of European club football. Draft
-legendary players — each rated for one **exact** Champions campaign, not their
-career — build the ultimate XI, then lead it through the modern **36-team Swiss
-league phase** and knockouts to continental glory.
+An original, **unofficial fan-made** football game inspired by the addictive
+"pick-one-per-round" loop and the prestige of international football. Draft
+legendary players — each rated for one **exact** campaign, not their career —
+build the ultimate XI, then lead it through the **Champions League**, the
+**UEFA EURO**, or the **Copa América** to continental glory.
 
-> Not affiliated with UEFA or any club. No official logos, branding or protected
-> assets are used — the visual identity, names and artwork are original.
+**Play it:** https://continentalxi.github.io/continental-xi/
+
+> Not affiliated with UEFA, CONMEBOL, FIFA or any club. No official logos,
+> branding or protected assets are used — the visual identity, names and
+> artwork are original. All rights reserved — see [LICENSE](LICENSE).
 
 ---
 
 ## Highlights
 
 - **Season-specific ratings.** Messi '11 is a 96, Cristiano '17 a 95, Lewandowski
-  '20 a 94 — ratings reflect that specific European campaign, never inflated.
-  944 rated players across 77 legendary squads (1993–2025) and a registry of 111
+  '20 a 94 — ratings reflect that specific campaign, never inflated.
+  **1,725 rated players** across **105 legendary club squads** (1960–2025),
+  **30 EURO** and **18 Copa América** national vintages, and a registry of 139
   clubs.
+- **Three competitions, three identities.** The 36-team Swiss league phase, the
+  official 24-team EURO format (six groups, best thirds, a true Round of 16),
+  and Copa América with its bronze final — each with its own art direction.
+- **📡 Live Match Mode.** Semi-finals and finals can be watched minute by
+  minute: commentary feed, live statistics, half-time, penalties, pause,
+  ×2/×4 speed and skip-to-result.
+- **Football Hub homepage.** Continue your campaign, today's daily challenge,
+  recent activity, hall of champions and career statistics the moment you open
+  the game.
 - **Deep chemistry.** Links form for same club, nation, league, manager and era,
   plus special bonuses for **36 historic partnerships** (MSN, the BBC, Xavi–
   Iniesta–Busquets, Modrić–Kroos–Casemiro, Maldini–Nesta–Baresi, Robbery…).
@@ -117,10 +130,11 @@ about you is stored anywhere but your own browser. `next build` emits static
 files to `out/`, and `.github/workflows/deploy.yml` publishes them to GitHub
 Pages on every push to `main`.
 
-To host your own copy: push to a GitHub repo, then **Settings → Pages → Source →
-GitHub Actions**. It goes live at `https://<user>.github.io/<repo>/`. (The repo
-name is wired via `basePath` in `next.config.ts`, gated on the `GITHUB_PAGES`
-env var so local dev still runs at the root.)
+(The repo name is wired via `basePath` in `next.config.ts`, gated on the
+`GITHUB_PAGES` env var so local dev still runs at the root.)
+
+Rehosting this game or its database elsewhere is not permitted — see
+[LICENSE](LICENSE).
 
 The data layer is competition-agnostic, so future competitions (Europa League,
 the World Cup, domestic leagues) can be added purely by dropping new squads into

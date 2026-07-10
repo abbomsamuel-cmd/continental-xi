@@ -3,9 +3,10 @@
 import { useEffect, useRef } from "react";
 
 /**
- * Canvas-based stadium atmosphere: drifting particles + twinkling stars +
- * sweeping stadium light beams. Pure canvas (no Three.js dependency needed)
- * so it stays lightweight and works everywhere. Respects reduced-motion.
+ * Canvas-based stadium atmosphere: sweeping floodlight beams with lens flares,
+ * drifting smoke, floating ember particles, twinkling stars and occasional
+ * camera flashes in the "stands". Pure canvas (no Three.js dependency) so it
+ * stays lightweight and works everywhere. Respects reduced-motion.
  */
 export function StadiumBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -23,7 +24,11 @@ export function StadiumBackground() {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
     type P = { x: number; y: number; r: number; vy: number; vx: number; a: number; tw: number; star: boolean };
+    type Smoke = { x: number; y: number; r: number; vx: number; a: number };
+    type Flash = { x: number; y: number; t: number; life: number };
     let particles: P[] = [];
+    let smoke: Smoke[] = [];
+    let flashes: Flash[] = [];
 
     const resize = () => {
       w = canvas.clientWidth;
@@ -45,20 +50,28 @@ export function StadiumBackground() {
           star,
         };
       });
+      smoke = Array.from({ length: 5 }, () => ({
+        x: Math.random() * w,
+        y: h * (0.55 + Math.random() * 0.35),
+        r: 120 + Math.random() * 180,
+        vx: (Math.random() - 0.5) * 0.12,
+        a: 0.03 + Math.random() * 0.03,
+      }));
+      flashes = [];
     };
 
     let t = 0;
     const draw = () => {
       ctx.clearRect(0, 0, w, h);
 
-      // sweeping light beams from top
+      // sweeping floodlight beams from the top, each with a lens-flare head
       const beams = 3;
       for (let i = 0; i < beams; i++) {
         const cx = w * (0.2 + 0.3 * i) + Math.sin(t * 0.0004 + i) * w * 0.12;
-        const grad = ctx.createLinearGradient(cx, 0, cx, h);
         const hue = i % 2 === 0 ? "34, 224, 255" : "212, 175, 55";
-        grad.addColorStop(0, `rgba(${hue}, 0.10)`);
-        grad.addColorStop(0.5, `rgba(${hue}, 0.02)`);
+        const grad = ctx.createLinearGradient(cx, 0, cx, h);
+        grad.addColorStop(0, `rgba(${hue}, 0.11)`);
+        grad.addColorStop(0.5, `rgba(${hue}, 0.025)`);
         grad.addColorStop(1, "rgba(0,0,0,0)");
         ctx.fillStyle = grad;
         ctx.beginPath();
@@ -68,8 +81,36 @@ export function StadiumBackground() {
         ctx.lineTo(cx - w * 0.16, h);
         ctx.closePath();
         ctx.fill();
+
+        // flare: bright core + soft halo where the beam originates
+        const halo = ctx.createRadialGradient(cx, 4, 0, cx, 4, 46);
+        halo.addColorStop(0, `rgba(${hue}, 0.5)`);
+        halo.addColorStop(0.3, `rgba(${hue}, 0.12)`);
+        halo.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = halo;
+        ctx.fillRect(cx - 46, -42, 92, 92);
+        // horizontal anamorphic streak
+        const streak = ctx.createLinearGradient(cx - 70, 0, cx + 70, 0);
+        streak.addColorStop(0, "rgba(255,255,255,0)");
+        streak.addColorStop(0.5, `rgba(${hue}, 0.28)`);
+        streak.addColorStop(1, "rgba(255,255,255,0)");
+        ctx.fillStyle = streak;
+        ctx.fillRect(cx - 70, 3, 140, 1.6);
       }
 
+      // drifting smoke banks near the bottom
+      for (const s of smoke) {
+        s.x += s.vx;
+        if (s.x < -s.r) s.x = w + s.r;
+        if (s.x > w + s.r) s.x = -s.r;
+        const g = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, s.r);
+        g.addColorStop(0, `rgba(140, 170, 230, ${s.a})`);
+        g.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = g;
+        ctx.fillRect(s.x - s.r, s.y - s.r, s.r * 2, s.r * 2);
+      }
+
+      // stars + floating embers
       for (const p of particles) {
         if (p.star) {
           p.a += p.tw * (Math.sin(t * 0.002 + p.x) > 0 ? 1 : -1);
@@ -85,6 +126,25 @@ export function StadiumBackground() {
         ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
         ctx.fill();
       }
+
+      // camera flashes popping in the lower "stands" band
+      if (Math.random() < 0.02 && flashes.length < 6) {
+        flashes.push({ x: Math.random() * w, y: h * (0.62 + Math.random() * 0.3), t: 0, life: 14 + Math.random() * 10 });
+      }
+      flashes = flashes.filter((f) => f.t < f.life);
+      for (const f of flashes) {
+        f.t++;
+        const k = f.t / f.life;
+        const alpha = k < 0.25 ? k / 0.25 : 1 - (k - 0.25) / 0.75;
+        const r = 2 + k * 8;
+        const g = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, r * 3);
+        g.addColorStop(0, `rgba(255,255,255,${alpha * 0.9})`);
+        g.addColorStop(0.4, `rgba(200,225,255,${alpha * 0.25})`);
+        g.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = g;
+        ctx.fillRect(f.x - r * 3, f.y - r * 3, r * 6, r * 6);
+      }
+
       t += 16;
       if (!reduce) raf = requestAnimationFrame(draw);
     };

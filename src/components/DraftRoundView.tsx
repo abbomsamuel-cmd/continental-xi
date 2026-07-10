@@ -11,7 +11,14 @@ import { getPool } from "@/lib/players";
 import { play } from "@/lib/sound";
 
 const POOL_BADGE: Record<string, string | null> = {
-  clubs: null, euro: "🏆 UEFA EURO DRAFT", copa: "🏆 COPA AMÉRICA DRAFT",
+  clubs: null, euro: "🇪🇺 UEFA EURO DRAFT", copa: "🌎 COPA AMÉRICA DRAFT",
+};
+
+/* per-competition draft identity — accent, headline gradient, progress bar */
+const POOL_THEME: Record<string, { accent: string; heading: string; bar: string }> = {
+  clubs: { accent: "#22e0ff", heading: "text-gradient-gold", bar: "linear-gradient(90deg, #003b8e, #22e0ff, #d4af37)" },
+  euro: { accent: "#37e0ff", heading: "text-gradient-euro", bar: "linear-gradient(90deg, #1b4fff, #37e0ff, #dbe6ff)" },
+  copa: { accent: "#ffc93c", heading: "text-gradient-copa", bar: "linear-gradient(90deg, #17c97a, #ffc93c, #ff8a3d)" },
 };
 
 export function DraftRoundView() {
@@ -49,14 +56,14 @@ export function DraftRoundView() {
       {/* header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <div className="text-xs font-bold uppercase tracking-widest text-cyan">
+          <div className="text-xs font-bold uppercase tracking-widest" style={{ color: POOL_THEME[pool].accent }}>
             {POOL_BADGE[pool] ? `${POOL_BADGE[pool]} · ` : ""}Round {currentRound + 1} / {rounds.length} · Filling {slot.pos}
           </div>
           <h1 className="font-display text-2xl font-extrabold sm:text-3xl">
             {spinning ? (
               <span className="text-muted">Spinning…</span>
             ) : (
-              <>Pick from <span className="text-gradient-gold">{squad.club} {isIntl ? squad.season : ""}</span></>
+              <>Pick from <span className={POOL_THEME[pool].heading}>{squad.club} {isIntl ? squad.season : ""}</span></>
             )}
           </h1>
           <div className="text-sm text-muted">
@@ -73,7 +80,8 @@ export function DraftRoundView() {
       {/* progress bar */}
       <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-white/8">
         <motion.div
-          className="h-full rounded-full bg-gradient-to-r from-[#003b8e] via-cyan to-gold"
+          className="h-full rounded-full"
+          style={{ background: POOL_THEME[pool].bar }}
           animate={{ width: `${progress}%` }}
           transition={{ type: "spring", stiffness: 100 }}
         />

@@ -190,7 +190,7 @@ export interface TableRow {
   form: ("W" | "D" | "L")[];
 }
 
-export type KORoundName = "Play-off" | "Round of 16" | "Quarter-final" | "Semi-final" | "Final";
+export type KORoundName = "Play-off" | "Round of 16" | "Quarter-final" | "Semi-final" | "Third Place" | "Final";
 
 export interface KOTie {
   round: KORoundName;
@@ -236,8 +236,19 @@ export interface IntlRecord {
   comp: "euro" | "copa";
   nation: string;
   year: number;
-  result: "champion" | "final" | "semi" | "quarter" | "groups";
+  result: "champion" | "final" | "third" | "semi" | "quarter" | "r16" | "groups";
   date: string;
+}
+
+/** One reviewable entry in the lifetime match-history log. */
+export interface LoggedMatch {
+  id: string;
+  date: string; // ISO
+  comp: "cl" | "euro" | "copa";
+  round: string; // "Matchday 3", "Quarter-final · 1st Leg", "The Final" …
+  home: { name: string; short: string; colors: [string, string]; season?: number };
+  away: { name: string; short: string; colors: [string, string]; season?: number };
+  result: MatchResult;
 }
 
 export interface Profile {

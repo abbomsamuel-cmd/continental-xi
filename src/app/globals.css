@@ -14,6 +14,18 @@
   --green: #2ee6a6;
   --amber: #ffcf5c;
 
+  /* EURO identity — royal, high-tech Europe */
+  --euro-blue: #1b4fff;
+  --euro-cyan: #37e0ff;
+  --euro-silver: #dbe6ff;
+  --euro-navy: #050d2e;
+
+  /* Copa identity — heat, passion, gold */
+  --copa-green: #17c97a;
+  --copa-gold: #ffc93c;
+  --copa-navy: #06251a;
+  --copa-orange: #ff8a3d;
+
   --background: var(--midnight-2);
   --foreground: var(--ink);
 }
@@ -42,8 +54,9 @@ html {
 
 body {
   background:
-    radial-gradient(1200px 600px at 50% -10%, rgba(0, 59, 142, 0.35), transparent 60%),
-    radial-gradient(900px 500px at 100% 0%, rgba(34, 224, 255, 0.08), transparent 55%),
+    radial-gradient(1200px 600px at 50% -10%, rgba(0, 59, 142, 0.4), transparent 60%),
+    radial-gradient(900px 500px at 100% 0%, rgba(34, 224, 255, 0.09), transparent 55%),
+    radial-gradient(700px 500px at 0% 30%, rgba(90, 60, 220, 0.08), transparent 60%),
     linear-gradient(180deg, #061a40 0%, #030f26 55%, #020814 100%);
   background-attachment: fixed;
   color: var(--foreground);
@@ -69,21 +82,42 @@ body {
   background-clip: text;
   color: transparent;
 }
+.text-gradient-euro {
+  background: linear-gradient(120deg, #ffffff, var(--euro-cyan) 55%, var(--euro-blue));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.text-gradient-copa {
+  background: linear-gradient(120deg, #fff2c9, var(--copa-gold) 50%, var(--copa-orange));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+/* animated shine that sweeps across gradient display text */
+.text-shine {
+  background-size: 200% auto;
+  animation: textShine 3.5s linear infinite;
+}
+@keyframes textShine {
+  0% { background-position: 0% center; }
+  100% { background-position: -200% center; }
+}
 
 /* ---------- Glassmorphism ---------- */
 .glass {
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02));
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(16px) saturate(1.3);
+  -webkit-backdrop-filter: blur(16px) saturate(1.3);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 .glass-strong {
-  background: linear-gradient(160deg, rgba(10, 30, 66, 0.85), rgba(3, 15, 38, 0.9));
-  border: 1px solid rgba(212, 175, 55, 0.2);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  background: linear-gradient(160deg, rgba(10, 30, 66, 0.85), rgba(3, 15, 38, 0.92));
+  border: 1px solid rgba(212, 175, 55, 0.22);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 .gold-border {
   border: 1px solid rgba(212, 175, 55, 0.4);
@@ -91,6 +125,7 @@ body {
 
 /* ---------- Buttons ---------- */
 .btn {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -105,28 +140,66 @@ body {
   transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
   border: none;
   color: #041022;
+  overflow: hidden;
+}
+/* glossy sweep on every solid button */
+.btn::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -60%;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.45), transparent);
+  transform: skewX(-20deg);
+  transition: left 0.5s ease;
+  pointer-events: none;
+}
+.btn:hover::after {
+  left: 130%;
 }
 .btn:hover {
-  transform: translateY(-2px);
+  transform: translateY(-2px) scale(1.02);
 }
 .btn:active {
-  transform: translateY(0);
+  transform: translateY(0) scale(0.98);
 }
 .btn-gold {
   background: linear-gradient(120deg, var(--gold-bright), var(--gold));
   box-shadow: 0 8px 30px rgba(212, 175, 55, 0.35);
 }
 .btn-gold:hover {
-  box-shadow: 0 12px 40px rgba(212, 175, 55, 0.55);
+  box-shadow: 0 12px 44px rgba(212, 175, 55, 0.6);
 }
 .btn-cyan {
   background: linear-gradient(120deg, #7ff0ff, var(--cyan));
   box-shadow: 0 8px 30px rgba(34, 224, 255, 0.3);
 }
+.btn-cyan:hover {
+  box-shadow: 0 12px 44px rgba(34, 224, 255, 0.55);
+}
+/* per-competition primary buttons — EURO ice-blue, Copa sunset gold-orange */
+.btn-euro {
+  background: linear-gradient(120deg, #9fe9ff, var(--euro-cyan) 55%, #2f7bff);
+  box-shadow: 0 8px 30px rgba(55, 224, 255, 0.35);
+}
+.btn-euro:hover {
+  box-shadow: 0 12px 44px rgba(55, 224, 255, 0.6);
+}
+.btn-copa {
+  background: linear-gradient(120deg, #ffe08a, var(--copa-gold) 50%, var(--copa-orange));
+  box-shadow: 0 8px 30px rgba(255, 201, 60, 0.35);
+}
+.btn-copa:hover {
+  box-shadow: 0 12px 44px rgba(255, 201, 60, 0.6);
+}
 .btn-ghost {
   background: rgba(255, 255, 255, 0.05);
   color: var(--ink);
   border: 1px solid rgba(255, 255, 255, 0.16);
+}
+.btn-ghost::after {
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.12), transparent);
 }
 .btn-ghost:hover {
   border-color: rgba(212, 175, 55, 0.5);
@@ -135,6 +208,10 @@ body {
   opacity: 0.4;
   cursor: not-allowed;
   transform: none;
+}
+/* slow attract pulse for primary CTAs */
+.btn-pulse {
+  animation: pulse-glow 2.6s ease-in-out infinite;
 }
 
 /* ---------- Utility ---------- */
@@ -172,6 +249,52 @@ body {
     transparent 1px,
     transparent 3px
   );
+}
+/* subtle film-grain vignette that makes flat panels feel lit */
+.vignette {
+  position: relative;
+}
+.vignette::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(120% 100% at 50% 0%, transparent 55%, rgba(0, 0, 0, 0.35));
+  pointer-events: none;
+}
+
+/* ---------- Hover shine (cards) ---------- */
+.shine {
+  position: relative;
+  overflow: hidden;
+}
+.shine::before {
+  content: "";
+  position: absolute;
+  top: -20%;
+  left: -80%;
+  width: 55%;
+  height: 140%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.16), transparent);
+  transform: skewX(-22deg);
+  transition: left 0.65s ease;
+  pointer-events: none;
+  z-index: 2;
+}
+.shine:hover::before {
+  left: 140%;
+}
+
+/* ---------- 3D mode cards ---------- */
+.tilt-wrap {
+  perspective: 1100px;
+}
+.tilt-card {
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+.tilt-layer {
+  transform: translateZ(var(--z, 30px));
 }
 
 /* ---------- Champions League themed surfaces ---------- */
@@ -222,6 +345,75 @@ body {
   text-transform: uppercase;
 }
 
+/* ---------- EURO themed surfaces (royal / neon / glass) ---------- */
+.euro-panel {
+  background:
+    radial-gradient(130% 90% at 50% -25%, rgba(27, 79, 255, 0.4), transparent 60%),
+    radial-gradient(70% 60% at 90% 10%, rgba(55, 224, 255, 0.14), transparent 60%),
+    linear-gradient(180deg, #0a1c6e 0%, #06103f 55%, var(--euro-navy) 100%);
+  border: 1px solid rgba(140, 190, 255, 0.26);
+  box-shadow: 0 22px 60px rgba(2, 8, 40, 0.6), inset 0 1px 0 rgba(220, 235, 255, 0.12);
+}
+.euro-grid {
+  position: relative;
+}
+.euro-grid::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background-image:
+    linear-gradient(rgba(85, 150, 255, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(85, 150, 255, 0.07) 1px, transparent 1px);
+  background-size: 34px 34px;
+  mask-image: radial-gradient(120% 90% at 50% 0%, #000 20%, transparent 80%);
+  -webkit-mask-image: radial-gradient(120% 90% at 50% 0%, #000 20%, transparent 80%);
+  pointer-events: none;
+}
+.euro-neon {
+  box-shadow: 0 0 18px rgba(55, 224, 255, 0.35), 0 0 44px rgba(27, 79, 255, 0.25), inset 0 0 14px rgba(55, 224, 255, 0.08);
+}
+
+/* ---------- Copa América themed surfaces (sunset / gold / heat) ---------- */
+.copa-panel {
+  background:
+    radial-gradient(130% 90% at 50% -25%, rgba(255, 138, 61, 0.30), transparent 55%),
+    radial-gradient(80% 60% at 15% 5%, rgba(255, 201, 60, 0.18), transparent 60%),
+    linear-gradient(180deg, #14522f 0%, #0a3520 55%, var(--copa-navy) 100%);
+  border: 1px solid rgba(255, 201, 60, 0.32);
+  box-shadow: 0 22px 60px rgba(2, 20, 10, 0.65), inset 0 1px 0 rgba(255, 220, 130, 0.14);
+}
+.copa-gold-border {
+  border: 1px solid rgba(255, 201, 60, 0.55);
+  box-shadow: 0 0 16px rgba(255, 201, 60, 0.25), inset 0 0 12px rgba(255, 201, 60, 0.06);
+}
+.copa-heat {
+  position: relative;
+}
+.copa-heat::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    repeating-linear-gradient(115deg, transparent 0 18px, rgba(255, 201, 60, 0.05) 18px 22px, rgba(255, 138, 61, 0.05) 22px 26px);
+  pointer-events: none;
+  mask-image: linear-gradient(to top, #000, transparent 75%);
+  -webkit-mask-image: linear-gradient(to top, #000, transparent 75%);
+}
+
+/* ---------- Waving flag ---------- */
+.flag-wave {
+  animation: flagWave 3.2s ease-in-out infinite;
+  transform-origin: left center;
+}
+@keyframes flagWave {
+  0%, 100% { transform: skewY(0deg) scaleX(1); }
+  25% { transform: skewY(1.6deg) scaleX(0.99); }
+  50% { transform: skewY(-1.2deg) scaleX(1.01); }
+  75% { transform: skewY(1.2deg) scaleX(0.995); }
+}
+
 /* scrollbar */
 ::-webkit-scrollbar {
   width: 10px;
@@ -239,7 +431,7 @@ body {
   background: var(--gold);
 }
 
-/* animations */
+/* ---------- animations ---------- */
 @keyframes float-up {
   0% { transform: translateY(100vh) scale(0.5); opacity: 0; }
   10% { opacity: 0.8; }
@@ -255,9 +447,55 @@ body {
   100% { transform: translateX(250%) skewX(-15deg); }
 }
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.4); }
-  50% { box-shadow: 0 0 30px 6px rgba(212, 175, 55, 0.15); }
+  0%, 100% { box-shadow: 0 8px 30px rgba(212, 175, 55, 0.35); }
+  50% { box-shadow: 0 8px 46px 8px rgba(212, 175, 55, 0.55); }
 }
+@keyframes floatY {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+.float-y {
+  animation: floatY 4.5s ease-in-out infinite;
+}
+/* floodlight flicker for stadium scenes */
+@keyframes floodFlicker {
+  0%, 100% { opacity: 0.85; }
+  92% { opacity: 0.85; }
+  93% { opacity: 0.55; }
+  94% { opacity: 0.9; }
+  97% { opacity: 0.7; }
+}
+/* rain streaks for elimination scenes */
+@keyframes rainFall {
+  0% { transform: translateY(-120%); }
+  100% { transform: translateY(120vh); }
+}
+/* camera flash pops in the stands */
+@keyframes flashPop {
+  0%, 100% { opacity: 0; transform: scale(0.4); }
+  8% { opacity: 1; transform: scale(1); }
+  18% { opacity: 0; transform: scale(0.6); }
+}
+/* slow ambient drift for scene backdrops */
+@keyframes slowPan {
+  0%, 100% { transform: translateX(-2.5%) scale(1.06); }
+  50% { transform: translateX(2.5%) scale(1.06); }
+}
+.slow-pan {
+  animation: slowPan 22s ease-in-out infinite;
+  will-change: transform;
+}
+/* aurora / moving gradient wash */
+@keyframes auroraShift {
+  0%, 100% { transform: translate3d(-6%, -3%, 0) rotate(-2deg); }
+  50% { transform: translate3d(6%, 3%, 0) rotate(2deg); }
+}
+.aurora {
+  animation: auroraShift 16s ease-in-out infinite;
+  will-change: transform;
+  filter: blur(50px);
+}
+
 .shimmer {
   position: relative;
   overflow: hidden;

@@ -4,17 +4,21 @@ import { SQUADS_MODERN } from "./data/squads-modern";
 import { SQUADS_EXTRA } from "./data/squads-extra";
 import { SQUAD_DEPTH } from "./data/squads-depth";
 import { SQUAD_DEPTH_2 } from "./data/squads-depth2";
+import { SQUADS_ICONS } from "./data/squads-icons";
 import { EURO_SQUADS, COPA_SQUADS } from "./data/nations";
+import { EURO_SQUADS_EXTRA } from "./data/nations-extra";
 import { POSITION_GROUP } from "./formations";
 import { hashString, mulberry32 } from "./rng";
 
-export const SQUADS: RawSquad[] = [...SQUADS_CLASSIC, ...SQUADS_MODERN, ...SQUADS_EXTRA];
+export const SQUADS: RawSquad[] = [...SQUADS_CLASSIC, ...SQUADS_MODERN, ...SQUADS_EXTRA, ...SQUADS_ICONS];
+
+const EURO_ALL: RawSquad[] = [...EURO_SQUADS, ...EURO_SQUADS_EXTRA];
 
 /** Which squad pool a draft runs on: club history, or a national tournament. */
 export type DraftPool = "clubs" | "euro" | "copa";
 
 export function getPool(pool: DraftPool): RawSquad[] {
-  return pool === "euro" ? EURO_SQUADS : pool === "copa" ? COPA_SQUADS : SQUADS;
+  return pool === "euro" ? EURO_ALL : pool === "copa" ? COPA_SQUADS : SQUADS;
 }
 
 // Attribute profile per position: relative weight of each attribute vs overall.

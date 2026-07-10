@@ -169,6 +169,5 @@ export const CLUB_REGISTRY: ClubEntry[] = [
   { name: "Vitesse", country: "Netherlands", league: "Eredivisie", coeff: 59, colors: ["#FFED00", "#000000"] },
   // Turkey / Greece / Scotland extra
   { name: "İstanbul Başakşehir", country: "Turkey", league: "Süper Lig", coeff: 60, colors: ["#EF7D00", "#003882"] },
-  { name: "AEK Athens", country: "Greece", league: "Super League Greece", coeff: 60, colors: ["#FFD500", "#000000"] },
   { name: "Aberdeen", country: "Scotland", league: "Scottish Premiership", coeff: 55, colors: ["#E2001A", "#FFFFFF"] },
 ];

@@ -259,6 +259,7 @@ const KO_NEXT: Record<KORoundName, { round: KORoundName; phase: TournamentState[
   "Round of 16": { round: "Quarter-final", phase: "qf" },
   "Quarter-final": { round: "Semi-final", phase: "sf" },
   "Semi-final": { round: "Final", phase: "final" },
+  "Third Place": null, // international-only round; the club bracket never draws it
   "Final": null,
 };
 

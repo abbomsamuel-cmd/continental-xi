@@ -1,5 +1,6 @@
 import type { Fixture, KOTie, Player, RawSquad, SimTeam, TableRow, TeamAnalysis } from "../types";
 import { EURO_SQUADS, COPA_SQUADS } from "../data/nations";
+import { EURO_SQUADS_EXTRA } from "../data/nations-extra";
 import { expandSquad } from "../players";
 import { simulateMatch, shootout, type EngineTeamContext } from "./match";
 import { shuffle, type Rng } from "../rng";
@@ -16,17 +17,21 @@ export interface IntlState {
   groups: string[][]; // group index -> team keys
   fixtures: Fixture[]; // group stage, matchday 1..3
   matchday: number; // next group matchday (4 = groups done)
-  ties: KOTie[]; // QF → SF → Final, single-leg
-  phase: "groups" | "qf" | "sf" | "final" | "done";
+  ties: KOTie[]; // EURO: R16 → QF → SF → F · Copa: QF → SF → Third Place + F
+  phase: "groups" | "r16" | "qf" | "sf" | "final" | "done";
   userAlive: boolean;
   champion?: string;
   exit?: { stage: string; text: string };
 }
 
 export const COMP_SQUADS: Record<IntlComp, RawSquad[]> = {
-  euro: EURO_SQUADS,
+  euro: [...EURO_SQUADS, ...EURO_SQUADS_EXTRA],
   copa: COPA_SQUADS,
 };
+
+/** Official field sizes: EURO is the modern 24-team format, Copa runs 12. */
+export const COMP_SIZE: Record<IntlComp, number> = { euro: 24, copa: 12 };
+const COMP_GROUPS: Record<IntlComp, number> = { euro: 6, copa: 3 };
 
 export function squadKey(sq: RawSquad): string {
   return `${sq.club}|${sq.season}`;
@@ -93,7 +98,7 @@ function nationField(rng: Rng, comp: IntlComp, skipNation?: string): RawSquad[] 
 
 /** Draw groups + fixtures for an assembled team map. */
 function drawTournament(rng: Rng, comp: IntlComp, userKey: string, teams: Record<string, SimTeam>): IntlState {
-  const numGroups = comp === "euro" ? 4 : 3;
+  const numGroups = COMP_GROUPS[comp];
   const seeded = Object.keys(teams).sort((a, b) => teams[b].strength - teams[a].strength);
   seeded.forEach((k, i) => { teams[k].pot = Math.floor(i / numGroups) + 1; });
   const groups: string[][] = Array.from({ length: numGroups }, () => []);
@@ -122,13 +127,15 @@ function drawTournament(rng: Rng, comp: IntlComp, userKey: string, teams: Record
 }
 
 /**
- * Lead-a-nation mode: one squad per nation (the user's chosen vintage locked,
- * other nations pick a random vintage), seeded pots, authentic group draw.
+ * Lead-a-nation mode: the user's chosen vintage locked, the rest of the field
+ * drawn as one random vintage per nation up to the official field size, seeded
+ * pots, authentic group draw.
  */
 export function createIntl(rng: Rng, comp: IntlComp, userKey: string): IntlState {
   const squads = COMP_SQUADS[comp];
   const userSquad = squads.find((s) => squadKey(s) === userKey)!;
-  const field: RawSquad[] = [userSquad, ...nationField(rng, comp, userSquad.club)];
+  const others = shuffle(rng, nationField(rng, comp, userSquad.club));
+  const field: RawSquad[] = [userSquad, ...others].slice(0, COMP_SIZE[comp]);
 
   const teams: Record<string, SimTeam> = {};
   for (const sq of field) {
@@ -140,24 +147,31 @@ export function createIntl(rng: Rng, comp: IntlComp, userKey: string): IntlState
 /**
  * Draft mode: the user's hand-built XI of international legends enters as its
  * own team, replacing one random nation so the field size stays authentic.
+ *
+ * International sides have no transfer-market chemistry — entry strength is a
+ * pure football evaluation: attack, midfield, defense, goalkeeper, experience
+ * and squad balance.
  */
 export function createIntlDraft(
   rng: Rng, comp: IntlComp, teamName: string, colors: [string, string], analysis: TeamAnalysis,
 ): IntlState {
-  const size = comp === "euro" ? 16 : 12;
+  const size = COMP_SIZE[comp];
   const nations = shuffle(rng, nationField(rng, comp)).slice(0, size - 1);
 
   const teams: Record<string, SimTeam> = {};
-  const chemBonus = (analysis.chemistry - 48) * 0.2;
+  const core =
+    analysis.attack * 0.3 + analysis.midfield * 0.25 +
+    analysis.defense * 0.3 + analysis.goalkeeper * 0.15;
+  const polish = (analysis.experience - 50) * 0.06 + (analysis.balance - 50) * 0.06;
   teams[INTL_USER] = {
     id: INTL_USER,
     name: teamName,
     short: "YOU",
     country: "World",
     colors,
-    strength: Math.min(99, analysis.overall + chemBonus),
-    attack: Math.min(99, analysis.attack + chemBonus),
-    defense: Math.min(99, (analysis.defense + analysis.goalkeeper) / 2 + chemBonus),
+    strength: Math.min(99, core + polish),
+    attack: Math.min(99, analysis.attack + polish),
+    defense: Math.min(99, (analysis.defense + analysis.goalkeeper) / 2 + polish),
     isUser: true,
     pot: 0,
   };
@@ -212,58 +226,120 @@ export function playIntlMatchday(rng: Rng, state: IntlState, userPlayers?: Playe
   if (state.matchday > 3 && state.ties.length === 0) resolveGroups(state);
 }
 
-function resolveGroups(state: IntlState) {
-  const tables = state.groups.map((_, i) => groupTable(state, i));
-  let qualified: string[];
-  let pairs: [string, string][];
+/** Rank third-placed rows across groups the official way. */
+function rankRows(rows: TableRow[]): TableRow[] {
+  return [...rows].sort((x, y) => y.points - x.points || (y.gf - y.ga) - (x.gf - x.ga) || y.gf - x.gf);
+}
 
-  if (state.comp === "euro") {
-    // EURO: top 2 per group → QF, winners cross with runners-up (A1-B2 …)
-    const w = tables.map((t) => t[0].teamId);
-    const r = tables.map((t) => t[1].teamId);
-    qualified = [...w, ...r];
-    pairs = [
-      [w[0], r[1]], [w[2], r[3]],
-      [w[1], r[0]], [w[3], r[2]],
-    ];
-  } else {
-    // Copa: top 2 of 3 groups + the 2 best third-placed sides, seeded 1v8 …
-    const firsts = tables.map((t) => t[0]);
-    const seconds = tables.map((t) => t[1]);
-    const thirds = tables.map((t) => t[2])
-      .sort((x, y) => y.points - x.points || (y.gf - y.ga) - (x.gf - x.ga) || y.gf - x.gf)
-      .slice(0, 2);
-    const ranked = [...firsts, ...seconds, ...thirds]
-      .sort((x, y) => y.points - x.points || (y.gf - y.ga) - (x.gf - x.ga) || y.gf - x.gf)
-      .map((row) => row.teamId);
-    qualified = ranked;
-    pairs = [
-      [ranked[0], ranked[7]], [ranked[3], ranked[4]],
-      [ranked[1], ranked[6]], [ranked[2], ranked[5]],
-    ];
+/**
+ * EURO 24-team Round of 16 (official shape): the four group winners hosting
+ * third-placed sides may not face the third from their own group. Official
+ * allowed-groups per host, best-effort backtracking assignment.
+ */
+function euroR16(tables: TableRow[][], qualified3: { teamId: string; group: number }[]): [string, string][] {
+  const W = tables.map((t) => t[0].teamId); // winners A..F
+  const U = tables.map((t) => t[1].teamId); // runners-up A..F
+  const G = (letter: string) => letter.charCodeAt(0) - 65;
+
+  // hosts of third-placed teams, with the groups each may officially draw
+  const hosts: { winner: string; allowed: number[] }[] = [
+    { winner: W[G("B")], allowed: ["A", "D", "E", "F"].map(G) },
+    { winner: W[G("C")], allowed: ["D", "E", "F"].map(G) },
+    { winner: W[G("E")], allowed: ["A", "B", "C", "D"].map(G) },
+    { winner: W[G("F")], allowed: ["A", "B", "C"].map(G) },
+  ];
+
+  // backtracking assignment of the four qualified thirds to the four hosts
+  const assign = (i: number, used: Set<number>, out: string[]): boolean => {
+    if (i === hosts.length) return true;
+    for (const t of qualified3) {
+      if (used.has(t.group)) continue;
+      if (!hosts[i].allowed.includes(t.group)) continue;
+      used.add(t.group);
+      out[i] = t.teamId;
+      if (assign(i + 1, used, out)) return true;
+      used.delete(t.group);
+    }
+    return false;
+  };
+  const thirds: string[] = [];
+  if (!assign(0, new Set(), thirds)) {
+    // combination not coverable by the strict table — any same-group-avoiding order
+    qualified3.forEach((t, i) => { thirds[i] = t.teamId; });
   }
 
-  if (!qualified.includes(state.userKey)) {
+  // bracket order: consecutive pairs feed the same quarter-final (EURO 2024 shape)
+  return [
+    [W[G("A")], U[G("C")]], [U[G("A")], U[G("B")]],   // QF 1
+    [hosts[0].winner, thirds[0]], [hosts[1].winner, thirds[1]], // QF 2 (1B/3, 1C/3)
+    [hosts[2].winner, thirds[2]], [W[G("D")], U[G("F")]],       // QF 3 (1E/3, 1D/2F)
+    [hosts[3].winner, thirds[3]], [U[G("D")], U[G("E")]],       // QF 4 (1F/3, 2D/2E)
+  ];
+}
+
+function resolveGroups(state: IntlState) {
+  const tables = state.groups.map((_, i) => groupTable(state, i));
+
+  if (state.comp === "euro") {
+    // EURO: top 2 of six groups + the four best third-placed sides → R16
+    const thirds = tables.map((t, gi) => ({ row: t[2], group: gi }));
+    const rankedThirds = rankRows(thirds.map((t) => t.row))
+      .slice(0, 4)
+      .map((row) => ({ teamId: row.teamId, group: thirds.find((t) => t.row.teamId === row.teamId)!.group }));
+    const qualified = [
+      ...tables.map((t) => t[0].teamId),
+      ...tables.map((t) => t[1].teamId),
+      ...rankedThirds.map((t) => t.teamId),
+    ];
+    if (!qualified.includes(state.userKey)) {
+      state.userAlive = false;
+      state.phase = "done";
+      state.exit = { stage: "Group Stage", text: "Eliminated in the group stage" };
+      return;
+    }
+    for (const [a, b] of euroR16(tables, rankedThirds)) {
+      state.ties.push({ round: "Round of 16", teamA: a, teamB: b });
+    }
+    state.phase = "r16";
+    return;
+  }
+
+  // Copa: top 2 of 3 groups + the 2 best third-placed sides, seeded 1v8 …
+  const firsts = tables.map((t) => t[0]);
+  const seconds = tables.map((t) => t[1]);
+  const thirds = rankRows(tables.map((t) => t[2])).slice(0, 2);
+  const ranked = rankRows([...firsts, ...seconds, ...thirds]).map((row) => row.teamId);
+  if (!ranked.includes(state.userKey)) {
     state.userAlive = false;
     state.phase = "done";
     state.exit = { stage: "Group Stage", text: "Eliminated in the group stage" };
     return;
   }
+  const pairs: [string, string][] = [
+    [ranked[0], ranked[7]], [ranked[3], ranked[4]],
+    [ranked[1], ranked[6]], [ranked[2], ranked[5]],
+  ];
   for (const [a, b] of pairs) state.ties.push({ round: "Quarter-final", teamA: a, teamB: b });
   state.phase = "qf";
 }
 
-const INTL_NEXT: Record<string, { round: KOTie["round"]; phase: IntlState["phase"] } | null> = {
-  "Quarter-final": { round: "Semi-final", phase: "sf" },
-  "Semi-final": { round: "Final", phase: "final" },
-  "Final": null,
+const ROUND_OF: Record<IntlState["phase"], KOTie["round"] | null> = {
+  groups: null, r16: "Round of 16", qf: "Quarter-final", sf: "Semi-final", final: "Final", done: null,
 };
 
-/** Play every tie of the current knockout round (single-leg, pens on a draw). */
+/**
+ * Play every tie of the current knockout round (single-leg, pens on a draw).
+ * Copa's medal round plays BOTH the final and the third-place match; a Copa
+ * semi-final defeat therefore doesn't end the run — the bronze final remains.
+ */
 export function playIntlRound(rng: Rng, state: IntlState, userPlayers?: Player[]) {
-  if (!["qf", "sf", "final"].includes(state.phase)) return;
-  const roundName = state.phase === "qf" ? "Quarter-final" : state.phase === "sf" ? "Semi-final" : "Final";
-  const current = state.ties.filter((t) => t.round === roundName && !t.winner);
+  const roundName = ROUND_OF[state.phase];
+  if (!roundName) return;
+  const current = state.ties.filter(
+    (t) => !t.winner && (t.round === roundName || (roundName === "Final" && t.round === "Third Place")),
+  );
+  if (!current.length) return;
+
   for (const tie of current) {
     const result = simulateMatch(rng, ctx(state, tie.teamA, userPlayers), ctx(state, tie.teamB, userPlayers), { neutral: true, knockout: true });
     if (result.homeGoals === result.awayGoals) {
@@ -276,29 +352,60 @@ export function playIntlRound(rng: Rng, state: IntlState, userPlayers?: Player[]
     tie.leg1 = result;
   }
 
-  const userTie = current.find((t) => t.teamA === state.userKey || t.teamB === state.userKey);
+  const isUser = (t: KOTie) => t.teamA === state.userKey || t.teamB === state.userKey;
+
   if (roundName === "Final") {
-    const final = current[0];
+    const final = current.find((t) => t.round === "Final")!;
+    const third = current.find((t) => t.round === "Third Place");
     state.champion = final.winner;
     state.phase = "done";
     if (final.winner === state.userKey) {
       state.exit = { stage: "Champions", text: state.comp === "euro" ? "Champions of Europe" : "Champions of South America" };
-    } else {
+    } else if (isUser(final)) {
       state.userAlive = false;
       state.exit = { stage: "Final", text: "Beaten in the Final" };
+    } else if (third && isUser(third)) {
+      state.userAlive = false;
+      state.exit = third.winner === state.userKey
+        ? { stage: "Third Place", text: "Bronze — third place secured" }
+        : { stage: "Third Place", text: "Fourth place — beaten in the bronze final" };
     }
     return;
   }
+
+  const userTie = current.find(isUser);
+  const winners = current.map((t) => t.winner!);
+
+  if (roundName === "Semi-final") {
+    // Copa keeps its semi-final losers alive for the third-place match
+    if (state.comp === "copa") {
+      const losers = current.map((t) => (t.winner === t.teamA ? t.teamB : t.teamA));
+      state.ties.push({ round: "Third Place", teamA: losers[0], teamB: losers[1] });
+      state.ties.push({ round: "Final", teamA: winners[0], teamB: winners[1] });
+      state.phase = "final";
+      return;
+    }
+    if (userTie && userTie.winner !== state.userKey) {
+      state.userAlive = false;
+      state.phase = "done";
+      state.exit = { stage: "Semi-final", text: "Knocked out in the Semi-final" };
+      return;
+    }
+    state.ties.push({ round: "Final", teamA: winners[0], teamB: winners[1] });
+    state.phase = "final";
+    return;
+  }
+
+  // R16 (EURO) or QF: user out = run over, otherwise pair winners in order
   if (userTie && userTie.winner !== state.userKey) {
     state.userAlive = false;
     state.phase = "done";
     state.exit = { stage: roundName, text: `Knocked out in the ${roundName}` };
     return;
   }
-  const winners = current.map((t) => t.winner!);
-  const next = INTL_NEXT[roundName]!;
+  const nextRound: KOTie["round"] = roundName === "Round of 16" ? "Quarter-final" : "Semi-final";
   for (let i = 0; i < winners.length; i += 2) {
-    state.ties.push({ round: next.round, teamA: winners[i], teamB: winners[i + 1] });
+    state.ties.push({ round: nextRound, teamA: winners[i], teamB: winners[i + 1] });
   }
-  state.phase = next.phase;
+  state.phase = nextRound === "Quarter-final" ? "qf" : "sf";
 }

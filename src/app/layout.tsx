@@ -4,6 +4,7 @@ import "./globals.css";
 import { StadiumBackground } from "@/components/StadiumBackground";
 import { NavBar } from "@/components/NavBar";
 import { SiteCredit } from "@/components/SiteCredit";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const display = Sora({
   subsets: ["latin"],
@@ -44,6 +45,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <NavBar />
         <main className="relative z-10">{children}</main>
         <SiteCredit />
+        <SpeedInsights />
       </body>
     </html>
   );

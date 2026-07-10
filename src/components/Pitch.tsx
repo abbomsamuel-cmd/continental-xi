@@ -69,7 +69,8 @@ const BOARD: Record<PitchVariant, {
 
 export function Pitch({ formation, players, activeSlot, onSlotClick, showChem = true, showRatings = true, variant = "cl" }: Props) {
   const chem = showChem ? computeChemistry(formation, players) : null;
-  const board = BOARD[variant];
+  // tolerate any unexpected variant value (e.g. a stale save) — never crash the board
+  const board = BOARD[variant] ?? BOARD.cl;
 
   // EURO: silver lines connect neighbouring occupied hex platforms
   const euroLinks = variant === "euro"

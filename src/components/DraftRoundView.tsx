@@ -194,7 +194,7 @@ export function DraftRoundView() {
                 activeSlot={round.slotIndex}
                 showChem={!isIntl}
                 showRatings={setup.mode !== "expert"}
-                variant={pool as PitchVariant}
+                variant={pool === "clubs" ? "cl" : (pool as PitchVariant)}
               />
             </div>
           </div>

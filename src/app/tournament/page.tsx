@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -58,14 +58,14 @@ export default function TournamentPage() {
   // and "lose" to the next round's team you never saw. The ref closes that gap.
   const busyRef = useRef(false);
 
-  // only redirect once the persisted save has rehydrated — a hard refresh of
-  // /tournament must resume the campaign, not bounce to the draft screen
+  // wait for the persisted save to rehydrate — a hard refresh of /tournament
+  // must resume the campaign, and without one this page is the Career Hub
   const hydrated = useGame((s) => s.hydrated);
-  useEffect(() => {
-    if (hydrated && !tournament) router.replace("/draft");
-  }, [hydrated, tournament, router]);
+  const profile = useGame((s) => s.profile);
+  const intl = useGame((s) => s.intl);
 
-  if (!tournament) return null;
+  if (!hydrated) return null;
+  if (!tournament) return <CareerHub profile={profile} intlActive={!!intl} />;
 
   const table = getTable();
   const userRow = table.findIndex((r) => r.teamId === USER_TEAM_ID) + 1;
@@ -543,4 +543,113 @@ function ordinal(n: number): string {
   const s = ["th", "st", "nd", "rd"];
   const v = n % 100;
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
+/* ================================================================== */
+/*  Career Hub — what /tournament shows when no CL campaign is live.   */
+/*  Trophy cabinet, past campaigns, and the doors into a new one.      */
+/* ================================================================== */
+
+const RESULT_LABEL: Record<string, string> = {
+  champion: "🏆 Champions", final: "🥈 Runners-up", third: "🥉 Third place",
+  semi: "Semi-finals", quarter: "Quarter-finals", r16: "Round of 16",
+  playoff: "Play-offs", league: "League phase", groups: "Group stage",
+};
+
+function CareerHub({ profile, intlActive }: { profile: ReturnType<typeof useGame.getState>["profile"]; intlActive: boolean }) {
+  const campaigns = [
+    ...profile.drafts.map((d) => ({
+      key: `cl-${d.id}`, comp: "Champions League", accent: "#22e0ff",
+      name: `${d.formation} · ${d.overall} OVR`, result: d.result ?? "league", date: d.date,
+    })),
+    ...(profile.intlResults ?? []).map((r, i) => ({
+      key: `intl-${i}-${r.date}`, comp: r.comp === "euro" ? "UEFA EURO" : "Copa América",
+      accent: r.comp === "euro" ? "#37e0ff" : "#ffc93c",
+      name: `${r.nation} ${r.year}`, result: r.result, date: r.date,
+    })),
+  ].sort((a, b) => +new Date(b.date) - +new Date(a.date));
+
+  const clTitles = profile.drafts.filter((d) => d.result === "champion").length;
+  const euroTitles = (profile.intlResults ?? []).filter((r) => r.comp === "euro" && r.result === "champion").length;
+  const copaTitles = (profile.intlResults ?? []).filter((r) => r.comp === "copa" && r.result === "champion").length;
+
+  return (
+    <div className="mx-auto max-w-5xl px-4 pb-24 pt-24 sm:pt-28">
+      <div className="cl-panel cl-streaks shine relative overflow-hidden rounded-3xl p-6">
+        <Sparks count={8} color="#d4af37" />
+        <div className="cl-heading text-[0.6rem] tracking-[0.4em] text-cyan">Career Hub</div>
+        <h1 className="mt-1 font-display text-3xl font-extrabold sm:text-4xl">
+          No campaign in progress
+        </h1>
+        <p className="mt-2 max-w-lg text-sm text-muted">
+          This is where a live season runs — the table, the bracket, your record.
+          Start a draft and it comes alive.
+        </p>
+        <div className="mt-5 flex flex-wrap gap-2.5">
+          <Link href="/draft" className="btn btn-gold btn-pulse" onClick={() => play("select")}>⚡ Start New Draft</Link>
+          <Link href="/international" className="btn btn-ghost" onClick={() => play("click")}>Lead a Nation</Link>
+        </div>
+      </div>
+
+      {intlActive && (
+        <motion.div
+          initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
+          className="euro-panel euro-grid shine mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl p-4"
+        >
+          <div>
+            <div className="cl-heading text-[0.58rem] tracking-[0.3em] text-cyan">Active Campaign</div>
+            <div className="font-display font-extrabold text-white">You have an international tournament in progress</div>
+          </div>
+          <Link href="/international" className="btn btn-cyan text-xs" onClick={() => play("select")}>Continue →</Link>
+        </motion.div>
+      )}
+
+      {/* trophy cabinet */}
+      <div className="mt-6 grid grid-cols-3 gap-3">
+        {[
+          { label: "Champions League", n: clTitles, accent: "#22e0ff" },
+          { label: "UEFA EURO", n: euroTitles, accent: "#37e0ff" },
+          { label: "Copa América", n: copaTitles, accent: "#ffc93c" },
+        ].map((t) => (
+          <div key={t.label} className="glass rounded-2xl p-4 text-center">
+            <div className="text-2xl" aria-hidden style={{ filter: t.n ? "none" : "grayscale(1) opacity(0.4)" }}>🏆</div>
+            <div className="mt-1 font-display text-2xl font-extrabold" style={{ color: t.n ? t.accent : "rgba(255,255,255,0.35)" }}>{t.n}</div>
+            <div className="text-[0.58rem] font-bold uppercase tracking-[0.2em] text-muted">{t.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* past campaigns */}
+      <div className="mt-6">
+        <h2 className="text-sm font-bold uppercase tracking-widest text-muted">Past Campaigns</h2>
+        {campaigns.length === 0 ? (
+          <div className="glass mt-3 rounded-2xl border-dashed p-6 text-center text-sm text-muted">
+            Your career starts with the first draft — every run you finish is recorded here.
+          </div>
+        ) : (
+          <div className="mt-3 space-y-2">
+            {campaigns.slice(0, 8).map((c) => (
+              <div key={c.key} className="glass flex flex-wrap items-center justify-between gap-2 rounded-xl px-4 py-2.5">
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <span className="h-5 w-1 shrink-0 rounded-full" style={{ background: c.accent }} />
+                  <div className="min-w-0">
+                    <div className="truncate font-display text-sm font-extrabold text-white">{c.name}</div>
+                    <div className="text-[0.6rem] uppercase tracking-wider" style={{ color: c.accent }}>{c.comp}</div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className={`text-xs font-extrabold ${c.result === "champion" ? "text-gold" : "text-white/75"}`}>
+                    {RESULT_LABEL[c.result] ?? c.result}
+                  </div>
+                  <div className="text-[0.58rem] text-white/40">
+                    {new Date(c.date).toLocaleDateString(undefined, { month: "short", year: "numeric" })}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }

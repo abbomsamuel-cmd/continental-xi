@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { AnimatedCounter } from "@/components/AnimatedCounter";
@@ -199,16 +198,6 @@ export default function Home() {
   const matchLog = useGame((s) => s.matchLog);
   const playerCount = getAllPlayers().length;
 
-  // hall of legends: highest-rated version of each player, top 12
-  const legends = useMemo(() => {
-    const best = new Map<string, ReturnType<typeof getAllPlayers>[number]>();
-    for (const p of getAllPlayers()) {
-      const cur = best.get(p.name);
-      if (!cur || p.overall > cur.overall) best.set(p.name, p);
-    }
-    return [...best.values()].sort((a, b) => b.overall - a.overall).slice(0, 12);
-  }, []);
-
   /* ---- CONTINUE PLAYING: whatever the manager left on the desk ---- */
   const resume = mounted ? (() => {
     if (tournament) {
@@ -390,7 +379,7 @@ export default function Home() {
             { href: "/draft", icon: "🎴", label: "New Draft" },
             { href: "/daily", icon: "📅", label: "Daily Challenge" },
             { href: "/history", icon: "📜", label: "Match History" },
-            { href: "/database", icon: "🗄️", label: "Player Database" },
+            { href: "/international", icon: "🌍", label: "Lead a Nation" },
             { href: "/stats", icon: "👔", label: "Your Profile" },
           ].map((a, i) => (
             <Link
@@ -539,37 +528,6 @@ export default function Home() {
           </div>
         </section>
 
-        {/* ===================== HALL OF LEGENDS ===================== */}
-        <section className="mt-16">
-          <SectionHeading
-            kicker="The Database"
-            title={<>Hall of <span className="text-gradient-cyan">legends</span></>}
-            right={<Link href="/database" className="text-xs font-bold uppercase tracking-wider text-cyan hover:underline" onClick={() => play("click")}>Browse all {playerCount.toLocaleString()} players →</Link>}
-          />
-          <div className="mt-5 flex snap-x gap-3 overflow-x-auto pb-3">
-            {legends.map((p, i) => (
-              <motion.div
-                key={p.id}
-                initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}
-                transition={{ delay: Math.min(i, 8) * 0.05 }}
-                whileHover={{ y: -6 }}
-                className="shine w-36 shrink-0 snap-start overflow-hidden rounded-2xl"
-                style={{ background: `linear-gradient(170deg, ${p.colors[0]}cc, #0a1024 70%)`, border: "1px solid rgba(255,255,255,0.14)" }}
-              >
-                <div className="p-3">
-                  <div className="flex items-start justify-between">
-                    <span className="font-display text-2xl font-extrabold text-gradient-gold">{p.overall}</span>
-                    <span className="rounded bg-black/40 px-1.5 py-0.5 text-[0.55rem] font-bold text-white/80">{p.position}</span>
-                  </div>
-                  <div className="mt-5 truncate font-display text-[0.8rem] font-extrabold leading-tight text-white">{p.name}</div>
-                  <div className="mt-0.5 truncate text-[0.58rem] text-white/60">{p.club} {p.seasonLabel}</div>
-                  <div className="mt-0.5 text-[0.55rem] text-white/40">{p.nationality}</div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </section>
-
         {/* ===================== GAME NEWS ===================== */}
         <section className="mt-16">
           <SectionHeading kicker="Game News" title="Latest from the touchline" />
@@ -615,8 +573,8 @@ export default function Home() {
             <div>
               <div className="text-[0.6rem] font-bold uppercase tracking-[0.25em] text-muted">Explore</div>
               <div className="mt-2 grid gap-1.5 text-xs">
-                <Link className="text-white/70 hover:text-gold" href="/database">Player Database</Link>
                 <Link className="text-white/70 hover:text-gold" href="/history">Match History</Link>
+                <Link className="text-white/70 hover:text-gold" href="/tournament">Career Hub</Link>
                 <Link className="text-white/70 hover:text-gold" href="/stats">Your Profile</Link>
               </div>
             </div>

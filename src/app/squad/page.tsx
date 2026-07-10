@@ -34,12 +34,19 @@ export default function SquadPage() {
   const [swapSel, setSwapSel] = useState<number | null>(null);
   const [swapMsg, setSwapMsg] = useState("");
 
+  // a campaign is already running — this page must become a read-only squad
+  // view, never a second "enter tournament" door that would restart the run
+  const hydrated = useGame((s) => s.hydrated);
+  const tournament = useGame((s) => s.tournament);
+  const intl = useGame((s) => s.intl);
+  const campaignActive = !!tournament || !!intl;
+
   const invalid = !formation || !setup || !draftComplete;
   useEffect(() => {
-    if (invalid) router.replace("/draft");
-  }, [invalid, router]);
+    if (hydrated && invalid) router.replace("/draft");
+  }, [hydrated, invalid, router]);
 
-  if (invalid) return null;
+  if (!hydrated || invalid) return null;
 
   const xi = getXI();
   const analysis = getAnalysis()!;
@@ -73,7 +80,9 @@ export default function SquadPage() {
   return (
     <div className="mx-auto max-w-6xl px-4 pb-24 pt-24 sm:pt-28">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center">
-        <span className="chip mx-auto mb-3 w-fit bg-gold/15 text-gold">Draft Complete</span>
+        <span className="chip mx-auto mb-3 w-fit bg-gold/15 text-gold">
+          {campaignActive ? "⚽ Season in progress" : "Draft Complete"}
+        </span>
         <h1 className="font-display text-3xl font-extrabold sm:text-5xl">
           Squad <span className="text-gradient-gold">Analysis</span>
         </h1>
@@ -83,7 +92,11 @@ export default function SquadPage() {
         {/* pitch + radar */}
         <div className="space-y-6">
           <div className="glass rounded-2xl p-4">
-            <Pitch formation={formation} players={xi} showChem activeSlot={swapSel ?? undefined} onSlotClick={onSlotTap} />
+            <Pitch
+              formation={formation} players={xi} showChem={!isIntl}
+              variant={isIntl ? (setup!.pool as "euro" | "copa") : "cl"}
+              activeSlot={swapSel ?? undefined} onSlotClick={onSlotTap}
+            />
             <p className="mt-2 text-center text-[0.68rem] text-muted">
               {swapSel !== null
                 ? "Now tap another player to swap positions"
@@ -154,28 +167,42 @@ export default function SquadPage() {
             </div>
           </div>
 
-          {/* enter tournament */}
-          <div className="glass-strong rounded-2xl p-5">
-            <label className="text-[0.6rem] font-semibold uppercase tracking-widest text-muted">Team Name</label>
-            <div className="mt-2 flex flex-col gap-3 sm:flex-row">
-              <input
-                value={teamName}
-                onChange={(e) => setTeamName(e.target.value)}
-                placeholder={`${profileName}'s XI`}
-                maxLength={28}
-                className="flex-1 rounded-xl border border-white/12 bg-black/30 px-4 py-3 text-white outline-none focus:border-gold"
-              />
-              <button className="btn btn-gold" onClick={startTournament}>
-                {enterLabel}
+          {/* enter tournament — or, mid-campaign, the way back to it */}
+          {campaignActive ? (
+            <div className="glass-strong rounded-2xl p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="max-w-sm text-sm text-muted">
+                  This XI is locked into your current campaign. Swaps here fine-tune who
+                  plays where — your tournament progress is untouched.
+                </p>
+                <button className="btn btn-gold" onClick={() => { play("select"); router.push(intl ? "/international" : "/tournament"); }}>
+                  ← Back to Tournament
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="glass-strong rounded-2xl p-5">
+              <label className="text-[0.6rem] font-semibold uppercase tracking-widest text-muted">Team Name</label>
+              <div className="mt-2 flex flex-col gap-3 sm:flex-row">
+                <input
+                  value={teamName}
+                  onChange={(e) => setTeamName(e.target.value)}
+                  placeholder={`${profileName}'s XI`}
+                  maxLength={28}
+                  className="flex-1 rounded-xl border border-white/12 bg-black/30 px-4 py-3 text-white outline-none focus:border-gold"
+                />
+                <button className="btn btn-gold" onClick={startTournament}>
+                  {enterLabel}
+                </button>
+              </div>
+              <button
+                className="mt-3 text-xs text-muted underline-offset-2 hover:underline"
+                onClick={() => { play("click"); router.push("/draft"); useGame.getState().resetDraft(); }}
+              >
+                Start a new draft instead
               </button>
             </div>
-            <button
-              className="mt-3 text-xs text-muted underline-offset-2 hover:underline"
-              onClick={() => { play("click"); router.push("/draft"); useGame.getState().resetDraft(); }}
-            >
-              Start a new draft instead
-            </button>
-          </div>
+          )}
         </div>
       </div>
     </div>

@@ -116,6 +116,47 @@ const NEWS = [
   { date: "Jun 2026", icon: "🇪🇺", title: "EURO expanded to 26 nations", body: "The official 24-team format with six groups, best thirds and a true Round of 16 bracket." },
 ];
 
+const FAQS: { q: string; a: React.ReactNode }[] = [
+  {
+    q: "What is Continental XI?",
+    a: "Continental XI is a free football draft game and tournament simulator where you build your ultimate team using legendary clubs and national teams from football's greatest competitions. Draft iconic players from every era, create your dream XI, and see if it has what it takes to become champions.",
+  },
+  {
+    q: "How do you play?",
+    a: "Every draft begins with a spin of the wheel, landing on a real club or national team from an iconic season. Select one player from that squad, build your lineup position by position, and create a team unlike any other. Once your squad is complete, take it into a realistic tournament simulation — league tables, knockout rounds, live match commentary and dramatic trophy celebrations.",
+  },
+  {
+    q: "Which competitions can I play?",
+    a: (
+      <span className="grid gap-2">
+        <span>🏆 <b>UEFA Champions League</b> — build an all-time club XI from legendary teams and fight through the official format, from the 36-team league phase to the final, in pursuit of Europe&apos;s biggest prize.</span>
+        <span>🇪🇺 <b>UEFA EURO</b> — assemble a dream national team using historic European squads and guide your country through the official EURO tournament to lift the trophy.</span>
+        <span>🌎 <b>Copa América</b> — draft football legends from South America&apos;s greatest nations, then battle through the Copa — third-place match included — to become continental champions.</span>
+      </span>
+    ),
+  },
+  {
+    q: "Which players and clubs are included?",
+    a: "Over 1,700 rated players across 105 legendary club squads (1960–2025), 30 historic EURO nations and 18 Copa América selecciones — from Di Stéfano's Real Madrid and Cruyff's Ajax to modern treble winners. Every player represents one specific season, and you can mix generations freely: what if these players played together?",
+  },
+  {
+    q: "Is Continental XI free to play?",
+    a: "Yes — completely free, no accounts, no sign-up, no ads. Your saves live in your own browser and never leave your device.",
+  },
+  {
+    q: "Is it a fantasy football game?",
+    a: "No. Unlike fantasy football, Continental XI isn't tied to current seasons or live performances. Every player represents a real club or national team from a specific campaign, with carefully balanced ratings based on how they performed that season.",
+  },
+  {
+    q: "Is it affiliated with any league or federation?",
+    a: "No — Continental XI is an original, unofficial fan project created by football fans. It is not affiliated with UEFA, CONMEBOL, FIFA, or any club, and uses no official logos, branding or protected assets.",
+  },
+  {
+    q: "Where do the player ratings come from?",
+    a: "Every rating is hand-balanced to reflect one exact campaign — Messi '11, Ronaldo '17, Eusébio '62 — never a career average. Full attribute profiles are derived deterministically from those season ratings, so the same player always plays the same way.",
+  },
+];
+
 function SectionHeading({ kicker, title, right }: { kicker: string; title: React.ReactNode; right?: React.ReactNode }) {
   return (
     <div className="flex flex-wrap items-end justify-between gap-3">
@@ -547,6 +588,64 @@ export default function Home() {
                 <h3 className="mt-2 font-display text-[0.85rem] font-extrabold text-white">{n.title}</h3>
                 <p className="mt-1 text-[0.68rem] leading-relaxed text-muted">{n.body}</p>
               </motion.article>
+            ))}
+          </div>
+        </section>
+
+        {/* ============== WHAT IS CONTINENTAL XI + FAQ ================ */}
+        <section className="mt-16">
+          <SectionHeading kicker="About the Game" title="What is Continental XI?" />
+          <details className="faq-item glass mt-5 overflow-hidden rounded-2xl">
+            <summary className="flex cursor-pointer items-center justify-between gap-3 px-5 py-4 text-sm font-extrabold text-white">
+              The full story — competitions, drafting, and why it exists
+              <span className="faq-plus grid h-6 w-6 shrink-0 place-items-center rounded-full bg-white/8 text-base font-bold text-cyan" aria-hidden>+</span>
+            </summary>
+            <div className="space-y-3 px-5 pb-5 text-[0.82rem] leading-relaxed text-white/70">
+              <p>
+                Continental XI is a free football draft game and tournament simulator where you build your
+                ultimate team using legendary clubs and national teams from football&apos;s greatest competitions.
+                Draft iconic players from every era, create your dream XI, and see if it has what it takes to
+                become champions.
+              </p>
+              <p>
+                Every draft begins with a spin of the wheel, landing on real clubs or national teams from iconic
+                seasons. Select one player from that squad, build your lineup position by position, and create a
+                team unlike any other. Mix generations, combine football legends with modern superstars, and
+                answer the ultimate football question: <i className="text-white/85">what if these players played together?</i>
+              </p>
+              <p>
+                Once your squad is complete, your journey is just beginning. Compete in realistic tournament
+                simulations featuring authentic competition formats, league tables, knockout rounds, live match
+                commentary, and dramatic trophy celebrations. Every tournament is different, every decision
+                matters, and every match creates a new football story.
+              </p>
+              <p>
+                Created by football fans, Continental XI is built for anyone who loves football history, legendary
+                players, and debating the greatest teams of all time. Unlike fantasy football, it isn&apos;t tied to
+                current seasons or live performances — every player represents a real club or national team from
+                a specific season, with carefully balanced ratings based on their performances during that campaign.
+              </p>
+              <p>
+                Whether you&apos;re leading Real Madrid through the Champions League, taking Spain to EURO glory, or
+                guiding Argentina to Copa América success, Continental XI lets you relive football&apos;s greatest eras
+                and create your own legendary journey. Can your dream XI conquer Europe — or South America — and
+                write its own place in football history? ⚽
+              </p>
+            </div>
+          </details>
+        </section>
+
+        <section className="mt-12">
+          <SectionHeading kicker="Help" title="Frequently asked questions" />
+          <div className="mt-5 space-y-3">
+            {FAQS.map((f) => (
+              <details key={f.q} className="faq-item glass overflow-hidden rounded-2xl">
+                <summary className="flex cursor-pointer items-center justify-between gap-3 px-5 py-4 text-sm font-extrabold text-white">
+                  {f.q}
+                  <span className="faq-plus grid h-6 w-6 shrink-0 place-items-center rounded-full bg-white/8 text-base font-bold text-cyan" aria-hidden>+</span>
+                </summary>
+                <div className="px-5 pb-5 text-[0.82rem] leading-relaxed text-white/70">{f.a}</div>
+              </details>
             ))}
           </div>
         </section>

@@ -192,6 +192,7 @@ export default function DraftPage() {
                 formation={FORMATIONS.find((f) => f.name === formation)!}
                 players={FORMATIONS.find((f) => f.name === formation)!.slots.map(() => null)}
                 showChem={false}
+                variant={pendingPool === "clubs" ? "cl" : pendingPool}
               />
             </motion.div>
           </AnimatePresence>

@@ -1,40 +1,56 @@
 import type { Position } from "./types";
-import { POSITION_FAMILY, POSITION_GROUP } from "./formations";
+import { suitLevelOf, type SuitLevelRaw } from "./formations";
 
 /**
  * Position suitability — the football-real replacement for chemistry.
- * Natural position = full effectiveness, secondary = a small tactical
- * reduction, out-of-position = a meaningful one (worst for GK mismatches).
+ *
+ *   natural (green)   the player's primary role — full effectiveness
+ *   secondary (yellow) a role he can realistically cover — small reduction
+ *   blocked (locked)  he cannot play here — never selectable in normal play
+ *
+ * There is no unrestricted "out of position" placement any more: a player may
+ * only be fielded in a primary or secondary slot. `blocked` is used purely to
+ * DISABLE a slot in the UI (and to degrade gracefully if a legacy save somehow
+ * holds an illegal placement).
  */
 
-export type SuitLevel = "natural" | "secondary" | "off";
+export type SuitLevel = SuitLevelRaw; // "natural" | "secondary" | "blocked"
 
 export interface Suitability {
   level: SuitLevel;
   /** effectiveness multiplier applied to the player's rating in this slot */
   mult: number;
+  /** full descriptive label ("Natural Position") */
   label: string;
+  /** compact label ("Natural") */
+  short: string;
   /** accent used everywhere the level is shown */
   color: string;
   icon: string;
 }
 
-const NATURAL: Suitability = { level: "natural", mult: 1, label: "Natural", color: "#2ee6a6", icon: "●" };
-const SECONDARY: Suitability = { level: "secondary", mult: 0.97, label: "Secondary", color: "#ffcf5c", icon: "◐" };
-const OFF: Suitability = { level: "off", mult: 0.9, label: "Out of Position", color: "#ff5a6a", icon: "○" };
-const OFF_GK: Suitability = { ...OFF, mult: 0.85 };
+const NATURAL: Suitability = {
+  level: "natural", mult: 1,
+  label: "Natural Position", short: "Natural",
+  color: "#2ee6a6", icon: "●",
+};
+const SECONDARY: Suitability = {
+  level: "secondary", mult: 0.96,
+  label: "Secondary Position", short: "Secondary",
+  color: "#ffcf5c", icon: "◆",
+};
+const BLOCKED: Suitability = {
+  level: "blocked", mult: 0.85,
+  label: "Cannot play here", short: "Invalid",
+  color: "#ff5a6a", icon: "⊘",
+};
 
 export function suitability(playerPos: Position, alts: Position[], slotPos: Position): Suitability {
-  if (playerPos === slotPos || alts.includes(slotPos)) return NATURAL;
-  if (
-    POSITION_FAMILY[playerPos].includes(slotPos) ||
-    alts.some((a) => POSITION_FAMILY[a]?.includes(slotPos)) ||
-    POSITION_GROUP[playerPos] === POSITION_GROUP[slotPos]
-  ) {
-    return SECONDARY;
+  switch (suitLevelOf(playerPos, alts, slotPos)) {
+    case "natural": return NATURAL;
+    case "secondary": return SECONDARY;
+    default: return BLOCKED;
   }
-  if (playerPos === "GK" || slotPos === "GK") return OFF_GK;
-  return OFF;
 }
 
 /** Effective rating of a player when fielded in the given slot. */

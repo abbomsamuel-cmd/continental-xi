@@ -81,13 +81,13 @@ export function analyzeTeam(formation: Formation, players: (Player | null)[], ta
     if (v >= 88) strengths.push(`${label} is elite (${v})`);
     else if (v > 0 && v < 82) weaknesses.push(`${label} could be upgraded (${v})`);
   }
-  const offenders = filled.filter((x) => suitOf(x).level === "off");
+  const offenders = filled.filter((x) => suitOf(x).level === "blocked");
   const seconds = filled.filter((x) => suitOf(x).level === "secondary");
   if (filled.length >= 11 && offenders.length === 0 && seconds.length === 0) {
     strengths.push("Every starter in his natural position");
   }
   for (const o of offenders.slice(0, 2)) {
-    weaknesses.push(`${o.p.name.split(" ").pop()} is out of position at ${o.slot.pos}`);
+    weaknesses.push(`${o.p.name.split(" ").pop()} cannot play ${o.slot.pos} — reposition him`);
   }
   if (counter >= 85) strengths.push("Devastating on the counter");
   if (possession >= 86) strengths.push("Elite ball retention");

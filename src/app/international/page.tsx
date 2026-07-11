@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useGame } from "@/lib/store";
@@ -111,6 +111,14 @@ function International() {
   // synchronous double-click guard — React state alone races (two fast clicks
   // both see idle state and would advance two rounds at once)
   const busyRef = useRef(false);
+
+  // Result sting plays only when the end ceremony actually appears — never at
+  // simulation time — so a Live Match watched first is never spoiled by sound.
+  const ceremonyVisible = !!intl && intl.phase === "done" && !dismissedEnd && !modal && !live;
+  const wonFinal = !!intl && intl.champion === intl.userKey;
+  useEffect(() => {
+    if (ceremonyVisible) play(wonFinal ? "trophy" : "lose");
+  }, [ceremonyVisible, wonFinal]);
 
   // deep link from the home screen mode cards: /international?comp=euro —
   // derived, not synced via effect, so the URL stays the source of truth

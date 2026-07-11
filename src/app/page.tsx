@@ -233,9 +233,9 @@ export default function Home() {
   const tournament = useGame((s) => s.tournament);
   const intl = useGame((s) => s.intl);
   const setup = useGame((s) => s.setup);
+  const formation = useGame((s) => s.formation);
   const draftComplete = useGame((s) => s.draftComplete);
-  const currentRound = useGame((s) => s.currentRound);
-  const rounds = useGame((s) => s.rounds);
+  const placedSlots = useGame((s) => s.placedSlots);
   const matchLog = useGame((s) => s.matchLog);
   const playerCount = getAllPlayers().length;
 
@@ -293,9 +293,10 @@ export default function Home() {
       };
     }
     if (setup && !draftComplete) {
+      const total = formation?.slots.length ?? 11;
       return {
         comp: (setup.pool === "clubs" ? "cl" : setup.pool) as "cl" | "euro" | "copa",
-        name: "Draft in progress", stage: `Round ${currentRound + 1} of ${rounds.length}`,
+        name: "Draft in progress", stage: `Pick ${Math.min(placedSlots.length + 1, total)} of ${total}`,
         opp: null, href: "/draft", cta: "Continue Draft",
       };
     }

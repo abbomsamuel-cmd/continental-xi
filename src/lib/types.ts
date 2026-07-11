@@ -80,6 +80,8 @@ export interface FormationSlot {
 export interface Formation {
   name: string;
   slots: FormationSlot[];
+  /** tactic ids this shape suits best — powers the formation preview */
+  bestFor?: string[];
 }
 
 export type GameMode = "classic" | "expert";
@@ -167,6 +169,22 @@ export interface MatchStats {
   passAcc: [number, number];
 }
 
+export interface ShootoutKick {
+  team: 0 | 1; // 0 = home, 1 = away
+  taker: string;
+  outcome: "goal" | "saved" | "missed" | "post";
+  homeScore: number; // running tally after this kick
+  awayScore: number;
+  suddenDeath: boolean;
+}
+
+export interface ShootoutData {
+  kicks: ShootoutKick[];
+  home: number; // final shootout score
+  away: number;
+  winner: 0 | 1;
+}
+
 export interface MatchResult {
   home: string; // team id
   away: string;
@@ -177,6 +195,8 @@ export interface MatchResult {
   motm: string;
   momentum: number[]; // per-5-min swing, -1..1 (positive = home)
   penalties?: [number, number];
+  /** full kick-by-kick shootout, present when the tie went to penalties */
+  shootout?: ShootoutData;
 }
 
 export interface Fixture {

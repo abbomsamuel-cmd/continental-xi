@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { MatchResult } from "@/lib/types";
 import { TeamBadge } from "@/components/TeamBadge";
+import { PenaltyShootout } from "@/components/PenaltyShootout";
 import { play } from "@/lib/sound";
 
 /**
@@ -160,7 +161,11 @@ export function LiveMatch({
   const [paused, setPaused] = useState(false);
   const [speed, setSpeed] = useState(1);
   const [finished, setFinished] = useState(false);
+  // a shootout is watched (or skipped) before its score is ever revealed
+  const [shootoutDone, setShootoutDone] = useState(false);
   const feedRef = useRef<HTMLDivElement>(null);
+  const hasShootout = !!r.shootout;
+  const pensRevealed = !hasShootout || shootoutDone;
 
   const goalsAt = (team: 0 | 1, m: number) =>
     r.events.filter((e) => e.type === "goal" && e.team === team && e.minute <= m).length;
@@ -229,6 +234,7 @@ export function LiveMatch({
       setLegIdx(legIdx + 1);
       setMinute(0);
       setFinished(false);
+      setShootoutDone(false);
       setPaused(false);
       play("whistle");
     } else {
@@ -287,7 +293,7 @@ export function LiveMatch({
               >
                 {clockLabel}
               </div>
-              {finished && r.penalties && (
+              {finished && r.penalties && pensRevealed && (
                 <div className="mt-1 text-[0.62rem] font-bold text-white/70">Penalties {r.penalties[0]}–{r.penalties[1]}</div>
               )}
               {aggNote && <div className="mt-1 text-[0.58rem] text-white/50">{aggNote}</div>}
@@ -345,14 +351,14 @@ export function LiveMatch({
                 >
                   <div className="font-display text-sm font-extrabold" style={{ color: accent }}>
                     FULL TIME — {home.short} {r.homeGoals}-{r.awayGoals} {away.short}
-                    {r.penalties ? ` (${r.penalties[0]}–${r.penalties[1]} pens)` : ""}
+                    {r.penalties && pensRevealed ? ` (${r.penalties[0]}–${r.penalties[1]} pens)` : ""}
                   </div>
                   <div className="mt-0.5 text-[0.65rem] text-white/60">⭐ Player of the Match: {r.motm}</div>
                 </motion.div>
               )}
-              {finished && r.penalties && (
+              {finished && r.penalties && pensRevealed && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mb-2 rounded-lg bg-white/5 px-3 py-2 text-[0.7rem] text-white/70">
-                  🥅 Level after extra time — it goes to a shootout. Nerves of steel decide it {r.penalties[0]}–{r.penalties[1]}.
+                  🥅 Level after extra time — decided on penalties, {r.penalties[0]}–{r.penalties[1]}.
                 </motion.div>
               )}
               {visible.map((l, i) => (
@@ -403,9 +409,9 @@ export function LiveMatch({
           </div>
         </div>
 
-        {/* full-time continue */}
+        {/* full-time continue — hidden while a shootout still has to be watched */}
         <AnimatePresence>
-          {finished && (
+          {finished && pensRevealed && (
             <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="mt-4 flex justify-center">
               <button className="btn btn-gold btn-pulse" onClick={continueFrom}>
                 {nextLeg ? "Continue to the 2nd Leg →" : "Continue →"}
@@ -414,6 +420,21 @@ export function LiveMatch({
           )}
         </AnimatePresence>
       </div>
+
+      {/* penalty shootout — plays out before the score is ever revealed */}
+      <AnimatePresence>
+        {finished && hasShootout && !shootoutDone && r.shootout && (
+          <PenaltyShootout
+            shootout={r.shootout}
+            home={{ name: home.name, short: home.short, colors: home.colors }}
+            away={{ name: away.name, short: away.short, colors: away.colors }}
+            accent={accent}
+            roundLabel={title}
+            defaultLive
+            onDone={() => setShootoutDone(true)}
+          />
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

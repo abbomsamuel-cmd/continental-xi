@@ -17,8 +17,8 @@ import type { DraftPool } from "@/lib/players";
 import { play } from "@/lib/sound";
 
 const DIFFICULTIES: { id: Difficulty; title: string; body: string; rerolls: string }[] = [
-  { id: "easy", title: "Easy", body: "Plenty of re-rolls to shape a dream squad.", rerolls: "3 team + 3 season re-rolls" },
-  { id: "medium", title: "Medium", body: "One re-roll each — pick your moments.", rerolls: "1 team + 1 season re-roll" },
+  { id: "easy", title: "Easy", body: "Plenty of team re-rolls to shape a dream squad.", rerolls: "3 team re-rolls" },
+  { id: "medium", title: "Medium", body: "A few re-rolls — pick your moments.", rerolls: "1 team re-roll" },
   { id: "hard", title: "Hard", body: "No re-rolls. Take what the reel gives you.", rerolls: "No re-rolls" },
 ];
 
@@ -85,8 +85,8 @@ export default function DraftPage() {
           Build a <span className={t.heading}>{t.label}</span> XI
         </h1>
         <p className="mt-2 max-w-lg text-sm text-muted">
-          One squad per round, one pick locked forever. Choose your competition, shape and
-          challenge — then let the reel decide who you draft from.
+          Pick a position, spin for a legendary squad, then choose a player who genuinely fits
+          the role — and where he plays. Choose your competition, shape and challenge to begin.
         </p>
       </motion.div>
 

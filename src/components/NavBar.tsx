@@ -28,7 +28,7 @@ export function NavBar() {
   const trophies = useGame((s) => s.profile.trophies);
 
   return (
-    <header className="fixed top-0 inset-x-0 z-50">
+    <header className="safe-top fixed top-0 inset-x-0 z-50 px-2 sm:px-0">
       <nav className="glass relative mx-auto mt-3 flex max-w-6xl items-center justify-between overflow-hidden rounded-2xl px-4 py-2.5 sm:px-6">
         {/* thin animated gold line along the bottom edge */}
         <span

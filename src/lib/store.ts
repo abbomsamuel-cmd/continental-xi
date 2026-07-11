@@ -3,12 +3,12 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type {
-  DraftRecord, Fixture, Formation, GameMode, IntlRecord, KOTie, LoggedMatch, Player, Profile,
+  DraftRecord, Fixture, Formation, GameMode, IntlRecord, KOTie, LoggedMatch, Player, Position, Profile,
   SimTeam, TeamAnalysis, TournamentState,
 } from "./types";
-import { getFormation } from "./formations";
+import { getFormation, canPlaySlot, greedyAssign } from "./formations";
 import { getPool, getPoolPlayers, poolSquadPlayers, type DraftPool } from "./players";
-import { pickDraftSquad, draftOrder } from "./draft";
+import { pickDraftSquad } from "./draft";
 import { analyzeTeam } from "./analysis";
 import { tacticEngineAdjust, tacticFit, type TacticId } from "./tactics";
 import { randomRng, seededRng, type Rng } from "./rng";
@@ -21,13 +21,6 @@ import {
 } from "./engine/international";
 import { checkAchievements } from "./achievements";
 import { play, setSoundEnabled } from "./sound";
-
-export interface DraftRound {
-  index: number; // 0-based order in the draft
-  slotIndex: number; // formation slot this round fills
-  squadIndex: number; // offered squad
-  chosenPlayerId?: string;
-}
 
 export type Difficulty = "easy" | "medium" | "hard";
 
@@ -52,21 +45,28 @@ interface StoreState {
   hydrated: boolean;
   profile: Profile;
 
-  // active draft
+  // active draft — position-first: the user picks the slot to draft for, the
+  // spinner draws a squad, only players eligible at that position are offered,
+  // then the user chooses which open valid slot the pick fills.
   setup: DraftSetup | null;
   formation: Formation | null;
-  rounds: DraftRound[];
-  currentRound: number;
   picks: Record<number, string>; // slotIndex -> playerId
-  /** slot filled at each round, in pick order — powers Undo */
+  /** slot filled at each pick, in order — powers Undo */
   placedSlots: number[];
+  /** the slot currently being drafted for (drives the spin + eligibility); null = choose a position */
+  targetSlot: number | null;
+  /** squad drawn for the current target slot */
+  spinSquadIndex: number;
+  /** increments on every fresh draw so the spinner re-mounts and reveals */
+  spinNonce: number;
+  /** squad indexes already drawn this draft (avoid immediate repeats) */
+  drawnSquads: number[];
   /** the armband — player id, chosen by the user before kick-off */
   captainId: string | null;
   draftComplete: boolean;
   lastUnlocked: string[];
   rngSeed: string | null;
   rerolls: number;
-  rerollNonce: number;
 
   // tournament
   tournament: TournamentState | null;
@@ -85,12 +85,20 @@ interface StoreState {
   setProfileName: (name: string) => void;
   toggleSound: () => void;
   startDraft: (mode: GameMode, formationName: string, difficulty: Difficulty, daily?: string, pool?: DraftPool) => void;
+  /** the user taps an empty slot on the pitch → spin a squad for that position */
+  beginRound: (slotIndex: number) => void;
+  /** free re-spin (used when the drawn squad has no eligible player) */
+  respinSquad: () => void;
+  /** back out of the current spin without placing anyone */
+  cancelRound: () => void;
+  /** place the chosen player into an open, eligible slot (may differ from the target) */
   choosePlayer: (playerId: string, slotIndex: number) => void;
   undoLastPick: () => void;
   setTactic: (t: TacticId) => void;
   setCaptain: (playerId: string | null) => void;
   reroll: () => void;
   swapSlots: (a: number, b: number) => boolean;
+  changeFormation: (formationName: string) => void;
   getOfferedPlayers: () => Player[];
   getXI: () => (Player | null)[];
   getAnalysis: () => TeamAnalysis | null;
@@ -118,23 +126,17 @@ const emptyProfile = (): Profile => ({
   soundOn: true,
 });
 
-function buildRounds(rng: Rng, formation: Formation): DraftRound[] {
-  const order = draftOrder(rng, formation.slots.map((s) => s.pos));
-  return order.map((slotIndex, index) => ({ index, slotIndex, squadIndex: -1 }));
-}
-
-function assignSquadForRound(
-  rng: Rng, formation: Formation, rounds: DraftRound[], roundIdx: number, usedSquads: number[],
-  pool: DraftPool,
+/** Draw a squad that offers eligible players for `slotPos`, avoiding recent repeats. */
+function drawSquadForSlot(
+  rng: Rng, pool: DraftPool, slotPos: Position, drawnSquads: number[], excludeIndex: number,
 ): number {
   const squads = getPool(pool);
-  const slotIndex = rounds[roundIdx].slotIndex;
-  const pos = formation.slots[slotIndex].pos;
-  const recentSquads = rounds.slice(Math.max(0, roundIdx - 4), roundIdx).map((r) => r.squadIndex).filter((i) => i >= 0);
-  const recentClubs = recentSquads.map((i) => squads[i].club);
-  const recentLeagues = recentSquads.map((i) => squads[i].league);
-  const lastClub = recentClubs[recentClubs.length - 1] ?? null;
-  return pickDraftSquad(rng, pos, usedSquads, lastClub, recentClubs, recentLeagues, pool);
+  const used = excludeIndex >= 0 ? [...drawnSquads, excludeIndex] : drawnSquads;
+  const recent = drawnSquads.slice(-4);
+  const recentClubs = recent.map((i) => squads[i]?.club).filter(Boolean) as string[];
+  const recentLeagues = recent.map((i) => squads[i]?.league).filter(Boolean) as string[];
+  const lastClub = excludeIndex >= 0 ? squads[excludeIndex]?.club ?? null : recentClubs[recentClubs.length - 1] ?? null;
+  return pickDraftSquad(rng, slotPos, used, lastClub, recentClubs, recentLeagues, pool);
 }
 
 export const useGame = create<StoreState>()(
@@ -144,16 +146,17 @@ export const useGame = create<StoreState>()(
       profile: emptyProfile(),
       setup: null,
       formation: null,
-      rounds: [],
-      currentRound: 0,
       picks: {},
       placedSlots: [],
+      targetSlot: null,
+      spinSquadIndex: -1,
+      spinNonce: 0,
+      drawnSquads: [],
       captainId: null,
       draftComplete: false,
       lastUnlocked: [],
       rngSeed: null,
       rerolls: 0,
-      rerollNonce: 0,
       tournament: null,
       intl: null,
       pendingPool: "clubs",
@@ -176,58 +179,88 @@ export const useGame = create<StoreState>()(
       startDraft: (mode, formationName, difficulty, daily, pool = "clubs") => {
         const formation = getFormation(formationName);
         const seed = daily ?? `draft-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
-        const rng = daily ? seededRng(daily) : randomRng();
-        const rounds = buildRounds(rng, formation);
-        // pre-assign the first squad
-        rounds[0].squadIndex = assignSquadForRound(rng, formation, rounds, 0, [], pool);
         set({
           setup: { mode, formationName, difficulty, daily, pool },
           formation,
-          rounds,
-          currentRound: 0,
           picks: {},
           placedSlots: [],
+          targetSlot: null,
+          spinSquadIndex: -1,
+          spinNonce: 0,
+          drawnSquads: [],
           captainId: null,
           draftComplete: false,
           tournament: null,
           rngSeed: seed,
           lastUnlocked: [],
           rerolls: REROLLS_FOR[difficulty],
-          rerollNonce: 0,
         });
       },
 
-      // Single re-roll: draws a genuinely different team for this round.
-      reroll: () => {
-        const { rounds, currentRound, formation, rngSeed, rerolls, rerollNonce, setup } = get();
-        if (!formation || !rngSeed || rerolls <= 0) return;
+      // The user tapped an empty slot on the pitch — draw a squad for that
+      // position and start the spin.
+      beginRound: (slotIndex) => {
+        const { formation, picks, placedSlots, rngSeed, setup, drawnSquads, spinNonce } = get();
+        if (!formation || !rngSeed) return;
+        if (picks[slotIndex] !== undefined) return; // slot already filled
+        if (get().targetSlot !== null) return; // a spin is already in flight
         const pool = setup?.pool ?? "clubs";
-        const squads = getPool(pool);
-        const round = rounds[currentRound];
-        const pos = formation.slots[round.slotIndex].pos;
-        const usedSquads = rounds.slice(0, currentRound).map((r) => r.squadIndex).filter((i) => i >= 0);
-        const currentClub = squads[round.squadIndex].club;
-        const recent = rounds.slice(Math.max(0, currentRound - 4), currentRound).map((r) => r.squadIndex).filter((i) => i >= 0);
-        const rng = seededRng(`${rngSeed}-rr-${currentRound}-${rerolls}-${Math.random()}`);
-        const newIdx = pickDraftSquad(
-          rng, pos, [...usedSquads, round.squadIndex], currentClub,
-          recent.map((i) => squads[i].club), recent.map((i) => squads[i].league),
-          pool,
-        );
-        const next = [...rounds];
-        next[currentRound] = { ...round, squadIndex: newIdx };
-        play("flip");
-        set({ rounds: next, rerolls: rerolls - 1, rerollNonce: rerollNonce + 1 });
+        const pos = formation.slots[slotIndex].pos;
+        const rng = seededRng(`${rngSeed}-slot${slotIndex}-${placedSlots.length}-${Math.random()}`);
+        const squadIndex = drawSquadForSlot(rng, pool, pos, drawnSquads, -1);
+        set({
+          targetSlot: slotIndex,
+          spinSquadIndex: squadIndex,
+          drawnSquads: [...drawnSquads, squadIndex],
+          spinNonce: spinNonce + 1,
+        });
       },
 
-      // Swap the players in two formation slots. Any swap is allowed — the
-      // suitability system prices the move instead of blocking it.
+      // Free re-spin — draw a different team for the CURRENT target slot without
+      // consuming a re-roll. Used when the squad has no eligible player.
+      respinSquad: () => {
+        const { formation, targetSlot, rngSeed, setup, drawnSquads, spinNonce, spinSquadIndex } = get();
+        if (!formation || targetSlot === null || !rngSeed) return;
+        const pool = setup?.pool ?? "clubs";
+        const pos = formation.slots[targetSlot].pos;
+        const rng = seededRng(`${rngSeed}-respin${targetSlot}-${spinNonce}-${Math.random()}`);
+        const squadIndex = drawSquadForSlot(rng, pool, pos, drawnSquads, spinSquadIndex);
+        play("flip");
+        set({
+          spinSquadIndex: squadIndex,
+          drawnSquads: [...drawnSquads, squadIndex],
+          spinNonce: spinNonce + 1,
+        });
+      },
+
+      // Paid re-roll — a different team for the current slot, from the budget.
+      reroll: () => {
+        const { rerolls } = get();
+        if (rerolls <= 0) return;
+        get().respinSquad();
+        set({ rerolls: rerolls - 1 });
+      },
+
+      // Abandon the current spin without placing anyone (back to choose-a-slot).
+      cancelRound: () => {
+        if (get().targetSlot === null) return;
+        set({ targetSlot: null, spinSquadIndex: -1 });
+      },
+
+      // Swap the players in two formation slots — only if BOTH players can
+      // legally occupy the destination. Illegal swaps are blocked.
       swapSlots: (a, b) => {
         const { formation, picks } = get();
         if (!formation || a === b) return false;
+        const players = getPoolPlayers(get().setup?.pool ?? "clubs");
         const idA = picks[a];
         const idB = picks[b];
         if (!idA && !idB) return false;
+        const pA = idA ? players.find((p) => p.id === idA) : null;
+        const pB = idB ? players.find((p) => p.id === idB) : null;
+        // player A must be able to play slot B, player B must be able to play slot A
+        if (pA && !canPlaySlot(pA.position, pA.altPositions, formation.slots[b].pos)) return false;
+        if (pB && !canPlaySlot(pB.position, pB.altPositions, formation.slots[a].pos)) return false;
         const next = { ...picks };
         if (idB) next[a] = idB; else delete next[a];
         if (idA) next[b] = idA; else delete next[b];
@@ -236,36 +269,31 @@ export const useGame = create<StoreState>()(
         return true;
       },
 
-      // The player chose WHERE the pick plays — never auto-placed.
+      // The player chose WHICH open, eligible slot the pick fills — never
+      // auto-placed, never into a blocked position.
       choosePlayer: (playerId, slotIndex) => {
-        const { rounds, currentRound, formation, picks, placedSlots, rngSeed, setup } = get();
-        if (!formation || !rngSeed) return;
-        if (picks[slotIndex]) return; // occupied — placement UI offers a swap instead
+        const { formation, picks, placedSlots, setup } = get();
+        if (!formation) return;
+        if (picks[slotIndex] !== undefined) return; // occupied
+        const player = getPoolPlayers(setup?.pool ?? "clubs").find((p) => p.id === playerId);
+        if (!player) return;
+        // strict: the destination must be a primary or secondary position
+        if (!canPlaySlot(player.position, player.altPositions, formation.slots[slotIndex].pos)) return;
         const newPicks = { ...picks, [slotIndex]: playerId };
-        const usedSquads = rounds.slice(0, currentRound + 1).map((r) => r.squadIndex).filter((i) => i >= 0);
-        const nextRounds = [...rounds];
-
-        const isLast = currentRound + 1 >= rounds.length;
-        if (!isLast) {
-          const rng = seededRng(`${rngSeed}-r${currentRound + 1}`);
-          nextRounds[currentRound + 1].squadIndex = assignSquadForRound(
-            rng, formation, nextRounds, currentRound + 1, usedSquads, setup?.pool ?? "clubs",
-          );
-        }
+        const complete = Object.keys(newPicks).length >= formation.slots.length;
         play("select");
         set({
           picks: newPicks,
           placedSlots: [...placedSlots, slotIndex],
-          rounds: nextRounds,
-          currentRound: isLast ? currentRound : currentRound + 1,
-          draftComplete: isLast,
+          targetSlot: null,
+          spinSquadIndex: -1,
+          draftComplete: complete,
         });
       },
 
-      // Take back the last pick — the player returns to the pool and the same
-      // squad is offered again.
+      // Take back the last pick — the player returns to the pool.
       undoLastPick: () => {
-        const { placedSlots, picks, currentRound, draftComplete } = get();
+        const { placedSlots, picks } = get();
         if (!placedSlots.length) return;
         const lastSlot = placedSlots[placedSlots.length - 1];
         const next = { ...picks };
@@ -274,7 +302,8 @@ export const useGame = create<StoreState>()(
         set({
           picks: next,
           placedSlots: placedSlots.slice(0, -1),
-          currentRound: draftComplete ? currentRound : Math.max(0, currentRound - 1),
+          targetSlot: null,
+          spinSquadIndex: -1,
           draftComplete: false,
         });
       },
@@ -282,28 +311,54 @@ export const useGame = create<StoreState>()(
       setTactic: (t) => set((s) => (s.setup ? { setup: { ...s.setup, tactic: t } } : {})),
       setCaptain: (playerId) => set({ captainId: playerId }),
 
+      // Only players who can genuinely play the chosen position are offered —
+      // no goalkeepers for a midfield slot, no strikers who can't drop deep.
       getOfferedPlayers: () => {
-        const { rounds, currentRound, formation, picks, setup } = get();
-        if (!formation) return [];
+        const { formation, picks, setup, targetSlot, spinSquadIndex } = get();
+        if (!formation || targetSlot === null || spinSquadIndex < 0) return [];
         const pool = setup?.pool ?? "clubs";
-        const round = rounds[currentRound];
-        if (!round || round.squadIndex < 0) return [];
+        const slotPos = formation.slots[targetSlot].pos;
         const chosenIds = new Set(Object.values(picks));
         const chosenNames = new Set(
           Object.values(picks).map((id) => getPoolPlayers(pool).find((p) => p.id === id)?.name),
         );
-        // The whole squad is on the table — YOU decide where a pick plays.
-        const roster = poolSquadPlayers(pool, round.squadIndex)
+        return poolSquadPlayers(pool, spinSquadIndex)
           .filter((p) => !chosenIds.has(p.id) && !chosenNames.has(p.name))
-          .sort((a, b) => b.overall - a.overall);
-        const offered = roster.slice(0, 9);
-        // if the goal is still unguarded, make sure the squad's best keeper is offered
-        const gkSlot = formation.slots.findIndex((sl) => sl.pos === "GK");
-        if (gkSlot >= 0 && !picks[gkSlot] && !offered.some((p) => p.position === "GK")) {
-          const gk = roster.find((p) => p.position === "GK");
-          if (gk) offered.splice(offered.length - 1, 1, gk);
-        }
-        return offered;
+          .filter((p) => canPlaySlot(p.position, p.altPositions, slotPos))
+          .sort((a, b) => b.overall - a.overall)
+          .slice(0, 12);
+      },
+
+      // Switch formation mid-draft — keep every player who still fits a slot of
+      // the same position, drop those whose slot vanished so the user replaces
+      // them. Never auto-place anyone into an invalid role.
+      changeFormation: (formationName) => {
+        const { formation, picks, placedSlots, setup, captainId } = get();
+        if (!formation || !setup) return;
+        const next = getFormation(formationName);
+        const players = getPoolPlayers(setup.pool ?? "clubs");
+        // remap placed players into the new shape (natural first, then eligible)
+        const placed = placedSlots
+          .map((slot) => players.find((p) => p.id === picks[slot]))
+          .filter(Boolean) as Player[];
+        const newPicks = greedyAssign(placed, next);
+        // preserve pick order for Undo by sorting new slots by original order
+        const orderOf = new Map(placed.map((p, idx) => [p.id, idx]));
+        const newOrder = Object.entries(newPicks)
+          .sort((a, b) => (orderOf.get(a[1]) ?? 0) - (orderOf.get(b[1]) ?? 0))
+          .map(([slot]) => Number(slot));
+        const stillCaptain = captainId && Object.values(newPicks).includes(captainId) ? captainId : null;
+        play("flip");
+        set({
+          formation: next,
+          setup: { ...setup, formationName },
+          picks: newPicks,
+          placedSlots: newOrder,
+          targetSlot: null,
+          spinSquadIndex: -1,
+          captainId: stillCaptain,
+          draftComplete: Object.keys(newPicks).length >= next.slots.length,
+        });
       },
 
       getXI: () => {
@@ -372,9 +427,8 @@ export const useGame = create<StoreState>()(
           if (t.leg1) entries.push(logEntry("cl", t.leg2 ? `${t.round} · 1st Leg` : t.round, tournament.teams, t.leg1));
           if (t.leg2) entries.push(logEntry("cl", `${t.round} · 2nd Leg`, tournament.teams, t.leg2));
         }
-        if (tournament.phase === "done") {
-          play(tournament.champion === USER_TEAM_ID ? "trophy" : "lose");
-        }
+        // NB: no result audio here — it would spoil a Live Match watched after
+        // this simulation. Win/defeat sound is played by the reveal UI instead.
         set({ tournament: { ...tournament }, matchLog: pushLog(get().matchLog, entries) });
         return ties;
       },
@@ -448,10 +502,11 @@ export const useGame = create<StoreState>()(
       },
 
       resetDraft: () => set({
-        setup: null, formation: null, rounds: [], currentRound: 0, picks: {},
-        placedSlots: [], captainId: null,
+        setup: null, formation: null, picks: {},
+        placedSlots: [], targetSlot: null, spinSquadIndex: -1, spinNonce: 0,
+        drawnSquads: [], captainId: null,
         draftComplete: false, tournament: null, rngSeed: null, lastUnlocked: [],
-        rerolls: 0, rerollNonce: 0,
+        rerolls: 0,
       }),
 
       clearUnlocked: () => set({ lastUnlocked: [] }),
@@ -489,9 +544,8 @@ export const useGame = create<StoreState>()(
         const entries = intl.ties
           .filter((t) => playedRounds.includes(t.round) && t.leg1 && (t.teamA === intl.userKey || t.teamB === intl.userKey))
           .map((t) => logEntry(intl.comp, t.round === "Final" ? "The Final" : t.round, intl.teams, t.leg1!));
-        if (intl.phase === "done") {
-          play(intl.champion === intl.userKey ? "trophy" : "lose");
-        }
+        // no result audio here — the reveal UI plays win/defeat so a Live Match
+        // watched after this simulation is never spoiled.
         set({ intl: { ...intl }, matchLog: pushLog(get().matchLog, entries) });
       },
 
@@ -525,24 +579,35 @@ export const useGame = create<StoreState>()(
     }),
     {
       name: "champions-draft-v1",
-      version: 3,
-      // v3 reworked knockout ties to cover the whole field — keep the profile,
-      // drop any in-flight game saved under the old shape.
+      version: 4,
+      // v4 replaced the pre-baked draft order with position-first drafting.
+      // Always keep the profile & match log; any in-flight draft from an older
+      // shape is dropped (its structure no longer loads safely).
       migrate: (persisted, version) => {
-        const p = persisted as Partial<StoreState>;
+        const p = persisted as Partial<StoreState> & { rounds?: unknown };
         const fresh = {
-          setup: null, formation: null, rounds: [] as DraftRound[], currentRound: 0,
-          picks: {} as Record<number, string>, draftComplete: false, rngSeed: null,
+          setup: null, formation: null,
+          picks: {} as Record<number, string>, placedSlots: [] as number[],
+          targetSlot: null, spinSquadIndex: -1, spinNonce: 0, drawnSquads: [] as number[],
+          captainId: null, draftComplete: false, rngSeed: null,
           tournament: null, rerolls: 0, intl: null,
         };
-        if (version < 3) return { profile: p.profile ?? emptyProfile(), ...fresh };
         return {
           profile: p.profile ?? emptyProfile(),
-          setup: p.setup ?? null, formation: p.formation ?? null,
-          rounds: p.rounds ?? [], currentRound: p.currentRound ?? 0,
-          picks: p.picks ?? {}, draftComplete: p.draftComplete ?? false,
-          rngSeed: p.rngSeed ?? null, tournament: p.tournament ?? null,
-          rerolls: p.rerolls ?? 0, intl: p.intl ?? null,
+          matchLog: p.matchLog ?? [],
+          ...(version < 4
+            ? fresh
+            : {
+                setup: p.setup ?? null, formation: p.formation ?? null,
+                picks: p.picks ?? {}, placedSlots: p.placedSlots ?? [],
+                targetSlot: p.targetSlot ?? null,
+                spinSquadIndex: p.spinSquadIndex ?? -1,
+                spinNonce: p.spinNonce ?? 0, drawnSquads: p.drawnSquads ?? [],
+                captainId: p.captainId ?? null,
+                draftComplete: p.draftComplete ?? false,
+                rngSeed: p.rngSeed ?? null, tournament: p.tournament ?? null,
+                rerolls: p.rerolls ?? 0, intl: p.intl ?? null,
+              }),
         };
       },
       // Persist the whole active game so a refresh never re-rolls or reloads
@@ -551,10 +616,12 @@ export const useGame = create<StoreState>()(
         profile: s.profile,
         setup: s.setup,
         formation: s.formation,
-        rounds: s.rounds,
-        currentRound: s.currentRound,
         picks: s.picks,
         placedSlots: s.placedSlots,
+        targetSlot: s.targetSlot,
+        spinSquadIndex: s.spinSquadIndex,
+        spinNonce: s.spinNonce,
+        drawnSquads: s.drawnSquads,
         captainId: s.captainId,
         draftComplete: s.draftComplete,
         rngSeed: s.rngSeed,

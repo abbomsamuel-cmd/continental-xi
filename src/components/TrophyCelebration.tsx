@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { KOTie, MatchResult, TournamentState } from "@/lib/types";
 import { USER_TEAM_ID, teamLabel } from "@/lib/engine/tournament";
@@ -36,6 +36,14 @@ export function TrophyCelebration({ tournament, teamName, tie, onViewStats, onCo
   // celebration stages: summary → (Lift the Trophy) → lift → awards revealed
   const [stage, setStage] = useState<"summary" | "lift">("summary");
   const [showAwards, setShowAwards] = useState(false);
+  // brief loading beat before the lift so the tap always feels responsive
+  const [preparing, setPreparing] = useState(false);
+  // remount key so "Replay Celebration" re-runs the fireworks & lift
+  const [celebrationKey, setCelebrationKey] = useState(0);
+  // synchronous guard against double-taps freezing the sequence
+  const liftGuard = useRef(false);
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  useEffect(() => () => timers.current.forEach(clearTimeout), []);
 
   const kind = won ? "champion" : reachedFinal ? "runner" : "out";
   const theme = {
@@ -47,26 +55,50 @@ export function TrophyCelebration({ tournament, teamName, tie, onViewStats, onCo
   useEffect(() => { play(won ? "win" : "lose"); }, [won]);
 
   const liftTrophy = () => {
-    setStage("lift");
+    if (liftGuard.current || stage === "lift") return; // ignore double-taps
+    liftGuard.current = true;
+    setPreparing(true);
     play("trophy");
-    // let the lift land before the honours roll out
-    setTimeout(() => setShowAwards(true), 1800);
+    // a short loading beat so the button always visibly responds, then the lift
+    timers.current.push(setTimeout(() => { setPreparing(false); setStage("lift"); }, 550));
+    timers.current.push(setTimeout(() => setShowAwards(true), 550 + 1700));
+  };
+
+  const replayCelebration = () => {
+    play("trophy");
+    setShowAwards(false);
+    setCelebrationKey((k) => k + 1);
+    timers.current.push(setTimeout(() => setShowAwards(true), 1700));
   };
 
   return (
     <motion.div
-      className="fixed inset-0 z-[120] flex items-center justify-center overflow-y-auto p-4"
+      className="fixed inset-0 z-[120] flex items-center justify-center overflow-y-auto p-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]"
       style={{ background: `radial-gradient(130% 90% at 50% 25%, ${theme.bg}, #030b22 72%)` }}
       initial={{ opacity: 0 }} animate={{ opacity: 1 }}
     >
-      {/* atmosphere layers */}
+      {/* atmosphere layers — keyed so Replay re-runs them */}
       {stage === "lift" && (
-        <>
+        <div key={celebrationKey} className="pointer-events-none absolute inset-0">
           <Fireworks count={9} palette={["#d4af37", "#f2d472", "#22e0ff", "#ffffff"]} />
           <Confetti count={140} />
           <CameraFlashes count={22} />
-        </>
+        </div>
       )}
+
+      {/* brief loading beat between tapping Lift and the ceremony starting */}
+      <AnimatePresence>
+        {preparing && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-4"
+            style={{ background: "rgba(3,11,34,0.6)" }}
+          >
+            <div className="h-10 w-10 animate-spin rounded-full border-2 border-white/20 border-t-gold" />
+            <div className="cl-heading text-[0.6rem] tracking-[0.4em] text-gold">Preparing the ceremony…</div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       {kind === "runner" && stage === "summary" && <Confetti count={60} colors={["#c0c8d4", "#9fb3d1", "#ffffff"]} />}
       {kind === "out" && <RainOverlay drops={44} opacity={0.4} />}
 
@@ -281,17 +313,22 @@ export function TrophyCelebration({ tournament, teamName, tie, onViewStats, onCo
         {/* controls: winners lift first, everyone continues at the end */}
         {won && stage === "summary" && (
           <motion.button
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.2 }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
             className="btn btn-gold btn-pulse mt-8" onClick={liftTrophy}
+            disabled={preparing}
+            style={{ touchAction: "manipulation" }}
           >
             🏆 Lift the Trophy
           </motion.button>
         )}
         {won && stage === "lift" && showAwards && (
           <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.6 }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
             className="mt-8 flex flex-wrap items-center justify-center gap-3"
           >
+            <button className="btn btn-ghost" onClick={replayCelebration}>
+              🔁 Replay Celebration
+            </button>
             <button
               className="btn btn-ghost"
               onClick={() => {

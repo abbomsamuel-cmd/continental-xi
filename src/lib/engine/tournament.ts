@@ -5,7 +5,7 @@ import type { Rng } from "../rng";
 import { shuffle } from "../rng";
 import { CLUB_REGISTRY } from "../data/clubs";
 import { SQUADS } from "../players";
-import { simulateMatch, shootout, type EngineTeamContext } from "./match";
+import { simulateMatch, penaltyShootout, type EngineTeamContext, type ShootoutSide } from "./match";
 
 export const USER_TEAM_ID = "user";
 
@@ -252,6 +252,14 @@ function ctx(state: TournamentState, teamId: string, userPlayers: Player[] | nul
   };
 }
 
+/** Build the penalty-shootout side for a team (real takers only for the user). */
+function sideOf(state: TournamentState, teamId: string, userPlayers: Player[] | null): ShootoutSide {
+  const t = state.teams[teamId];
+  const players = teamId === USER_TEAM_ID ? userPlayers : null;
+  const gk = players?.find((p) => p.position === "GK");
+  return { strength: t.strength, players, country: t.country, gk: gk?.overall ?? t.strength - 6 };
+}
+
 // The user's road: which round follows which, and the matching phase key.
 const KO_NEXT: Record<KORoundName, { round: KORoundName; phase: TournamentState["phase"] } | null> = {
   "Play-off": { round: "Round of 16", phase: "r16" },
@@ -344,9 +352,10 @@ function playTie(rng: Rng, state: TournamentState, tie: KOTie, userPlayers: Play
       { neutral: true, knockout: true },
     );
     if (result.homeGoals === result.awayGoals) {
-      const [hp, ap] = shootout(rng, state.teams[tie.teamA].strength, state.teams[tie.teamB].strength);
-      result.penalties = [hp, ap];
-      tie.winner = hp > ap ? tie.teamA : tie.teamB;
+      const so = penaltyShootout(rng, sideOf(state, tie.teamA, players), sideOf(state, tie.teamB, players));
+      result.shootout = so;
+      result.penalties = [so.home, so.away];
+      tie.winner = so.winner === 0 ? tie.teamA : tie.teamB;
     } else {
       tie.winner = result.homeGoals > result.awayGoals ? tie.teamA : tie.teamB;
     }
@@ -361,9 +370,11 @@ function playTie(rng: Rng, state: TournamentState, tie: KOTie, userPlayers: Play
   const aGoals = leg1.awayGoals + leg2.homeGoals;
   const bGoals = leg1.homeGoals + leg2.awayGoals;
   if (aGoals === bGoals) {
-    const [hp, ap] = shootout(rng, state.teams[tie.teamA].strength, state.teams[tie.teamB].strength);
-    leg2.penalties = [hp, ap];
-    tie.winner = hp > ap ? tie.teamA : tie.teamB;
+    // leg2 is played at teamA's home, so home side = teamA in the shootout
+    const so = penaltyShootout(rng, sideOf(state, tie.teamA, players), sideOf(state, tie.teamB, players));
+    leg2.shootout = so;
+    leg2.penalties = [so.home, so.away];
+    tie.winner = so.winner === 0 ? tie.teamA : tie.teamB;
   } else {
     tie.winner = aGoals > bGoals ? tie.teamA : tie.teamB;
   }

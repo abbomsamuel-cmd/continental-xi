@@ -1,4 +1,4 @@
-import type { MatchEvent, MatchResult, MatchStats, Player, SimTeam } from "../types";
+import type { MatchEvent, MatchResult, MatchStats, Player, ShootoutData, ShootoutKick, SimTeam } from "../types";
 import type { Rng } from "../rng";
 import { generateAiName } from "./names";
 
@@ -173,7 +173,7 @@ export function simulateMatch(
   };
 }
 
-/** Penalty shootout, returns [homePens, awayPens]. */
+/** Penalty shootout, returns [homePens, awayPens]. Kept for any legacy caller. */
 export function shootout(rng: Rng, homeStrength: number, awayStrength: number): [number, number] {
   let h = 0;
   let a = 0;
@@ -186,4 +186,95 @@ export function shootout(rng: Rng, homeStrength: number, awayStrength: number): 
     if (rng() < 0.72) a++;
   }
   return [h, a];
+}
+
+export interface ShootoutSide {
+  strength: number;
+  /** real XI, if this is the user's team — drives taker order and conversion */
+  players?: Player[] | null;
+  country: string;
+  /** goalkeeper-saving ability (0-99); defaults from strength */
+  gk?: number;
+}
+
+interface Taker { name: string; skill: number }
+
+/** How good a player is from the spot: finishing + composure, penalised for keepers. */
+function penaltySkill(p: Player): number {
+  if (p.position === "GK") return 20;
+  const attacking = ["ST", "CF", "LW", "RW", "CAM"].includes(p.position);
+  return p.attributes.shooting * 0.5 + p.overall * 0.4 + (attacking ? 6 : 0) + (p.attributes.physical - p.overall) * 0.1;
+}
+
+/**
+ * Build the penalty order: best takers first (strikers, playmakers), keepers
+ * and pure defenders only when sudden death forces everyone up. Real players
+ * when we have them, else strength-scaled generated takers.
+ */
+function takerOrder(rng: Rng, side: ShootoutSide): Taker[] {
+  if (side.players && side.players.length) {
+    return [...side.players]
+      .map((p) => ({ name: p.name, skill: penaltySkill(p) }))
+      .sort((a, b) => b.skill - a.skill);
+  }
+  // generated: 11 takers with skill scattered around team strength
+  const out: Taker[] = [];
+  for (let i = 0; i < 11; i++) {
+    out.push({ name: generateAiName(rng, side.country), skill: side.strength - i * 1.6 + (rng() - 0.5) * 8 });
+  }
+  return out.sort((a, b) => b.skill - a.skill);
+}
+
+/**
+ * A full, realistic kick-by-kick shootout. Conversion depends on the taker's
+ * finishing/composure vs. the opposing keeper, with early termination once a
+ * result is mathematically certain, then sudden death. Deterministic per rng.
+ */
+export function penaltyShootout(rng: Rng, home: ShootoutSide, away: ShootoutSide): ShootoutData {
+  const takers: [Taker[], Taker[]] = [takerOrder(rng, home), takerOrder(rng, away)];
+  const gkSkill: [number, number] = [
+    home.gk ?? home.strength - 6,
+    away.gk ?? away.strength - 6,
+  ];
+  const kicks: ShootoutKick[] = [];
+  const score: [number, number] = [0, 0];
+  const idx: [number, number] = [0, 0];
+
+  const takeKick = (team: 0 | 1, suddenDeath: boolean) => {
+    const list = takers[team];
+    const taker = list[idx[team] % list.length];
+    idx[team]++;
+    const oppGk = gkSkill[team === 0 ? 1 : 0];
+    // base 75% conversion, nudged by taker skill vs keeper, plus nerves in
+    // sudden death; clamped so even the best miss sometimes.
+    let conv = 0.75 + (taker.skill - 78) * 0.006 - (oppGk - 78) * 0.004;
+    if (suddenDeath) conv -= 0.04;
+    conv = Math.max(0.42, Math.min(0.94, conv));
+    const roll = rng();
+    let outcome: ShootoutKick["outcome"];
+    if (roll < conv) { outcome = "goal"; score[team]++; }
+    else {
+      const r2 = rng();
+      outcome = r2 < 0.6 ? "saved" : r2 < 0.88 ? "missed" : "post";
+    }
+    kicks.push({ team, taker: taker.name, outcome, homeScore: score[0], awayScore: score[1], suddenDeath });
+  };
+
+  // best-of-five, with early stop once undecidable-to-catch
+  const remaining = (team: 0 | 1, kicksTaken: number) => 5 - kicksTaken;
+  for (let round = 0; round < 5; round++) {
+    takeKick(0, false);
+    // can away still catch or has home clinched?
+    if (score[0] > score[1] + remaining(1, round)) break;
+    takeKick(1, false);
+    if (score[1] > score[0] + remaining(0, round + 1)) break;
+  }
+
+  // sudden death — both take, repeat until one leads after equal kicks
+  while (score[0] === score[1]) {
+    takeKick(0, true);
+    takeKick(1, true);
+  }
+
+  return { kicks, home: score[0], away: score[1], winner: score[0] > score[1] ? 0 : 1 };
 }

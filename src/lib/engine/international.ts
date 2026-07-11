@@ -2,7 +2,7 @@ import type { Fixture, KOTie, Player, RawSquad, SimTeam, TableRow, TeamAnalysis 
 import { EURO_SQUADS, COPA_SQUADS } from "../data/nations";
 import { EURO_SQUADS_EXTRA } from "../data/nations-extra";
 import { expandSquad } from "../players";
-import { simulateMatch, shootout, type EngineTeamContext } from "./match";
+import { simulateMatch, penaltyShootout, type EngineTeamContext, type ShootoutSide } from "./match";
 import { shuffle, type Rng } from "../rng";
 
 export type IntlComp = "euro" | "copa";
@@ -342,12 +342,18 @@ export function playIntlRound(rng: Rng, state: IntlState, userPlayers?: Player[]
   );
   if (!current.length) return;
 
+  const sideOf = (key: string): ShootoutSide => {
+    const players = key === INTL_USER ? userPlayers ?? null : nationPlayers(state.comp, key);
+    const gk = players?.find((p) => p.position === "GK");
+    return { strength: state.teams[key].strength, players, country: state.teams[key].country, gk: gk?.overall ?? state.teams[key].strength - 6 };
+  };
   for (const tie of current) {
     const result = simulateMatch(rng, ctx(state, tie.teamA, userPlayers), ctx(state, tie.teamB, userPlayers), { neutral: true, knockout: true });
     if (result.homeGoals === result.awayGoals) {
-      const [hp, ap] = shootout(rng, state.teams[tie.teamA].strength, state.teams[tie.teamB].strength);
-      result.penalties = [hp, ap];
-      tie.winner = hp > ap ? tie.teamA : tie.teamB;
+      const so = penaltyShootout(rng, sideOf(tie.teamA), sideOf(tie.teamB));
+      result.shootout = so;
+      result.penalties = [so.home, so.away];
+      tie.winner = so.winner === 0 ? tie.teamA : tie.teamB;
     } else {
       tie.winner = result.homeGoals > result.awayGoals ? tie.teamA : tie.teamB;
     }

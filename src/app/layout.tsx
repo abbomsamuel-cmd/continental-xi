@@ -34,6 +34,9 @@ export const viewport: Viewport = {
   themeColor: "#061a40",
   width: "device-width",
   initialScale: 1,
+  // cover lets env(safe-area-inset-*) work on notched phones; zoom stays enabled
+  // for accessibility — accidental double-tap zoom is handled via touch-action.
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

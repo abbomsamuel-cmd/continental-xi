@@ -544,3 +544,36 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* ---------- Mobile / touch ---------- */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+/* Kill the 300ms double-tap zoom on controls (prevents accidental zoom during
+   gameplay) while leaving pinch-zoom available for accessibility. */
+button, a, [role="button"], summary, label, .no-zoom {
+  touch-action: manipulation;
+}
+/* Interactive game surfaces shouldn't select text on a mis-tap. */
+button, .no-select {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+/* iOS zooms the page when focusing an input under 16px — never let it. */
+input, select, textarea {
+  font-size: 16px;
+}
+/* Safe-area helpers for notched phones and the home-indicator area. */
+.safe-bottom { padding-bottom: max(0.75rem, env(safe-area-inset-bottom)); }
+.safe-top { padding-top: env(safe-area-inset-top); }
+.safe-x {
+  padding-left: max(0.75rem, env(safe-area-inset-left));
+  padding-right: max(0.75rem, env(safe-area-inset-right));
+}
+
+/* Landscape phones: tighten the vertical rhythm so content fits the short axis. */
+@media (max-height: 500px) and (orientation: landscape) {
+  .land-tight { padding-top: 4.5rem !important; }
+}

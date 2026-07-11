@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useGame } from "@/lib/store";
 import { Pitch } from "@/components/Pitch";
+import { FormationPicker } from "@/components/FormationPicker";
 import { LineupPresentation } from "@/components/LineupPresentation";
+import { formationCanHold } from "@/lib/formations";
 import { EuroScene, CopaScene } from "@/components/fx/Scenes";
 import { suitability } from "@/lib/suitability";
 import { TACTICS, tacticById, tacticFit, type TacticId } from "@/lib/tactics";
@@ -63,6 +65,7 @@ export default function SquadPage() {
   const getAnalysis = useGame((s) => s.getAnalysis);
   const finish = useGame((s) => s.finishDraftIntoTournament);
   const swapSlots = useGame((s) => s.swapSlots);
+  const changeFormation = useGame((s) => s.changeFormation);
   const setTactic = useGame((s) => s.setTactic);
   const captainId = useGame((s) => s.captainId);
   const setCaptain = useGame((s) => s.setCaptain);
@@ -73,6 +76,7 @@ export default function SquadPage() {
   const [swapSel, setSwapSel] = useState<number | null>(null);
   const [compareSel, setCompareSel] = useState<number[]>([]);
   const [showTactics, setShowTactics] = useState(false);
+  const [showFormation, setShowFormation] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [showPresentation, setShowPresentation] = useState(false);
   const [notice, setNotice] = useState("");
@@ -83,6 +87,8 @@ export default function SquadPage() {
   const intl = useGame((s) => s.intl);
   const campaignActive = !!tournament || !!intl;
 
+  // Formation changes here are gated to lossless remaps, so the XI stays
+  // complete — the review screen only shows for a finished draft.
   const invalid = !formation || !setup || !draftComplete;
   useEffect(() => {
     if (hydrated && invalid) router.replace("/draft");
@@ -109,6 +115,14 @@ export default function SquadPage() {
   const captainSlot = captainId ? xi.findIndex((p) => p?.id === captainId) : -1;
   const captainPlayer = captainSlot >= 0 ? xi[captainSlot] : null;
 
+  // ---- lineup validity: every slot filled, every player in a legal role ----
+  const emptyCount = formation!.slots.length - xi.filter(Boolean).length;
+  const misplaced = xi
+    .map((p, i) => ({ p, i }))
+    .filter((x) => x.p && suitability(x.p!.position, x.p!.altPositions, formation!.slots[x.i].pos).level === "blocked");
+  const lineupValid = emptyCount === 0 && misplaced.length === 0;
+  const placedForRemap = xi.filter(Boolean) as Player[];
+
   /* ---- key players by role ---- */
   const filled = xi
     .map((p, i) => ({ p, slot: formation!.slots[i], i }))
@@ -130,6 +144,13 @@ export default function SquadPage() {
   ].filter((r) => r.p);
 
   const startTournament = () => {
+    if (!lineupValid) {
+      setNotice(emptyCount > 0
+        ? `${emptyCount} position${emptyCount > 1 ? "s are" : " is"} still empty — fill every slot before kick-off.`
+        : "Some players are out of position — reposition them before continuing.");
+      play("error");
+      return;
+    }
     if (!setup!.tactic) {
       setShowTactics(true);
       setNotice("Choose a tactical style before kick-off.");
@@ -154,12 +175,19 @@ export default function SquadPage() {
       return;
     }
     if (mode === "edit") {
-      if (swapSel === null) { setSwapSel(i); setNotice(""); return; }
-      if (swapSel === i) { setSwapSel(null); return; }
-      swapSlots(swapSel, i);
+      if (swapSel === null) { if (xi[i]) { setSwapSel(i); setNotice("Now tap where he should go — only valid slots light up."); play("click"); } return; }
+      if (swapSel === i) { setSwapSel(null); setNotice("Tap a player to move."); return; }
       const moved = xi[swapSel];
+      const ok = swapSlots(swapSel, i);
+      if (!ok) {
+        const other = xi[i];
+        setNotice(`Can’t swap — ${moved?.name.split(" ").pop() ?? "he"} can’t play ${formation!.slots[i].pos}${other ? ` or ${other.name.split(" ").pop()} can’t play ${formation!.slots[swapSel].pos}` : ""}.`);
+        play("error");
+        return;
+      }
       const s = moved ? suitability(moved.position, moved.altPositions, formation!.slots[i].pos) : null;
-      setNotice(s && s.level !== "natural" ? `Heads up: ${moved!.name.split(" ").pop()} is ${s.label.toLowerCase()} at ${formation!.slots[i].pos}.` : "Swapped.");
+      setNotice(s && s.level !== "natural" ? `Heads up: ${moved!.name.split(" ").pop()} is ${s.label.toLowerCase()} at ${formation!.slots[i].pos}.` : "Moved.");
+      play("select");
       setSwapSel(null);
     }
   };
@@ -236,9 +264,19 @@ export default function SquadPage() {
                 formation={formation!}
                 players={xi}
                 variant={pool === "clubs" ? "cl" : pool}
-                activeSlot={mode === "edit" ? swapSel ?? undefined : mode === "compare" ? compareSel[0] : undefined}
                 captainSlot={captainSlot >= 0 ? captainSlot : undefined}
-                onSlotClick={onSlotTap}
+                interaction={
+                  mode === "view"
+                    ? null
+                    : {
+                        kind: "edit",
+                        selectedSlots: mode === "edit" ? (swapSel !== null ? [swapSel] : []) : mode === "compare" ? compareSel : [],
+                        moving: mode === "edit" && swapSel !== null && xi[swapSel]
+                          ? { position: xi[swapSel]!.position, altPositions: xi[swapSel]!.altPositions }
+                          : null,
+                        onSlot: onSlotTap,
+                      }
+                }
               />
               <p className="mt-2 min-h-[1rem] text-center text-[0.66rem] text-muted">{notice}</p>
             </div>
@@ -359,6 +397,9 @@ export default function SquadPage() {
                 onClick={() => { setMode(mode === "compare" ? "view" : "compare"); setCompareSel([]); setNotice(""); play("click"); }}>
                 ⚖️ Compare Players
               </button>
+              <button className="btn btn-ghost text-[0.68rem]" onClick={() => { setShowFormation(true); play("click"); }}>
+                🔁 {setup!.formationName}
+              </button>
               <button className="btn btn-ghost text-[0.68rem]" onClick={() => { setShowPresentation(true); play("click"); }}>
                 📺 Watch Presentation
               </button>
@@ -366,6 +407,13 @@ export default function SquadPage() {
                 📸 Share XI
               </button>
             </div>
+            {!lineupValid && (
+              <div className="mt-4 flex items-center gap-2 rounded-xl border border-danger/40 bg-danger/10 px-3 py-2 text-[0.72rem] font-semibold text-danger">
+                ⚠️ {emptyCount > 0
+                  ? `Some players must be repositioned before continuing — ${emptyCount} slot${emptyCount > 1 ? "s" : ""} empty.`
+                  : "Some players are out of position — move them to a valid slot."}
+              </div>
+            )}
             <div className="mt-4 flex flex-col gap-3 border-t border-white/8 pt-4 sm:flex-row">
               <input
                 value={teamName}
@@ -375,7 +423,7 @@ export default function SquadPage() {
                 className="flex-1 rounded-xl border border-white/12 bg-black/30 px-4 py-3 text-white outline-none focus:border-gold"
               />
               <button
-                className={`btn btn-pulse ${pool === "copa" ? "btn-copa" : pool === "euro" ? "btn-euro" : "btn-gold"} ${!tactic ? "opacity-70" : ""}`}
+                className={`btn btn-pulse ${pool === "copa" ? "btn-copa" : pool === "euro" ? "btn-euro" : "btn-gold"} ${!tactic || !lineupValid ? "opacity-70" : ""}`}
                 onClick={startTournament}
               >
                 {c.enter}
@@ -388,6 +436,24 @@ export default function SquadPage() {
               Start a new draft instead
             </button>
           </div>
+        )}
+
+        {/* ===================== FORMATION MODAL ===================== */}
+        {showFormation && !campaignActive && (
+          <FormationPicker
+            current={setup!.formationName}
+            accent={c.accent}
+            isAllowed={(f) => f.name === setup!.formationName || formationCanHold(placedForRemap, f)}
+            onPick={(name) => {
+              changeFormation(name);
+              setShowFormation(false);
+              setMode("view"); setSwapSel(null);
+              setNotice(`Switched to ${name}. Every player kept a valid position.`);
+              play("select");
+            }}
+            onClose={() => setShowFormation(false)}
+            title="Change Formation"
+          />
         )}
 
         {/* ===================== TACTICS MODAL ===================== */}

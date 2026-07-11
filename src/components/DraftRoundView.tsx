@@ -37,10 +37,8 @@ export function DraftRoundView() {
   const placedSlots = useGame((s) => s.placedSlots);
   const beginRound = useGame((s) => s.beginRound);
   const respinSquad = useGame((s) => s.respinSquad);
-  const cancelRound = useGame((s) => s.cancelRound);
   const reroll = useGame((s) => s.reroll);
   const choosePlayer = useGame((s) => s.choosePlayer);
-  const undoLastPick = useGame((s) => s.undoLastPick);
   const changeFormation = useGame((s) => s.changeFormation);
   const resetDraft = useGame((s) => s.resetDraft);
   const getOffered = useGame((s) => s.getOfferedPlayers);
@@ -210,14 +208,10 @@ export function DraftRoundView() {
                     <button className="btn btn-ghost w-full text-xs" onClick={() => { setShowFormation(true); play("click"); }}>
                       🔁 Formation · {setup.formationName}
                     </button>
-                    {placedSlots.length > 0 && (
-                      <button className="btn btn-ghost w-full text-xs" onClick={() => { setPlacing(null); undoLastPick(); }}>
-                        ↩︎ Undo Last Pick
-                      </button>
-                    )}
                   </div>
+                  <p className="mt-2 text-center text-[0.62rem] text-muted">Picks are final — choose carefully.</p>
                   {setup.difficulty === "hard" && (
-                    <div className="mt-2 text-center text-[0.66rem] text-danger">🔥 Hard · no re-rolls</div>
+                    <div className="mt-1 text-center text-[0.66rem] text-danger">🔥 Hard · no re-rolls</div>
                   )}
                 </div>
               )}
@@ -228,10 +222,9 @@ export function DraftRoundView() {
                     <div className="glass rounded-2xl p-5 text-center">
                       <div className="text-3xl">🚫</div>
                       <div className="mt-2 font-display text-base font-bold">No eligible {targetPos} in {squad?.club} {isIntl ? squad?.season : seasonText}</div>
-                      <p className="mt-1 text-xs text-muted">This squad has no player who fits the {targetPos} role. Re-spin for a different one — it’s free and doesn’t cost the pick.</p>
+                      <p className="mt-1 text-xs text-muted">This squad has no player who fits the {targetPos} role. Re-spin for a different one — this doesn’t cost the pick.</p>
                       <div className="mt-4 flex flex-col gap-2">
-                        <button className="btn btn-gold" onClick={() => { respinSquad(); setRevealedKey(""); }}>🔄 Re-spin (free)</button>
-                        <button className="btn btn-ghost text-xs" onClick={() => cancelRound()}>← Choose another position</button>
+                        <button className="btn btn-gold" onClick={() => { respinSquad(); setRevealedKey(""); }}>🔄 Re-spin for a squad with a {targetPos}</button>
                       </div>
                     </div>
                   ) : (
@@ -246,12 +239,13 @@ export function DraftRoundView() {
                             onSelect={() => { setPlacing(p); play("click"); scrollToPitch(); }} />
                         ))}
                       </div>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {rerolls > 0 && (
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        {rerolls > 0 ? (
                           <button className="btn btn-ghost text-[0.68rem]" onClick={() => { reroll(); setRevealedKey(""); }}
-                            title="Draw a different team for this position">🔄 Different team ({rerolls})</button>
+                            title="Draw a different team for this position — uses one of your re-rolls">🔄 Different team ({rerolls} left)</button>
+                        ) : (
+                          <span className="text-[0.64rem] text-muted">No re-rolls left — pick your {targetPos}.</span>
                         )}
-                        <button className="btn btn-ghost text-[0.68rem]" onClick={() => cancelRound()}>← Back</button>
                       </div>
                     </div>
                   )}

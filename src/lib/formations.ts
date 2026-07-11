@@ -273,6 +273,28 @@ export function getFormation(name: string): Formation {
   return FORMATIONS.find((f) => f.name === name) ?? FORMATIONS[0];
 }
 
+export type FormationCategory = "Back Four" | "Back Three" | "Back Five";
+export const FORMATION_CATEGORIES: FormationCategory[] = ["Back Four", "Back Three", "Back Five"];
+
+/** Category from the defensive line — the first number of the formation name. */
+export function formationCategory(f: Formation): FormationCategory {
+  return f.name.startsWith("5") ? "Back Five" : f.name.startsWith("3") ? "Back Three" : "Back Four";
+}
+
+/** A short human description of a formation's shape, for the preview. */
+export function formationShapeNote(f: Formation): { attack: string; mid: string; def: string } {
+  const att = f.slots.filter((s) => POSITION_GROUP[s.pos] === "ATT");
+  const mid = f.slots.filter((s) => POSITION_GROUP[s.pos] === "MID");
+  const def = f.slots.filter((s) => POSITION_GROUP[s.pos] === "DEF");
+  const wide = att.filter((s) => s.pos === "LW" || s.pos === "RW").length;
+  const wingBacks = def.filter((s) => s.pos === "LWB" || s.pos === "RWB").length;
+  return {
+    attack: wide >= 2 ? "Wide front line" : att.length >= 2 ? "Twin strikers" : "Lone striker",
+    mid: `${mid.length}-man midfield`,
+    def: wingBacks ? "Wing-backs push on" : def.length >= 5 ? "Low block" : "Flat back line",
+  };
+}
+
 interface Placeable { id: string; position: Position; altPositions: Position[] }
 
 /**

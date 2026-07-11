@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useGame } from "@/lib/store";
-import { FORMATIONS } from "@/lib/formations";
+import { FORMATIONS, FORMATION_CATEGORIES, formationCategory, formationShapeNote } from "@/lib/formations";
 import { Pitch } from "@/components/Pitch";
+import { tacticById } from "@/lib/tactics";
 import { DraftRoundView } from "@/components/DraftRoundView";
 import { WavingFlag } from "@/components/fx/WavingFlag";
 import { Sparks } from "@/components/fx/Atmosphere";
@@ -168,17 +169,31 @@ export default function DraftPage() {
       <section className="mt-10">
         <h2 className="mb-3 text-sm font-bold uppercase tracking-widest text-muted">Formation</h2>
         <div className="grid gap-6 md:grid-cols-[1fr_auto]">
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {FORMATIONS.map((f) => (
-              <button
-                key={f.name}
-                onClick={() => { setFormation(f.name); play("click"); }}
-                className="glass rounded-xl px-3 py-4 text-center font-display font-bold transition-all"
-                style={formation === f.name ? { color: t.accent, ...ringStyle(true) } : { color: "rgba(255,255,255,0.8)" }}
-              >
-                {f.name}
-              </button>
-            ))}
+          <div className="space-y-4">
+            {FORMATION_CATEGORIES.map((cat) => {
+              const group = FORMATIONS.filter((f) => formationCategory(f) === cat);
+              if (!group.length) return null;
+              return (
+                <div key={cat}>
+                  <div className="mb-1.5 flex items-center gap-2">
+                    <span className="text-[0.6rem] font-bold uppercase tracking-[0.25em]" style={{ color: t.accent }}>{cat}</span>
+                    <span className="h-px flex-1" style={{ background: `linear-gradient(90deg, ${t.accent}44, transparent)` }} />
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                    {group.map((f) => (
+                      <button
+                        key={f.name}
+                        onClick={() => { setFormation(f.name); play("click"); }}
+                        className="glass min-h-[44px] rounded-xl px-2 py-3 text-center font-display text-sm font-bold transition-all"
+                        style={formation === f.name ? { color: t.accent, ...ringStyle(true) } : { color: "rgba(255,255,255,0.8)" }}
+                      >
+                        {f.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
           <AnimatePresence mode="wait">
             <motion.div
@@ -186,13 +201,33 @@ export default function DraftPage() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-[280px] justify-self-center"
+              className="w-full max-w-[280px] justify-self-center md:sticky md:top-24"
             >
               <Pitch
                 formation={FORMATIONS.find((f) => f.name === formation)!}
                 players={FORMATIONS.find((f) => f.name === formation)!.slots.map(() => null)}
                 variant={pendingPool === "clubs" ? "cl" : pendingPool}
               />
+              {(() => {
+                const f = FORMATIONS.find((x) => x.name === formation)!;
+                const shape = formationShapeNote(f);
+                const tactics = (f.bestFor ?? []).map((id) => tacticById(id)).filter(Boolean).slice(0, 3);
+                return (
+                  <div className="mt-2 rounded-xl bg-white/5 p-3 text-[0.66rem] text-white/65">
+                    <div className="font-bold text-white">{f.name} · {formationCategory(f)}</div>
+                    <div className="mt-1 space-y-0.5">
+                      <div>▲ {shape.attack}</div><div>■ {shape.mid}</div><div>▼ {shape.def}</div>
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {tactics.map((tc) => (
+                        <span key={tc!.id} className="rounded px-1.5 py-[1px] text-[0.56rem] font-bold" style={{ background: `${t.accent}1e`, color: t.accent }}>
+                          {tc!.icon} {tc!.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
             </motion.div>
           </AnimatePresence>
         </div>

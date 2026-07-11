@@ -107,7 +107,15 @@ export interface TeamAnalysis {
   midfield: number;
   defense: number;
   goalkeeper: number;
-  chemistry: number; // 0-100
+  /** % of full effectiveness the XI keeps from position suitability (100 = all natural) */
+  positionFit: number;
+  /** the four explainable components behind the overall */
+  breakdown: {
+    playerQuality: number;
+    positionSuitability: number;
+    tacticFit: number;
+    experience: number;
+  };
   leadership: number;
   experience: number;
   possession: number;
@@ -225,7 +233,9 @@ export interface DraftRecord {
   mode: GameMode;
   formation: string;
   overall: number;
-  chemistry: number;
+  /** legacy field from the chemistry era — old saves may still carry it */
+  chemistry?: number;
+  tactic?: string;
   players: { name: string; club: string; season: number; position: Position; overall: number }[];
   result?: "champion" | "final" | "semi" | "quarter" | "r16" | "playoff" | "league";
   goals?: number;

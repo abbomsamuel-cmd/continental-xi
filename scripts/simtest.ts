@@ -74,7 +74,8 @@ let sawTop8 = false, sawPlayoff = false;
 for (let run = 0; run < 25; run++) {
   const rng = randomRng();
   const st = createTournament(rng, "Test XI", {
-    overall: 88, attack: 88, midfield: 87, defense: 86, goalkeeper: 87, chemistry: 70,
+    overall: 88, attack: 88, midfield: 87, defense: 86, goalkeeper: 87, positionFit: 100,
+    breakdown: { playerQuality: 88, positionSuitability: 88, tacticFit: 76, experience: 70 },
     leadership: 60, experience: 60, possession: 60, counter: 60, pressResistance: 60,
     setPieces: 60, balance: 70, strengths: [], weaknesses: [], captain: "", radar: [],
   } as never, ["#fff", "#000"]);

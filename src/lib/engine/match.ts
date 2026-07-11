@@ -5,7 +5,7 @@ import { generateAiName } from "./names";
 /**
  * Advanced probabilistic match engine.
  *
- * Not a pure ratings comparison: form, chemistry (baked into user strength),
+ * Not a pure ratings comparison: form, tactical fit (baked into user strength),
  * home advantage, attacking/defensive split and football variance all matter.
  * A weaker side wins sometimes — that's football.
  */

@@ -148,12 +148,14 @@ export function createIntl(rng: Rng, comp: IntlComp, userKey: string): IntlState
  * Draft mode: the user's hand-built XI of international legends enters as its
  * own team, replacing one random nation so the field size stays authentic.
  *
- * International sides have no transfer-market chemistry — entry strength is a
+ * International entry strength is a
  * pure football evaluation: attack, midfield, defense, goalkeeper, experience
  * and squad balance.
  */
 export function createIntlDraft(
   rng: Rng, comp: IntlComp, teamName: string, colors: [string, string], analysis: TeamAnalysis,
+  /** small attack/defense nudge from the chosen tactical style (±2.5 max) */
+  tacticAdj: { attack: number; defense: number } = { attack: 0, defense: 0 },
 ): IntlState {
   const size = COMP_SIZE[comp];
   const nations = shuffle(rng, nationField(rng, comp)).slice(0, size - 1);
@@ -169,9 +171,9 @@ export function createIntlDraft(
     short: "YOU",
     country: "World",
     colors,
-    strength: Math.min(99, core + polish),
-    attack: Math.min(99, analysis.attack + polish),
-    defense: Math.min(99, (analysis.defense + analysis.goalkeeper) / 2 + polish),
+    strength: Math.min(99, core + polish + (tacticAdj.attack + tacticAdj.defense) / 2),
+    attack: Math.min(99, analysis.attack + polish + tacticAdj.attack),
+    defense: Math.min(99, (analysis.defense + analysis.goalkeeper) / 2 + polish + tacticAdj.defense),
     isUser: true,
     pot: 0,
   };

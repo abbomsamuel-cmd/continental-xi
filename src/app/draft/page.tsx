@@ -32,14 +32,14 @@ const COMP_THEME: Record<DraftPool, {
     label: "Champions League", sub: "Club · Europe", emoji: "🏆",
     accent: "#22e0ff", soft: "rgba(34,224,255,0.14)",
     panel: "cl-panel cl-streaks", heading: "text-gradient-gold",
-    note: "Chemistry matters here — club team-mates, league links, nationality and legendary partnerships all boost your XI.",
+    note: "Every rating is season-specific — your XI is built from player quality, position suitability, tactics and experience.",
     noteIcon: "🔗",
   },
   euro: {
     label: "UEFA EURO", sub: "International · UEFA", emoji: "🇪🇺",
     accent: "#37e0ff", soft: "rgba(55,224,255,0.14)",
     panel: "euro-panel euro-grid", heading: "text-gradient-euro",
-    note: "No chemistry in international football — your XI is judged on attack, midfield, defence, goalkeeper, experience and balance.",
+    note: "National-team football — your XI is judged on attack, midfield, defence, goalkeeper, experience and balance.",
     noteIcon: "🏟️",
     flags: ["Spain", "France", "Germany", "Italy"],
   },
@@ -47,7 +47,7 @@ const COMP_THEME: Record<DraftPool, {
     label: "Copa América", sub: "International · CONMEBOL", emoji: "🌎",
     accent: "#ffc93c", soft: "rgba(255,201,60,0.14)",
     panel: "copa-panel copa-heat copa-gold-border", heading: "text-gradient-copa",
-    note: "No chemistry in international football — pure footballing quality decides how far your selección goes.",
+    note: "Pure footballing quality decides how far your selección goes — plus the tactics you choose.",
     noteIcon: "🎉",
     flags: ["Brazil", "Argentina", "Uruguay", "Chile"],
   },
@@ -191,7 +191,6 @@ export default function DraftPage() {
               <Pitch
                 formation={FORMATIONS.find((f) => f.name === formation)!}
                 players={FORMATIONS.find((f) => f.name === formation)!.slots.map(() => null)}
-                showChem={false}
                 variant={pendingPool === "clubs" ? "cl" : pendingPool}
               />
             </motion.div>

@@ -6,11 +6,11 @@ import type {
   DraftRecord, Fixture, Formation, GameMode, IntlRecord, KOTie, LoggedMatch, Player, Profile,
   SimTeam, TeamAnalysis, TournamentState,
 } from "./types";
-import { getFormation, positionFit, canPlaySlot } from "./formations";
+import { getFormation } from "./formations";
 import { getPool, getPoolPlayers, poolSquadPlayers, type DraftPool } from "./players";
 import { pickDraftSquad, draftOrder } from "./draft";
 import { analyzeTeam } from "./analysis";
-import { computeChemistry } from "./chemistry";
+import { tacticEngineAdjust, tacticFit, type TacticId } from "./tactics";
 import { randomRng, seededRng, type Rng } from "./rng";
 import {
   createTournament, playMatchday, playKnockoutStage, computeTable, USER_TEAM_ID,
@@ -38,6 +38,8 @@ interface DraftSetup {
   daily?: string;
   /** squad pool this draft draws from — club history or a national tournament */
   pool: DraftPool;
+  /** tactical style — must be chosen before entering the tournament */
+  tactic?: TacticId;
 }
 
 const REROLLS_FOR: Record<Difficulty, number> = {
@@ -56,6 +58,10 @@ interface StoreState {
   rounds: DraftRound[];
   currentRound: number;
   picks: Record<number, string>; // slotIndex -> playerId
+  /** slot filled at each round, in pick order — powers Undo */
+  placedSlots: number[];
+  /** the armband — player id, chosen by the user before kick-off */
+  captainId: string | null;
   draftComplete: boolean;
   lastUnlocked: string[];
   rngSeed: string | null;
@@ -79,7 +85,10 @@ interface StoreState {
   setProfileName: (name: string) => void;
   toggleSound: () => void;
   startDraft: (mode: GameMode, formationName: string, difficulty: Difficulty, daily?: string, pool?: DraftPool) => void;
-  choosePlayer: (playerId: string) => void;
+  choosePlayer: (playerId: string, slotIndex: number) => void;
+  undoLastPick: () => void;
+  setTactic: (t: TacticId) => void;
+  setCaptain: (playerId: string | null) => void;
   reroll: () => void;
   swapSlots: (a: number, b: number) => boolean;
   getOfferedPlayers: () => Player[];
@@ -138,6 +147,8 @@ export const useGame = create<StoreState>()(
       rounds: [],
       currentRound: 0,
       picks: {},
+      placedSlots: [],
+      captainId: null,
       draftComplete: false,
       lastUnlocked: [],
       rngSeed: null,
@@ -175,6 +186,8 @@ export const useGame = create<StoreState>()(
           rounds,
           currentRound: 0,
           picks: {},
+          placedSlots: [],
+          captainId: null,
           draftComplete: false,
           tournament: null,
           rngSeed: seed,
@@ -207,21 +220,14 @@ export const useGame = create<StoreState>()(
         set({ rounds: next, rerolls: rerolls - 1, rerollNonce: rerollNonce + 1 });
       },
 
-      // Swap the players in two formation slots — only if each can legally play
-      // the other's position. Returns true if the swap happened.
+      // Swap the players in two formation slots. Any swap is allowed — the
+      // suitability system prices the move instead of blocking it.
       swapSlots: (a, b) => {
-        const { formation, picks, setup } = get();
+        const { formation, picks } = get();
         if (!formation || a === b) return false;
-        const players = getPoolPlayers(setup?.pool ?? "clubs");
         const idA = picks[a];
         const idB = picks[b];
-        const pA = idA ? players.find((p) => p.id === idA) : null;
-        const pB = idB ? players.find((p) => p.id === idB) : null;
-        const slotA = formation.slots[a].pos;
-        const slotB = formation.slots[b].pos;
-        // each moved player must be eligible for its new slot
-        if (pA && !canPlaySlot(pA.position, pA.altPositions, slotB)) return false;
-        if (pB && !canPlaySlot(pB.position, pB.altPositions, slotA)) return false;
+        if (!idA && !idB) return false;
         const next = { ...picks };
         if (idB) next[a] = idB; else delete next[a];
         if (idA) next[b] = idA; else delete next[b];
@@ -230,11 +236,12 @@ export const useGame = create<StoreState>()(
         return true;
       },
 
-      choosePlayer: (playerId) => {
-        const { rounds, currentRound, formation, picks, rngSeed, setup } = get();
+      // The player chose WHERE the pick plays — never auto-placed.
+      choosePlayer: (playerId, slotIndex) => {
+        const { rounds, currentRound, formation, picks, placedSlots, rngSeed, setup } = get();
         if (!formation || !rngSeed) return;
-        const round = rounds[currentRound];
-        const newPicks = { ...picks, [round.slotIndex]: playerId };
+        if (picks[slotIndex]) return; // occupied — placement UI offers a swap instead
+        const newPicks = { ...picks, [slotIndex]: playerId };
         const usedSquads = rounds.slice(0, currentRound + 1).map((r) => r.squadIndex).filter((i) => i >= 0);
         const nextRounds = [...rounds];
 
@@ -248,11 +255,32 @@ export const useGame = create<StoreState>()(
         play("select");
         set({
           picks: newPicks,
+          placedSlots: [...placedSlots, slotIndex],
           rounds: nextRounds,
           currentRound: isLast ? currentRound : currentRound + 1,
           draftComplete: isLast,
         });
       },
+
+      // Take back the last pick — the player returns to the pool and the same
+      // squad is offered again.
+      undoLastPick: () => {
+        const { placedSlots, picks, currentRound, draftComplete } = get();
+        if (!placedSlots.length) return;
+        const lastSlot = placedSlots[placedSlots.length - 1];
+        const next = { ...picks };
+        delete next[lastSlot];
+        play("flip");
+        set({
+          picks: next,
+          placedSlots: placedSlots.slice(0, -1),
+          currentRound: draftComplete ? currentRound : Math.max(0, currentRound - 1),
+          draftComplete: false,
+        });
+      },
+
+      setTactic: (t) => set((s) => (s.setup ? { setup: { ...s.setup, tactic: t } } : {})),
+      setCaptain: (playerId) => set({ captainId: playerId }),
 
       getOfferedPlayers: () => {
         const { rounds, currentRound, formation, picks, setup } = get();
@@ -260,21 +288,22 @@ export const useGame = create<StoreState>()(
         const pool = setup?.pool ?? "clubs";
         const round = rounds[currentRound];
         if (!round || round.squadIndex < 0) return [];
-        const pos = formation.slots[round.slotIndex].pos;
         const chosenIds = new Set(Object.values(picks));
         const chosenNames = new Set(
           Object.values(picks).map((id) => getPoolPlayers(pool).find((p) => p.id === id)?.name),
         );
-        // Only players who can genuinely fill this slot (football-correct: a
-        // winger can't be offered at CM, etc.), naturals first, up to 9.
+        // The whole squad is on the table — YOU decide where a pick plays.
         const roster = poolSquadPlayers(pool, round.squadIndex)
           .filter((p) => !chosenIds.has(p.id) && !chosenNames.has(p.name))
-          .filter((p) => canPlaySlot(p.position, p.altPositions, pos))
-          .map((p) => ({ p, fit: positionFit(p.position, p.altPositions, pos) }));
-        return roster
-          .sort((a, b) => b.fit - a.fit || b.p.overall - a.p.overall)
-          .slice(0, 9)
-          .map((x) => x.p);
+          .sort((a, b) => b.overall - a.overall);
+        const offered = roster.slice(0, 9);
+        // if the goal is still unguarded, make sure the squad's best keeper is offered
+        const gkSlot = formation.slots.findIndex((sl) => sl.pos === "GK");
+        if (gkSlot >= 0 && !picks[gkSlot] && !offered.some((p) => p.position === "GK")) {
+          const gk = roster.find((p) => p.position === "GK");
+          if (gk) offered.splice(offered.length - 1, 1, gk);
+        }
+        return offered;
       },
 
       getXI: () => {
@@ -288,16 +317,19 @@ export const useGame = create<StoreState>()(
       },
 
       getAnalysis: () => {
-        const { formation } = get();
+        const { formation, setup } = get();
         if (!formation) return null;
-        return analyzeTeam(formation, get().getXI());
+        return analyzeTeam(formation, get().getXI(), setup?.tactic ?? null);
       },
 
       finishDraftIntoTournament: (teamName) => {
         const { formation, setup } = get();
         if (!formation) return;
         const xi = get().getXI();
-        const analysis = analyzeTeam(formation, xi);
+        const tactic = setup?.tactic ?? null;
+        const analysis = analyzeTeam(formation, xi, tactic);
+        const fit = tactic ? tacticFit(tactic, formation, xi) : 74;
+        const tacticAdj = tacticEngineAdjust(tactic, fit);
         const seed = `${get().rngSeed}-tourney`;
         const rng = seededRng(seed);
         const firstPlayer = xi.find(Boolean);
@@ -307,10 +339,10 @@ export const useGame = create<StoreState>()(
         const pool = setup?.pool ?? "clubs";
         if (pool === "euro" || pool === "copa") {
           // drafted XI of international legends enters its own tournament
-          set({ intl: createIntlDraft(rng, pool, name, colors, analysis) });
+          set({ intl: createIntlDraft(rng, pool, name, colors, analysis, tacticAdj) });
           return;
         }
-        set({ tournament: createTournament(rng, name, analysis, colors) });
+        set({ tournament: createTournament(rng, name, analysis, colors, tacticAdj) });
       },
 
       advanceLeague: () => {
@@ -357,8 +389,7 @@ export const useGame = create<StoreState>()(
         const { tournament, formation, setup, profile } = get();
         if (!tournament || !formation || !setup) return;
         const xi = get().getXI();
-        const analysis = analyzeTeam(formation, xi);
-        const chem = computeChemistry(formation, xi);
+        const analysis = analyzeTeam(formation, xi, setup.tactic ?? null);
         const table = computeTable(tournament);
         const userPos = table.findIndex((r) => r.teamId === USER_TEAM_ID) + 1;
         const champion = tournament.champion === USER_TEAM_ID;
@@ -379,7 +410,7 @@ export const useGame = create<StoreState>()(
           mode: setup.mode,
           formation: setup.formationName,
           overall: analysis.overall,
-          chemistry: analysis.chemistry,
+          tactic: setup.tactic,
           players: xi.filter(Boolean).map((p) => ({
             name: p!.name, club: p!.club, season: p!.season, position: p!.position, overall: p!.overall,
           })),
@@ -391,6 +422,7 @@ export const useGame = create<StoreState>()(
         const lostAKnockout = tournament.ties.some(
           (t) => (t.teamA === USER_TEAM_ID || t.teamB === USER_TEAM_ID) && t.winner && t.winner !== USER_TEAM_ID,
         );
+        const playersOver90 = xi.filter((p) => p && p.overall >= 90).length;
         const playersOver92 = xi.filter((p) => p && p.overall >= 92).length;
         const newProfileDrafts = [record, ...profile.drafts].slice(0, 200);
         const provisional: Profile = {
@@ -402,7 +434,7 @@ export const useGame = create<StoreState>()(
           profile: provisional,
           analysis,
           record,
-          partnerships: chem.partnerships.length,
+          playersOver90,
           playersOver92,
           topOfLeague: userPos === 1,
           lostAKnockout,
@@ -417,6 +449,7 @@ export const useGame = create<StoreState>()(
 
       resetDraft: () => set({
         setup: null, formation: null, rounds: [], currentRound: 0, picks: {},
+        placedSlots: [], captainId: null,
         draftComplete: false, tournament: null, rngSeed: null, lastUnlocked: [],
         rerolls: 0, rerollNonce: 0,
       }),
@@ -521,6 +554,8 @@ export const useGame = create<StoreState>()(
         rounds: s.rounds,
         currentRound: s.currentRound,
         picks: s.picks,
+        placedSlots: s.placedSlots,
+        captainId: s.captainId,
         draftComplete: s.draftComplete,
         rngSeed: s.rngSeed,
         tournament: s.tournament,

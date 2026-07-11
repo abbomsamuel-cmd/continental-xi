@@ -10,9 +10,9 @@ export interface Achievement {
 
 export const ACHIEVEMENTS: Achievement[] = [
   { id: "first-draft", name: "Road to Glory", description: "Complete your first draft", icon: "🎬", tier: "bronze" },
-  { id: "perfect-chem", name: "Perfect Chemistry", description: "Build an XI with 90+ chemistry", icon: "🧪", tier: "gold" },
+  { id: "perfect-fit", name: "Perfect Fit", description: "Field an XI with every starter in his natural position", icon: "🎯", tier: "gold" },
   { id: "galacticos", name: "Galácticos", description: "Assemble an XI with 90+ overall", icon: "⭐", tier: "legendary" },
-  { id: "historic-xi", name: "Historic XI", description: "Field a full historic partnership (3+ linked legends)", icon: "🤝", tier: "silver" },
+  { id: "star-studded", name: "Star-Studded", description: "Field 3+ players rated 90 or higher", icon: "🤩", tier: "silver" },
   { id: "ultimate-mid", name: "Ultimate Midfield", description: "Midfield rated 90+", icon: "🎩", tier: "gold" },
   { id: "the-wall", name: "The Wall", description: "Defense + GK averaging 90+", icon: "🧱", tier: "gold" },
   { id: "goal-machine", name: "Goal Machine", description: "Score 15+ goals in one tournament", icon: "⚽", tier: "silver" },
@@ -33,7 +33,7 @@ export interface AchievementContext {
   profile: Profile;
   analysis: TeamAnalysis;
   record: DraftRecord;
-  partnerships: number;
+  playersOver90: number;
   playersOver92: number;
   topOfLeague: boolean;
   lostAKnockout: boolean;
@@ -52,9 +52,9 @@ export function checkAchievements(ctx: AchievementContext): string[] {
   const trophies = ctx.profile.trophies + (champion ? 1 : 0);
 
   add("first-draft", totalDrafts >= 1);
-  add("perfect-chem", ctx.analysis.chemistry >= 90);
+  add("perfect-fit", ctx.analysis.positionFit >= 100);
   add("galacticos", ctx.analysis.overall >= 90);
-  add("historic-xi", ctx.partnerships >= 1);
+  add("star-studded", ctx.playersOver90 >= 3);
   add("ultimate-mid", ctx.analysis.midfield >= 90);
   add("the-wall", (ctx.analysis.defense + ctx.analysis.goalkeeper) / 2 >= 90);
   add("goal-machine", (ctx.record.goals ?? 0) >= 15);

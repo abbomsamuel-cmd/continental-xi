@@ -63,7 +63,7 @@ export default function DailyPage() {
             <div className="rounded-2xl bg-white/5 p-4">
               <div className="text-sm text-muted">Today&apos;s result</div>
               <div className="font-display text-lg font-bold">
-                {alreadyPlayed.overall} OVR · {alreadyPlayed.chemistry} CHEM
+                {alreadyPlayed.overall} OVR
               </div>
               <div className="mt-1 text-xs capitalize text-gold">
                 {alreadyPlayed.result === "champion" ? "🏆 Champion!" : `Reached: ${alreadyPlayed.result}`}
@@ -82,7 +82,7 @@ export default function DailyPage() {
         </h2>
         <div className="glass rounded-2xl p-4">
           <p className="text-center text-sm text-muted">
-            Highest Chemistry · Highest Overall · Fastest Champion · Most Goals · Daily & Weekly Champions.
+            Highest Overall · Fastest Champion · Most Goals · Daily & Weekly Champions.
           </p>
           <p className="mt-2 text-center text-xs text-muted/70">
             Leaderboards sync in the hosted build. Your local best today:

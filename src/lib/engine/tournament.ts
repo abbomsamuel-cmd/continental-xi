@@ -40,24 +40,23 @@ export function createTournament(
   userTeamName: string,
   analysis: TeamAnalysis,
   userColors: [string, string],
+  /** small attack/defense nudge from the chosen tactical style (±2.5 max) */
+  tacticAdj: { attack: number; defense: number } = { attack: 0, defense: 0 },
 ): TournamentState {
   const clubs = shuffle(rng, CLUB_REGISTRY).slice(0, 35);
   const teams: Record<string, SimTeam> = {};
 
-  // Chemistry is a major multiplier on how the squad actually performs: a
-  // perfectly-linked XI plays well above the sum of its ratings, a disjointed
-  // one well below. High chem => a genuinely better chance to win.
-  const chemBonus = (analysis.chemistry - 48) * 0.2; // chem 100 => +10.4, chem 20 => -5.6
-  const userStrength = Math.min(99, analysis.overall + chemBonus);
+  // The analysis overall already embeds player quality, position suitability,
+  // tactic fit and experience — the tactic adds only a small stylistic nudge.
   teams[USER_TEAM_ID] = {
     id: USER_TEAM_ID,
     name: userTeamName,
     short: "YOU",
     country: "Europe",
     colors: userColors,
-    strength: userStrength,
-    attack: Math.min(99, analysis.attack + chemBonus),
-    defense: Math.min(99, (analysis.defense + analysis.goalkeeper) / 2 + chemBonus),
+    strength: Math.min(99, analysis.overall + (tacticAdj.attack + tacticAdj.defense) / 2),
+    attack: Math.min(99, analysis.attack + tacticAdj.attack),
+    defense: Math.min(99, (analysis.defense + analysis.goalkeeper) / 2 + tacticAdj.defense),
     isUser: true,
     pot: 1,
   };

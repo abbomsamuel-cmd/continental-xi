@@ -1,8 +1,8 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import type { Formation, Player } from "@/lib/types";
-import { computeChemistry } from "@/lib/chemistry";
+import type { Formation, Player, Position } from "@/lib/types";
+import { suitability } from "@/lib/suitability";
 
 function initials(name: string): string {
   const parts = name.split(" ");
@@ -13,9 +13,6 @@ function surname(name: string): string {
   return name.split(" ").pop() ?? name;
 }
 
-// FIFA-style chemistry links: green = strong, lime = good, amber = weak.
-const LINK_COLORS = ["transparent", "rgba(255,207,92,0.75)", "rgba(126,217,87,0.8)", "rgba(46,230,166,0.95)"];
-
 export type PitchVariant = "cl" | "euro" | "copa";
 
 interface Props {
@@ -23,11 +20,15 @@ interface Props {
   players: (Player | null)[];
   activeSlot?: number;
   onSlotClick?: (i: number) => void;
-  showChem?: boolean;
   showRatings?: boolean;
   /** per-competition art direction — CL broadcast blue, EURO glass hexagons,
    *  Copa painted mural with shield slots */
   variant?: PitchVariant;
+  /** placement mode: the player being placed — empty slots light up with
+   *  green/yellow/red suitability and the rest of the board steps back */
+  placing?: { position: Position; altPositions: Position[] } | null;
+  /** slot index wearing the armband */
+  captainSlot?: number;
 }
 
 function ratingColor(ovr: number): string {
@@ -67,8 +68,7 @@ const BOARD: Record<PitchVariant, {
   },
 };
 
-export function Pitch({ formation, players, activeSlot, onSlotClick, showChem = true, showRatings = true, variant = "cl" }: Props) {
-  const chem = showChem ? computeChemistry(formation, players) : null;
+export function Pitch({ formation, players, activeSlot, onSlotClick, showRatings = true, variant = "cl", placing = null, captainSlot }: Props) {
   // tolerate any unexpected variant value (e.g. a stale save) — never crash the board
   const board = BOARD[variant] ?? BOARD.cl;
 
@@ -153,28 +153,6 @@ export function Pitch({ formation, players, activeSlot, onSlotClick, showChem = 
           </g>
         </svg>
 
-        {/* chemistry links (CL) */}
-        {chem && (
-          <svg viewBox="0 0 100 133" className="absolute inset-0 h-full w-full" preserveAspectRatio="none">
-            {chem.links.filter((l) => l.strength > 0).map((l, i) => {
-              const a = formation.slots[l.a];
-              const b = formation.slots[l.b];
-              return (
-                <motion.line
-                  key={i}
-                  x1={a.x} y1={133 - a.y * 1.33} x2={b.x} y2={133 - b.y * 1.33}
-                  stroke={LINK_COLORS[l.strength]}
-                  strokeWidth={0.35 + l.strength * 0.28}
-                  strokeLinecap="round"
-                  initial={{ pathLength: 0, opacity: 0 }}
-                  animate={{ pathLength: 1, opacity: 1 }}
-                  transition={{ duration: 0.6, delay: i * 0.03 }}
-                />
-              );
-            })}
-          </svg>
-        )}
-
         {/* silver architecture links (EURO) */}
         {euroLinks.length > 0 && (
           <svg viewBox="0 0 100 133" className="absolute inset-0 h-full w-full" preserveAspectRatio="none">
@@ -197,12 +175,20 @@ export function Pitch({ formation, players, activeSlot, onSlotClick, showChem = 
       {formation.slots.map((slot, i) => {
         const player = players[i];
         const active = activeSlot === i;
+        // placement mode: how well would the incoming player fit THIS slot?
+        const suit = placing ? suitability(placing.position, placing.altPositions, slot.pos) : null;
+        const placeTarget = !!placing && !player;
         return (
           <button
             key={i}
             onClick={() => onSlotClick?.(i)}
-            className="absolute z-10 -translate-x-1/2 -translate-y-1/2 focus:outline-none"
-            style={{ left: `${slot.x}%`, top: `${100 - slot.y}%` }}
+            className="absolute z-10 -translate-x-1/2 -translate-y-1/2 transition-opacity focus:outline-none"
+            style={{
+              left: `${slot.x}%`,
+              top: `${100 - slot.y}%`,
+              opacity: placing && player ? 0.35 : 1,
+              pointerEvents: placing && player ? "none" : undefined,
+            }}
           >
             {/* soft grounding shadow under the card */}
             {player && (
@@ -212,9 +198,30 @@ export function Pitch({ formation, players, activeSlot, onSlotClick, showChem = 
                 style={{ background: "radial-gradient(50% 100% at 50% 50%, rgba(0,0,0,0.55), transparent 70%)", filter: "blur(1.5px)" }}
               />
             )}
+            {/* the armband */}
+            {player && captainSlot === i && (
+              <span
+                className="absolute -right-2 -top-2 z-20 grid h-5 w-5 place-items-center rounded-full font-display text-[0.62rem] font-extrabold text-[#041022]"
+                style={{ background: "linear-gradient(150deg, #f2d472, #d4af37)", boxShadow: "0 2px 8px rgba(0,0,0,0.55)" }}
+                title="Captain"
+              >
+                C
+              </span>
+            )}
+            {/* suitability pip — only when the player is not in his natural role */}
+            {player && (() => {
+              const s = suitability(player.position, player.altPositions, slot.pos);
+              return s.level !== "natural" ? (
+                <span
+                  className="absolute -left-1.5 -top-1.5 z-20 h-3 w-3 rounded-full"
+                  style={{ background: s.color, boxShadow: `0 0 6px ${s.color}` }}
+                  title={s.label}
+                />
+              ) : null;
+            })()}
             <AnimatePresence mode="popLayout">
             <motion.div
-              key={player?.id ?? "empty"}
+              key={player ? player.id : placeTarget ? "target" : "empty"}
               initial={{ scale: 0.35, y: 10, opacity: 0 }}
               animate={{ scale: 1, y: 0, opacity: 1 }}
               exit={{ scale: 0.55, y: -10, opacity: 0 }}
@@ -280,14 +287,6 @@ export function Pitch({ formation, players, activeSlot, onSlotClick, showChem = 
                           {player.overall}
                         </span>
                       ) : <span />}
-                      {chem && (
-                        <span
-                          className="grid h-3.5 w-3.5 place-items-center rounded-full text-[0.46rem] font-extrabold text-[#041022]"
-                          style={{ background: LINK_COLORS[Math.min(3, Math.max(1, Math.round(chem.perSlot[i] / 3.4))) as 1 | 2 | 3] }}
-                        >
-                          {chem.perSlot[i]}
-                        </span>
-                      )}
                     </div>
                     <div className="relative pb-0.5 pt-1 text-center font-display text-[0.95rem] font-extrabold leading-none text-white drop-shadow">
                       {initials(player.name)}
@@ -300,6 +299,24 @@ export function Pitch({ formation, players, activeSlot, onSlotClick, showChem = 
                     </div>
                   </div>
                 )
+              ) : placeTarget && suit ? (
+                /* placement target — suitability-lit, pulsing (CSS so exits
+                   never hang), tappable */
+                <div
+                  className="flex h-[58px] w-[62px] animate-pulse flex-col items-center justify-center gap-0.5 rounded-xl"
+                  style={{
+                    background: `${suit.color}1f`,
+                    border: `2px solid ${suit.color}`,
+                    boxShadow: `0 0 16px ${suit.color}66`,
+                    animationDuration: "1.6s",
+                  }}
+                >
+                  <span className="font-display text-[0.72rem] font-extrabold" style={{ color: suit.color }}>{slot.pos}</span>
+                  <span className="text-[0.42rem] font-bold uppercase tracking-wider" style={{ color: suit.color }}>
+                    {suit.icon} {suit.label}
+                  </span>
+                  <span className="text-[0.44rem] font-bold text-white/70">{Math.round(suit.mult * 100)}%</span>
+                </div>
               ) : (
                 <div
                   className={`grid h-[52px] w-[60px] place-items-center text-[0.6rem] font-bold ${

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { useGame } from "@/lib/store";
@@ -10,6 +10,7 @@ import { SquadSpinner } from "@/components/SquadSpinner";
 import { EuroSpinner, CopaSpinner } from "@/components/NationSpinner";
 import { EuroScene, CopaScene } from "@/components/fx/Scenes";
 import { getPool } from "@/lib/players";
+import type { Player } from "@/lib/types";
 import { play } from "@/lib/sound";
 
 const POOL_BADGE: Record<string, string | null> = {
@@ -32,11 +33,16 @@ export function DraftRoundView() {
   const rerollNonce = useGame((s) => s.rerollNonce);
   const rerolls = useGame((s) => s.rerolls);
   const choosePlayer = useGame((s) => s.choosePlayer);
+  const undoLastPick = useGame((s) => s.undoLastPick);
+  const placedSlots = useGame((s) => s.placedSlots);
   const reroll = useGame((s) => s.reroll);
   const resetDraft = useGame((s) => s.resetDraft);
   const getOffered = useGame((s) => s.getOfferedPlayers);
   const getXI = useGame((s) => s.getXI);
   const [revealedKey, setRevealedKey] = useState("");
+  // the pick awaiting a position — nothing is placed until the user says where
+  const [placing, setPlacing] = useState<Player | null>(null);
+  const pitchRef = useRef<HTMLDivElement>(null);
 
   const pool = setup.pool ?? "clubs";
   const squads = getPool(pool);
@@ -46,7 +52,6 @@ export function DraftRoundView() {
   const squad = squads[round.squadIndex];
   const offered = getOffered();
   const xi = getXI();
-  const slot = formation.slots[round.slotIndex];
 
   if (!squad) return null;
   const key = `${currentRound}:${rerollNonce}`;
@@ -63,7 +68,7 @@ export function DraftRoundView() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="text-xs font-bold uppercase tracking-widest" style={{ color: theme.accent }}>
-              {POOL_BADGE[pool] ? `${POOL_BADGE[pool]} · ` : ""}Pick {currentRound + 1} of {rounds.length} · Filling {slot.pos}
+              {POOL_BADGE[pool] ? `${POOL_BADGE[pool]} · ` : ""}Pick {currentRound + 1} of {rounds.length}
             </div>
             <h1 className="font-display text-2xl font-extrabold sm:text-3xl">
               {spinning ? (
@@ -94,7 +99,7 @@ export function DraftRoundView() {
               <motion.span
                 key={i}
                 className="relative h-2 flex-1 rounded-full"
-                title={`Pick ${i + 1}: ${formation.slots[r.slotIndex].pos}`}
+                title={`Pick ${i + 1}`}
                 animate={current ? { opacity: [1, 0.55, 1] } : undefined}
                 transition={current ? { duration: 1.6, repeat: Infinity, ease: "easeInOut" } : undefined}
                 style={{
@@ -155,6 +160,15 @@ export function DraftRoundView() {
                   >
                     🔄 Re-roll Team {rerolls > 0 ? `(${rerolls} left)` : ""}
                   </button>
+                  {placedSlots.length > 0 && (
+                    <button
+                      className="btn btn-ghost text-[0.68rem]"
+                      onClick={() => { setPlacing(null); undoLastPick(); }}
+                      title="Take back your previous pick"
+                    >
+                      ↩︎ Undo Last Pick
+                    </button>
+                  )}
                   {setup.difficulty === "hard" && (
                     <span className="chip bg-danger/15 text-danger">🔥 Hard · no re-rolls</span>
                   )}
@@ -167,13 +181,16 @@ export function DraftRoundView() {
                       player={p}
                       mode={setup.mode}
                       index={i}
-                      onSelect={() => choosePlayer(p.id)}
+                      onSelect={() => {
+                        setPlacing(p);
+                        play("click");
+                        pitchRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+                      }}
                     />
                   ))}
                 </div>
                 <p className="mt-4 text-center text-xs text-muted">
-                  Tap a card to lock that player into your{" "}
-                  <span style={{ color: theme.accent }}>{slot.pos}</span> slot ·{" "}
+                  Tap a card, then choose the exact position he plays ·{" "}
                   {offered.length} available · no duplicate players or seasons.
                 </p>
               </>
@@ -181,19 +198,35 @@ export function DraftRoundView() {
           </div>
 
           {/* live squad board */}
-          <div className="lg:sticky lg:top-24 lg:self-start">
-            <div className="glass rounded-2xl p-4">
+          <div ref={pitchRef} className="lg:sticky lg:top-24 lg:self-start">
+            <div className={`glass rounded-2xl p-4 ${placing ? "ring-2" : ""}`} style={placing ? { boxShadow: `0 0 30px ${theme.soft}` } : undefined}>
               <div className="mb-2 flex items-center justify-between">
                 <span className="text-xs font-bold uppercase tracking-widest text-muted">Your XI</span>
                 <span className="chip bg-white/8" style={{ color: theme.accent }}>{setup.formationName}</span>
               </div>
+              {placing && (
+                <div className="mb-2 flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-[0.7rem]"
+                  style={{ background: theme.soft, border: `1px solid ${theme.accent}44` }}>
+                  <span className="font-bold text-white">
+                    Where does <span style={{ color: theme.accent }}>{placing.name}</span> play? Tap a position.
+                  </span>
+                  <button className="shrink-0 text-[0.62rem] font-bold uppercase tracking-wider text-white/60 hover:text-white"
+                    onClick={() => setPlacing(null)}>
+                    Cancel
+                  </button>
+                </div>
+              )}
               <Pitch
                 formation={formation}
                 players={xi}
-                activeSlot={round.slotIndex}
-                showChem={!isIntl}
                 showRatings={setup.mode !== "expert"}
                 variant={pool === "clubs" ? "cl" : (pool as PitchVariant)}
+                placing={placing ? { position: placing.position, altPositions: placing.altPositions } : null}
+                onSlotClick={(i) => {
+                  if (!placing || xi[i]) return;
+                  choosePlayer(placing.id, i);
+                  setPlacing(null);
+                }}
               />
             </div>
           </div>

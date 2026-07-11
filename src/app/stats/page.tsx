@@ -24,7 +24,6 @@ function aggregate(drafts: DraftRecord[]) {
   const finals = drafts.filter((d) => d.result === "final" || d.result === "champion").length;
   const semis = drafts.filter((d) => ["semi", "final", "champion"].includes(d.result ?? "")).length;
   const overalls = drafts.map((d) => d.overall);
-  const chems = drafts.map((d) => d.chemistry);
   const allPlayers = drafts.flatMap((d) => d.players);
   return {
     played,
@@ -34,7 +33,6 @@ function aggregate(drafts: DraftRecord[]) {
     winPct: played ? Math.round((champions / played) * 100) : 0,
     avgOverall: overalls.length ? Math.round(overalls.reduce((a, b) => a + b, 0) / overalls.length) : 0,
     bestOverall: overalls.length ? Math.max(...overalls) : 0,
-    bestChem: chems.length ? Math.max(...chems) : 0,
     favFormation: mode(drafts.map((d) => d.formation)) ?? "—",
     favClub: mode(allPlayers.map((p) => p.club)) ?? "—",
     mostDrafted: mode(allPlayers.map((p) => p.name)) ?? "—",
@@ -105,7 +103,7 @@ export default function StatsPage() {
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[
               ["Drafts Played", agg.played], ["CL Titles", agg.champions], ["Finals", agg.finals], ["Semi-finals", agg.semis],
-              ["Win %", `${agg.winPct}%`], ["Avg Overall", agg.avgOverall], ["Best Overall", agg.bestOverall], ["Best Chemistry", agg.bestChem],
+              ["Win %", `${agg.winPct}%`], ["Avg Overall", agg.avgOverall], ["Best Overall", agg.bestOverall], ["Total Goals", agg.totalGoals],
             ].map(([label, value]) => (
               <div key={label} className="glass rounded-2xl px-3 py-4 text-center">
                 <div className="font-display text-2xl font-extrabold text-gradient-gold">{value}</div>
@@ -203,7 +201,7 @@ export default function StatsPage() {
               <div className="flex items-center gap-3">
                 <span className="chip bg-white/8 text-cyan">{d.formation}</span>
                 <div>
-                  <div className="text-sm font-bold">{d.overall} OVR · {d.chemistry} CHEM</div>
+                  <div className="text-sm font-bold">{d.overall} OVR{d.tactic ? ` · ${d.tactic}` : ""}</div>
                   <div className="text-xs text-muted">
                     {new Date(d.date).toLocaleDateString()} · {d.mode}{d.daily ? " · daily" : ""}
                   </div>

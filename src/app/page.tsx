@@ -92,7 +92,7 @@ const MODES = [
   {
     key: "cl", emoji: "🏆", kicker: "Club · Europe", title: "Champions League",
     body: "Draft legends from every European Cup era, then survive the 36-team league phase and the road to the final.",
-    chips: ["36-team Swiss phase", "Two-leg knockouts", "Chemistry links"],
+    chips: ["36-team Swiss phase", "Two-leg knockouts", "Tactics & suitability"],
     href: "/draft", accent: "#22e0ff", panel: "cl-panel cl-streaks", glow: "rgba(34,224,255,0.35)",
   },
   {

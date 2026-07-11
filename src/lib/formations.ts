@@ -7,7 +7,7 @@ export const POSITION_GROUP: Record<Position, PositionGroup> = {
   RW: "ATT", LW: "ATT", CF: "ATT", ST: "ATT",
 };
 
-/** Positions considered interchangeable without a chemistry/rating penalty. */
+/** Positions considered interchangeable without a rating penalty. */
 export const POSITION_FAMILY: Record<Position, Position[]> = {
   GK: ["GK"],
   RB: ["RB", "RWB"], RWB: ["RWB", "RB", "RM"],

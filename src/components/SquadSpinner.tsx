@@ -47,7 +47,8 @@ export function SquadSpinner({ club, seasonLabel, colors, reel: reelPool, onDone
       t += gap;
       gap *= 1.16; // slow down
     }
-    const end = setTimeout(finish, SPIN_MS + 120);
+    timers.push(setTimeout(() => play("flip"), SPIN_MS - 60)); // the stop impact
+    const end = setTimeout(finish, SPIN_MS + 420);
     return () => { timers.forEach(clearTimeout); clearTimeout(end); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -78,9 +79,21 @@ export function SquadSpinner({ club, seasonLabel, colors, reel: reelPool, onDone
       </div>
 
       <div className="cl-panel cl-streaks relative h-40 overflow-hidden rounded-2xl">
-        {/* center spotlight frame */}
-        <div className="pointer-events-none absolute left-1/2 top-1/2 z-20 h-32 w-[136px] -translate-x-1/2 -translate-y-1/2 rounded-2xl"
-          style={{ boxShadow: "0 0 0 2px rgba(212,175,55,0.9), 0 0 34px 6px rgba(212,175,55,0.35)" }} />
+        {/* center spotlight frame — kicks on the stop */}
+        <motion.div
+          className="pointer-events-none absolute left-1/2 top-1/2 z-20 h-32 w-[136px] -translate-x-1/2 -translate-y-1/2 rounded-2xl"
+          style={{ boxShadow: "0 0 0 2px rgba(212,175,55,0.9), 0 0 34px 6px rgba(212,175,55,0.35)" }}
+          animate={{ scale: [1, 1, 1.1, 1], opacity: [1, 1, 1, 1] }}
+          transition={{ duration: SPIN_MS / 1000 + 0.2, times: [0, 0.92, 0.96, 1] }}
+        />
+        {/* stop flash */}
+        <motion.div
+          className="pointer-events-none absolute inset-0 z-10"
+          style={{ background: "radial-gradient(40% 80% at 50% 50%, rgba(242,212,114,0.35), transparent 70%)" }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: [0, 0, 1, 0] }}
+          transition={{ duration: SPIN_MS / 1000 + 0.35, times: [0, 0.92, 0.95, 1] }}
+        />
         <div className="pointer-events-none absolute left-1/2 top-1 z-20 -translate-x-1/2 border-x-8 border-t-[10px] border-x-transparent border-t-gold" />
         <div className="pointer-events-none absolute bottom-1 left-1/2 z-20 -translate-x-1/2 border-x-8 border-b-[10px] border-x-transparent border-b-gold" />
         {/* edge fades */}
@@ -91,13 +104,20 @@ export function SquadSpinner({ club, seasonLabel, colors, reel: reelPool, onDone
           className="absolute top-1/2 flex items-stretch"
           style={{ left: `calc(50% - ${ITEM_W / 2}px)`, gap: 10 }}
           initial={{ x: 0, y: "-50%" }}
-          animate={{ x: -(TARGET_INDEX * ITEM_W), y: "-50%" }}
-          transition={{ duration: SPIN_MS / 1000, ease: [0.08, 0.72, 0.1, 1] }}
+          animate={{
+            x: -(TARGET_INDEX * ITEM_W),
+            y: "-50%",
+            filter: ["blur(0px)", "blur(4px)", "blur(1.5px)", "blur(0px)"],
+          }}
+          transition={{
+            x: { duration: SPIN_MS / 1000, ease: [0.08, 0.72, 0.1, 1] },
+            filter: { duration: SPIN_MS / 1000, times: [0, 0.18, 0.72, 1] },
+          }}
         >
           {reel.map((it, i) => {
             const isTarget = i === TARGET_INDEX;
             return (
-              <div
+              <motion.div
                 key={i}
                 className="flex h-28 flex-col items-center justify-center gap-1.5 rounded-xl p-2 text-center"
                 style={{
@@ -107,11 +127,13 @@ export function SquadSpinner({ club, seasonLabel, colors, reel: reelPool, onDone
                     : `linear-gradient(160deg, ${it.colors[0]}22, ${it.colors[1]}18)`,
                   border: `1px solid ${isTarget ? "rgba(212,175,55,0.8)" : "rgba(255,255,255,0.10)"}`,
                 }}
+                animate={isTarget ? { scale: [1, 1, 1.12, 1.06] } : undefined}
+                transition={isTarget ? { duration: SPIN_MS / 1000 + 0.35, times: [0, 0.92, 0.96, 1] } : undefined}
               >
                 <TeamBadge colors={it.colors} code={it.code} size={40} />
                 <span className={`line-clamp-2 text-[0.68rem] font-bold leading-tight ${isTarget ? "text-white" : "text-white/85"}`}>{it.name}</span>
                 {it.season && <span className="text-[0.6rem] font-semibold text-gold">{it.season}</span>}
-              </div>
+              </motion.div>
             );
           })}
         </motion.div>

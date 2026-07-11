@@ -7,8 +7,7 @@ import { useGame } from "@/lib/store";
 import { PlayerCard } from "@/components/PlayerCard";
 import { Pitch, type PitchVariant } from "@/components/Pitch";
 import { SquadSpinner } from "@/components/SquadSpinner";
-import { CarnivalWheel } from "@/components/CarnivalWheel";
-import { NationOrb } from "@/components/NationOrb";
+import { EuroSpinner, CopaSpinner } from "@/components/NationSpinner";
 import { EuroScene, CopaScene } from "@/components/fx/Scenes";
 import { getPool } from "@/lib/players";
 import { play } from "@/lib/sound";
@@ -69,7 +68,7 @@ export function DraftRoundView() {
             <h1 className="font-display text-2xl font-extrabold sm:text-3xl">
               {spinning ? (
                 <span className="text-muted">
-                  {pool === "copa" ? "The wheel decides…" : pool === "euro" ? "The orb decides…" : "Spinning…"}
+                  {pool === "copa" ? "Rolling the drum…" : pool === "euro" ? "Crossing Europe…" : "Spinning…"}
                 </span>
               ) : (
                 <>Pick from <span className={theme.heading}>{squad.club} {isIntl ? squad.season : ""}</span></>
@@ -117,7 +116,7 @@ export function DraftRoundView() {
             {spinning ? (
               <div className="py-6">
                 {pool === "copa" ? (
-                  <CarnivalWheel
+                  <CopaSpinner
                     key={`spin-${key}`}
                     club={`${squad.club} ${squad.season}`}
                     seasonLabel={seasonText}
@@ -126,7 +125,7 @@ export function DraftRoundView() {
                     onDone={() => setRevealedKey(key)}
                   />
                 ) : pool === "euro" ? (
-                  <NationOrb
+                  <EuroSpinner
                     key={`spin-${key}`}
                     club={`${squad.club} ${squad.season}`}
                     seasonLabel={seasonText}

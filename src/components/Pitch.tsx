@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import type { Formation, Player } from "@/lib/types";
 import { computeChemistry } from "@/lib/chemistry";
 
@@ -80,11 +80,22 @@ export function Pitch({ formation, players, activeSlot, onSlotClick, showChem = 
     : [];
 
   return (
-    <div className="relative mx-auto aspect-[3/4] w-full max-w-md">
+    <div
+      className="relative mx-auto aspect-[3/4] w-full max-w-md"
+      style={{ transform: "perspective(1100px) rotateX(2.5deg)", transformStyle: "preserve-3d" }}
+    >
       <div
         className="absolute inset-0 overflow-hidden rounded-2xl"
-        style={{ background: board.bg, border: board.border, boxShadow: variant === "copa" ? "inset 0 0 40px rgba(255,201,60,0.08)" : undefined }}
+        style={{ background: board.bg, border: board.border, boxShadow: variant === "copa" ? "inset 0 0 40px rgba(255,201,60,0.08)" : "inset 0 0 50px rgba(0,0,0,0.35)" }}
       >
+        {/* stadium floodlights washing the top corners + grounding vignette */}
+        <div className="pointer-events-none absolute inset-0" aria-hidden
+          style={{
+            background:
+              `radial-gradient(42% 30% at 8% 0%, ${board.accent}1c, transparent 70%),` +
+              `radial-gradient(42% 30% at 92% 0%, ${board.accent}1c, transparent 70%),` +
+              "radial-gradient(120% 45% at 50% 108%, rgba(0,0,0,0.45), transparent 65%)",
+          }} />
         {/* EURO: architectural hex lattice · Copa: crowd + confetti flecks */}
         {variant === "euro" && (
           <div className="absolute inset-0 opacity-20" aria-hidden
@@ -116,11 +127,11 @@ export function Pitch({ formation, players, activeSlot, onSlotClick, showChem = 
           </>
         )}
 
-        {/* pitch markings */}
+        {/* pitch markings — boxes, arcs, corners, spots */}
         <svg viewBox="0 0 100 133" className="absolute inset-0 h-full w-full" preserveAspectRatio="none">
-          <g fill="none" stroke={board.line} strokeWidth={variant === "copa" ? 0.55 : 0.4}
+          <g fill="none" stroke={board.line} strokeWidth={variant === "copa" ? 0.55 : 0.45}
             strokeDasharray={variant === "copa" ? "2.2 1.3" : undefined}>
-            <rect x="4" y="4" width="92" height="125" />
+            <rect x="4" y="4" width="92" height="125" rx="1" />
             <line x1="4" y1="66.5" x2="96" y2="66.5" />
             <circle cx="50" cy="66.5" r="11" />
             <circle cx="50" cy="66.5" r="0.8" fill={board.line} />
@@ -128,6 +139,17 @@ export function Pitch({ formation, players, activeSlot, onSlotClick, showChem = 
             <rect x="28" y="109" width="44" height="20" />
             <rect x="40" y="4" width="20" height="8" />
             <rect x="40" y="121" width="20" height="8" />
+            {/* penalty arcs */}
+            <path d="M 42 24 A 9.5 9.5 0 0 0 58 24" />
+            <path d="M 42 109 A 9.5 9.5 0 0 1 58 109" />
+            {/* penalty spots */}
+            <circle cx="50" cy="17" r="0.7" fill={board.line} />
+            <circle cx="50" cy="116" r="0.7" fill={board.line} />
+            {/* corner arcs */}
+            <path d="M 4 8 A 4 4 0 0 0 8 4" />
+            <path d="M 92 4 A 4 4 0 0 0 96 8" />
+            <path d="M 8 129 A 4 4 0 0 0 4 125" />
+            <path d="M 96 125 A 4 4 0 0 0 92 129" />
           </g>
         </svg>
 
@@ -171,7 +193,7 @@ export function Pitch({ formation, players, activeSlot, onSlotClick, showChem = 
         )}
       </div>
 
-      {/* player cards */}
+      {/* player cards — keyed by player so replacements animate in and out */}
       {formation.slots.map((slot, i) => {
         const player = players[i];
         const active = activeSlot === i;
@@ -182,10 +204,22 @@ export function Pitch({ formation, players, activeSlot, onSlotClick, showChem = 
             className="absolute z-10 -translate-x-1/2 -translate-y-1/2 focus:outline-none"
             style={{ left: `${slot.x}%`, top: `${100 - slot.y}%` }}
           >
+            {/* soft grounding shadow under the card */}
+            {player && (
+              <span
+                aria-hidden
+                className="absolute left-1/2 top-full h-2.5 w-12 -translate-x-1/2 -translate-y-1 rounded-full"
+                style={{ background: "radial-gradient(50% 100% at 50% 50%, rgba(0,0,0,0.55), transparent 70%)", filter: "blur(1.5px)" }}
+              />
+            )}
+            <AnimatePresence mode="popLayout">
             <motion.div
-              initial={{ scale: 0, y: 8 }}
-              animate={{ scale: 1, y: 0 }}
-              transition={{ type: "spring", stiffness: 200, damping: 16, delay: i * 0.04 }}
+              key={player?.id ?? "empty"}
+              initial={{ scale: 0.35, y: 10, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.55, y: -10, opacity: 0 }}
+              whileHover={player ? { y: -4, scale: 1.07 } : undefined}
+              transition={{ type: "spring", stiffness: 230, damping: 17, delay: player ? 0 : i * 0.02 }}
             >
               {player ? (
                 board.clip ? (
@@ -223,18 +257,26 @@ export function Pitch({ formation, players, activeSlot, onSlotClick, showChem = 
                     </span>
                   </div>
                 ) : (
-                  /* CL broadcast card */
+                  /* CL broadcast card — official-lineup finish */
                   <div
-                    className={`relative w-[62px] overflow-hidden rounded-xl ${active ? "ring-2 ring-gold" : ""}`}
+                    className={`relative w-[66px] overflow-hidden rounded-xl ${active ? "ring-2 ring-gold" : ""}`}
                     style={{
-                      boxShadow: active ? `0 0 18px ${board.slotGlow}` : "0 6px 16px rgba(0,0,0,0.55)",
+                      boxShadow: active
+                        ? `0 0 18px ${board.slotGlow}`
+                        : "0 10px 22px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.22)",
                       background: `linear-gradient(160deg, ${player.colors[0]}, ${player.colors[1]})`,
+                      border: "1px solid rgba(255,255,255,0.22)",
                     }}
                   >
                     <div className="absolute inset-0 bg-black/45" />
-                    <div className="relative flex items-start justify-between px-1.5 pt-1 leading-none">
+                    {/* glass sheen */}
+                    <div className="pointer-events-none absolute inset-0" style={{ background: "linear-gradient(115deg, rgba(255,255,255,0.16) 0%, transparent 38%)" }} />
+                    <div className="relative flex items-start justify-between px-1 pt-1 leading-none">
                       {showRatings ? (
-                        <span className="font-display text-[0.72rem] font-extrabold" style={{ color: ratingColor(player.overall) }}>
+                        <span
+                          className="rounded-md px-1 py-[1.5px] font-display text-[0.7rem] font-extrabold text-[#041022]"
+                          style={{ background: "linear-gradient(150deg, #f2d472, #d4af37)", boxShadow: "0 1px 4px rgba(0,0,0,0.4)" }}
+                        >
                           {player.overall}
                         </span>
                       ) : <span />}
@@ -247,12 +289,14 @@ export function Pitch({ formation, players, activeSlot, onSlotClick, showChem = 
                         </span>
                       )}
                     </div>
-                    <div className="relative pb-1 pt-0.5 text-center font-display text-[0.9rem] font-extrabold leading-none text-white drop-shadow">
+                    <div className="relative pb-0.5 pt-1 text-center font-display text-[0.95rem] font-extrabold leading-none text-white drop-shadow">
                       {initials(player.name)}
                     </div>
-                    <div className="relative flex items-center justify-center gap-1 truncate bg-black/60 px-1 py-[2px] text-[0.5rem]">
-                      <span className="font-bold uppercase tracking-wide text-cyan">{slot.pos}</span>
-                      <span className="truncate font-semibold text-white/95">{surname(player.name)}</span>
+                    <div className="relative mt-0.5 bg-black/60 px-1 pb-[3px] pt-[2px] text-center">
+                      <div className="truncate text-[0.52rem] font-bold leading-tight text-white/95">{surname(player.name)}</div>
+                      <div className="text-[0.44rem] font-bold uppercase tracking-[0.14em] text-cyan/90">
+                        {slot.pos} · {player.seasonLabel}
+                      </div>
                     </div>
                   </div>
                 )
@@ -272,6 +316,7 @@ export function Pitch({ formation, players, activeSlot, onSlotClick, showChem = 
                 </div>
               )}
             </motion.div>
+            </AnimatePresence>
           </button>
         );
       })}

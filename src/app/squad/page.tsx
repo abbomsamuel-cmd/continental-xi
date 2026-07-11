@@ -204,6 +204,7 @@ export default function SquadPage() {
       accent: c.accent,
       accent2: c.accent2,
       bg: c.bg,
+      variant: pool === "clubs" ? "cl" : pool,
     }, format);
 
   const cmp = compareSel.map((i) => ({ p: xi[i]!, slot: formation!.slots[i] })).filter((x) => x.p);
@@ -618,6 +619,7 @@ export default function SquadPage() {
               tacticName={tactic?.name}
               overall={analysis.overall}
               accent={c.accent}
+              variant={pool === "clubs" ? "cl" : pool}
               onDone={() => setShowPresentation(false)}
             />
           )}

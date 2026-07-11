@@ -3,14 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import type { Formation, Player, Position } from "@/lib/types";
 import { suitability } from "@/lib/suitability";
-
-function initials(name: string): string {
-  const parts = name.split(" ");
-  return ((parts[0]?.[0] ?? "") + (parts[parts.length - 1]?.[0] ?? "")).toUpperCase();
-}
-function surname(name: string): string {
-  return name.split(" ").pop() ?? name;
-}
+import { LineupCard } from "@/components/LineupCard";
 
 export type PitchVariant = "cl" | "euro" | "copa";
 
@@ -48,9 +41,9 @@ const BOARD: Record<PitchVariant, {
   nameAccent: string; badge: "crest" | "flag";
 }> = {
   cl: {
-    bg: "radial-gradient(120% 80% at 50% -10%, rgba(41,98,255,0.32), transparent 55%), repeating-linear-gradient(0deg, #071747 0px, #071747 42px, #0a1d55 42px, #0a1d55 84px)",
-    border: "1px solid rgba(120,160,255,0.28)",
-    line: "rgba(180,205,255,0.32)",
+    bg: "radial-gradient(135% 85% at 50% -14%, rgba(64,120,255,0.45), transparent 56%), radial-gradient(80% 55% at 88% 6%, rgba(140,95,255,0.2), transparent 60%), radial-gradient(80% 55% at 12% 6%, rgba(90,200,255,0.14), transparent 60%), repeating-linear-gradient(0deg, #071a52 0px, #071a52 44px, #0b2464 44px, #0b2464 88px)",
+    border: "1.5px solid rgba(140,180,255,0.4)",
+    line: "rgba(190,215,255,0.4)",
     accent: "#22e0ff", slotGlow: "rgba(212,175,55,0.65)", nameAccent: "#1546c8", badge: "crest",
   },
   euro: {
@@ -71,39 +64,6 @@ const BOARD: Record<PitchVariant, {
 // so no card — the goalkeeper included — ever clips the pitch edge.
 function project(x: number, y: number): { left: string; top: string } {
   return { left: `${9 + x * 0.82}%`, top: `${9 + (100 - y) * 0.8}%` };
-}
-
-/** Player silhouette — the polished fallback when no portrait exists. */
-function Silhouette() {
-  return (
-    <svg viewBox="0 0 24 24" className="absolute bottom-0 left-1/2 h-[115%] w-auto -translate-x-1/2" aria-hidden>
-      <path d="M12 12.4c2.3 0 4.1-1.9 4.1-4.2S14.3 4 12 4 7.9 5.9 7.9 8.2 9.7 12.4 12 12.4zM12 14c-3.4 0-8 1.7-8 5.1V24h16v-4.9c0-3.4-4.6-5.1-8-5.1z"
-        fill="rgba(255,255,255,0.16)" />
-    </svg>
-  );
-}
-
-/** Tiny original club crest (split shield + star) or nation flag (diagonal bicolor). */
-function MiniBadge({ colors, kind }: { colors: [string, string]; kind: "crest" | "flag" }) {
-  if (kind === "flag") {
-    return (
-      <svg viewBox="0 0 16 11" className="h-[11px] w-[16px]" aria-hidden>
-        <clipPath id="fclip"><rect x="0" y="0" width="16" height="11" rx="1.5" /></clipPath>
-        <g clipPath="url(#fclip)">
-          <path d="M0 0 H16 V11 Z" fill={colors[1]} />
-          <path d="M0 0 H16 V0 L0 11 Z" fill={colors[0]} />
-        </g>
-        <rect x="0.4" y="0.4" width="15.2" height="10.2" rx="1.3" fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth="0.8" />
-      </svg>
-    );
-  }
-  return (
-    <svg viewBox="0 0 14 15" className="h-[14px] w-[13px]" aria-hidden>
-      <path d="M7 0.6 12.7 2.4 V7.5 C12.7 11 10 13.4 7 14.4 4 13.4 1.3 11 1.3 7.5 V2.4 Z" fill={colors[0]} stroke="rgba(255,255,255,0.8)" strokeWidth="0.7" />
-      <path d="M7 0.6 12.7 2.4 V7.5 C12.7 9 11.6 10.4 10.3 11.3 L7 6 Z" fill={colors[1]} opacity="0.85" />
-      <circle cx="7" cy="6.4" r="1.5" fill="#f2d472" />
-    </svg>
-  );
 }
 
 export function Pitch({
@@ -133,8 +93,10 @@ export function Pitch({
     return { tappable: false, draftable: false, target: null, dim: false, selected: false };
   }
 
-  const cardW = compact ? "w-[clamp(36px,10vw,44px)]" : "w-[clamp(44px,12vw,64px)]";
-  const portraitH = compact ? "h-[clamp(24px,6.5vw,32px)]" : "h-[clamp(28px,7.5vw,42px)]";
+  // sized so even the tightest row (three central mids ~15% apart) never
+  // collides, from 320px up to desktop.
+  const cardW = compact ? "w-[clamp(34px,9vw,42px)]" : "w-[clamp(38px,10vw,52px)]";
+  const portraitH = compact ? "h-[clamp(22px,6vw,30px)]" : "h-[clamp(24px,6.5vw,34px)]";
 
   return (
     <div
@@ -153,6 +115,20 @@ export function Pitch({
               `radial-gradient(42% 30% at 92% 0%, ${board.accent}1f, transparent 70%),` +
               "radial-gradient(120% 45% at 50% 108%, rgba(0,0,0,0.45), transparent 65%)",
           }} />
+
+        {/* CL: geometric light streaks + centre-circle glow for a broadcast night feel */}
+        {variant === "cl" && (
+          <>
+            <div className="pointer-events-none absolute inset-0" aria-hidden
+              style={{
+                background: "repeating-linear-gradient(118deg, transparent 0 30px, rgba(130,175,255,0.06) 30px 31px)",
+                maskImage: "linear-gradient(to bottom, #000, transparent 88%)",
+                WebkitMaskImage: "linear-gradient(to bottom, #000, transparent 88%)",
+              }} />
+            <div className="pointer-events-none absolute left-1/2 top-1/2 h-40 w-40 -translate-x-1/2 -translate-y-1/2 rounded-full" aria-hidden
+              style={{ background: "radial-gradient(circle, rgba(120,170,255,0.14), transparent 70%)" }} />
+          </>
+        )}
 
         {/* pitch markings */}
         <svg viewBox="0 0 100 133" className="absolute inset-0 h-full w-full" preserveAspectRatio="none">
@@ -220,47 +196,22 @@ export function Pitch({
                   transition={{ type: "spring", stiffness: 240, damping: 18 }}
                 >
                   {player ? (
-                    /* broadcast lineup card: portrait + crest/flag + white name ribbon */
-                    <div
-                      className={`relative ${cardW} overflow-hidden rounded-lg`}
-                      style={{
-                        border: `1.5px solid ${info.selected ? "#f2d472" : secondary ? ownSuit!.color : "rgba(255,255,255,0.4)"}`,
-                        boxShadow: info.selected ? `0 0 18px ${board.slotGlow}` : "0 6px 14px rgba(0,0,0,0.5)",
-                      }}
-                    >
-                      {/* portrait area */}
-                      <div className={`relative flex ${portraitH} items-end justify-center overflow-hidden`}
-                        style={{ background: `linear-gradient(165deg, ${player.colors[0]}, ${player.colors[1]})` }}>
-                        <div className="absolute inset-0 bg-black/30" />
-                        <Silhouette />
-                        <div className="pointer-events-none absolute inset-0" style={{ background: "linear-gradient(115deg, rgba(255,255,255,0.22) 0%, transparent 42%)" }} />
-                        {/* rating */}
-                        {showRatings && (
-                          <span className="absolute left-0.5 top-0.5 rounded px-1 font-display text-[0.58rem] font-extrabold leading-tight text-[#08131f]"
-                            style={{ background: "linear-gradient(150deg, #f2d472, #d4af37)" }}>{player.overall}</span>
-                        )}
-                        {/* crest / flag */}
-                        <span className="absolute right-0.5 top-0.5">
-                          <MiniBadge colors={player.colors} kind={board.badge} />
-                        </span>
-                        {/* initials */}
-                        <span className="relative z-[1] pb-0.5 font-display text-[0.86rem] font-extrabold leading-none text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.7)]">
-                          {initials(player.name)}
-                        </span>
-                        {/* secondary-position flag */}
-                        {secondary && (
-                          <span className="absolute bottom-0.5 left-0.5 grid h-3 w-3 place-items-center rounded-full text-[0.44rem] font-black"
-                            style={{ background: ownSuit!.color, color: "#08131f" }} title={ownSuit!.label}>2</span>
-                        )}
-                      </div>
-                      {/* white name ribbon */}
-                      <div className="bg-[#f4f7ff] px-0.5 pb-[2px] pt-[1px] text-center">
-                        <div className="truncate text-[0.5rem] font-extrabold leading-tight text-[#0a1428]">{surname(player.name)}</div>
-                        <div className="text-[0.42rem] font-bold uppercase leading-tight tracking-[0.08em]" style={{ color: board.nameAccent }}>
-                          {slot.pos}{!compact && player.seasonLabel ? ` · ${player.seasonLabel}` : ""}
-                        </div>
-                      </div>
-                    </div>
+                    <LineupCard
+                      name={player.name}
+                      overall={player.overall}
+                      colors={player.colors}
+                      seasonLabel={compact ? undefined : player.seasonLabel}
+                      slotPos={slot.pos}
+                      badge={board.badge}
+                      nameAccent={board.nameAccent}
+                      showRating={showRatings}
+                      secondaryColor={secondary ? ownSuit!.color : undefined}
+                      captain={captainSlot === i}
+                      selected={info.selected}
+                      slotGlow={board.slotGlow}
+                      widthClass={cardW}
+                      portraitClass={portraitH}
+                    />
                   ) : info.target ? (
                     info.target.level === "blocked" ? (
                       <div className="grid h-[52px] w-[54px] place-items-center gap-0.5 rounded-xl border-2 border-dashed"

@@ -5,7 +5,30 @@ import { motion, AnimatePresence } from "framer-motion";
 import type { Formation, Player } from "@/lib/types";
 import { POSITION_GROUP } from "@/lib/formations";
 import { CameraFlashes, Sparks } from "@/components/fx/Atmosphere";
+import { LineupCard, type BadgeKind } from "@/components/LineupCard";
+import type { PitchVariant } from "@/components/Pitch";
 import { play } from "@/lib/sound";
+
+/** Broadcast board look per competition — matches the pitch identities. */
+const PRES: Record<PitchVariant, { bg: string; line: string; badge: BadgeKind; nameAccent: string }> = {
+  cl: {
+    bg: "radial-gradient(135% 85% at 50% -14%, rgba(64,120,255,0.42), transparent 56%), radial-gradient(80% 55% at 88% 6%, rgba(140,95,255,0.18), transparent 60%), repeating-linear-gradient(0deg, #071a52 0px, #071a52 44px, #0b2464 44px, #0b2464 88px)",
+    line: "rgba(190,215,255,0.4)", badge: "crest", nameAccent: "#1546c8",
+  },
+  euro: {
+    bg: "radial-gradient(120% 85% at 50% -12%, rgba(27,79,255,0.4), transparent 58%), repeating-linear-gradient(0deg, #0e7a3f 0px, #0e7a3f 42px, #128a48 42px, #128a48 84px)",
+    line: "rgba(255,255,255,0.5)", badge: "flag", nameAccent: "#1b3fd0",
+  },
+  copa: {
+    bg: "radial-gradient(120% 80% at 50% -10%, rgba(255,201,60,0.2), transparent 55%), repeating-linear-gradient(0deg, #0a5a34 0px, #0a5a34 42px, #0c6a3d 42px, #0c6a3d 84px)",
+    line: "rgba(255,236,190,0.5)", badge: "flag", nameAccent: "#9a6b00",
+  },
+};
+
+// same safe inset as the interactive pitch, so the GK & wingers stay inside
+function project(x: number, y: number) {
+  return { left: `${9 + x * 0.82}%`, top: `${9 + (100 - y) * 0.8}%` };
+}
 
 /**
  * Optional TV-style lineup presentation: competition intro, then the XI walks
@@ -22,12 +45,14 @@ interface Props {
   tacticName?: string;
   overall: number;
   accent: string;
+  variant?: PitchVariant;
   onDone: () => void;
 }
 
 const GROUP_ORDER = ["GK", "DEF", "MID", "ATT"] as const;
 
-export function LineupPresentation({ compLabel, teamName, formation, players, captainId, tacticName, overall, accent, onDone }: Props) {
+export function LineupPresentation({ compLabel, teamName, formation, players, captainId, tacticName, overall, accent, variant = "cl", onDone }: Props) {
+  const board = PRES[variant] ?? PRES.cl;
   // entrance order: goalkeeper first, then the lines, right-to-left in each
   const order = useMemo(() => {
     const idx = formation.slots.map((s, i) => ({ i, g: POSITION_GROUP[s.pos], x: s.x }));
@@ -96,14 +121,14 @@ export function LineupPresentation({ compLabel, teamName, formation, players, ca
         <div
           className="relative aspect-[3/4] w-full overflow-hidden rounded-2xl"
           style={{
-            background: "radial-gradient(120% 80% at 50% -10%, rgba(41,98,255,0.28), transparent 55%), repeating-linear-gradient(0deg, #0a2e1e 0px, #0a2e1e 42px, #0d3a26 42px, #0d3a26 84px)",
-            border: `1px solid ${accent}55`,
+            background: board.bg,
+            border: `1.5px solid ${accent}66`,
             boxShadow: `0 24px 70px rgba(0,0,0,0.6), 0 0 44px ${accent}22`,
           }}
         >
           <svg viewBox="0 0 100 133" className="absolute inset-0 h-full w-full" preserveAspectRatio="none">
-            <g fill="none" stroke="rgba(200,235,215,0.35)" strokeWidth="0.45">
-              <rect x="4" y="4" width="92" height="125" />
+            <g fill="none" stroke={board.line} strokeWidth="0.5">
+              <rect x="4" y="4" width="92" height="125" rx="1" />
               <line x1="4" y1="66.5" x2="96" y2="66.5" />
               <circle cx="50" cy="66.5" r="11" />
               <rect x="28" y="4" width="44" height="20" />
@@ -116,33 +141,30 @@ export function LineupPresentation({ compLabel, teamName, formation, players, ca
             if (!p) return null;
             const shown = revealed.has(i);
             const isCap = extrasIn && i === captainSlot;
+            const at = project(slot.x, slot.y);
             return (
               <AnimatePresence key={i}>
                 {shown && (
                   <motion.div
                     initial={{ opacity: 0, y: 26, scale: 0.5 }}
-                    animate={{ opacity: 1, y: 0, scale: isCap ? 1.12 : 1 }}
+                    animate={{ opacity: 1, y: 0, scale: isCap ? 1.14 : 1 }}
                     transition={{ type: "spring", stiffness: 210, damping: 16 }}
-                    className="absolute z-10 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center"
-                    style={{ left: `${slot.x}%`, top: `${100 - slot.y}%` }}
+                    className="absolute z-10 -translate-x-1/2 -translate-y-1/2"
+                    style={{ left: at.left, top: at.top }}
                   >
-                    <div
-                      className="relative grid h-12 w-12 place-items-center rounded-full font-display text-sm font-extrabold text-white"
-                      style={{
-                        background: `linear-gradient(150deg, ${p.colors[0]}, ${p.colors[1]})`,
-                        border: `2px solid ${isCap ? "#f2d472" : "rgba(255,255,255,0.75)"}`,
-                        boxShadow: isCap ? "0 0 22px rgba(242,212,114,0.8)" : "0 6px 16px rgba(0,0,0,0.5)",
-                      }}
-                    >
-                      <span className="drop-shadow">{p.overall}</span>
-                      {isCap && (
-                        <span className="absolute -right-1.5 -top-1.5 grid h-[18px] w-[18px] place-items-center rounded-full bg-gradient-to-br from-[#f2d472] to-[#d4af37] text-[0.58rem] font-extrabold text-[#041022]">C</span>
-                      )}
-                    </div>
-                    <span className="mt-1 max-w-[76px] truncate rounded-md bg-black/70 px-1.5 py-[2px] text-[0.55rem] font-bold text-white">
-                      {p.name.split(" ").pop()}
-                    </span>
-                    <span className="text-[0.46rem] font-bold uppercase tracking-widest" style={{ color: accent }}>{slot.pos}</span>
+                    <LineupCard
+                      name={p.name}
+                      overall={p.overall}
+                      colors={p.colors}
+                      seasonLabel={p.seasonLabel}
+                      slotPos={slot.pos}
+                      badge={board.badge}
+                      nameAccent={board.nameAccent}
+                      captain={isCap}
+                      slotGlow="rgba(242,212,114,0.85)"
+                      widthClass="w-[clamp(44px,13vw,58px)]"
+                      portraitClass="h-[clamp(28px,8vw,40px)]"
+                    />
                   </motion.div>
                 )}
               </AnimatePresence>

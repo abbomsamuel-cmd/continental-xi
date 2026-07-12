@@ -244,8 +244,8 @@ const DICT: Record<string, Entry> = {
   "faq.q3": { en: "Which competitions can I play?", es: "¿Qué competiciones puedo jugar?" },
   "faq.q4": { en: "Which players and clubs are included?", es: "¿Qué jugadores y clubes se incluyen?" },
   "faq.a4": {
-    en: "Over 1,700 rated players across 105 legendary club squads (1960–2025), 26 historic EURO squads and 22 Copa América selecciones — from Di Stéfano's Real Madrid to modern treble winners. Each competition fields a set number per tournament: 24 nations at the EURO, 12 at the Copa América. Every player represents one specific season, and you can mix generations freely.",
-    es: "Más de 1.700 jugadores valorados en 105 plantillas de clubes legendarias (1960–2025), 26 plantillas históricas de la Eurocopa y 22 selecciones de la Copa América — desde el Real Madrid de Di Stéfano hasta los tripletes modernos. Cada competición inscribe un número fijo por torneo: 24 selecciones en la Eurocopa y 12 en la Copa América. Cada jugador representa una temporada concreta y puedes mezclar generaciones con total libertad.",
+    en: "Over 1,700 rated players across 105 legendary club squads (1960–2025), 30 historic EURO squads and 18 Copa América selecciones — from Di Stéfano's Real Madrid to modern treble winners. Each competition fields a set number per tournament: 24 nations at the EURO, 12 at the Copa América. Every player represents one specific season, and you can mix generations freely.",
+    es: "Más de 1.700 jugadores valorados en 105 plantillas de clubes legendarias (1960–2025), 30 plantillas históricas de la Eurocopa y 18 selecciones de la Copa América — desde el Real Madrid de Di Stéfano hasta los tripletes modernos. Cada competición inscribe un número fijo por torneo: 24 selecciones en la Eurocopa y 12 en la Copa América. Cada jugador representa una temporada concreta y puedes mezclar generaciones con total libertad.",
   },
   "faq.q5": { en: "Is Continental XI free to play?", es: "¿Continental XI es gratis?" },
   "faq.a5": {

@@ -212,11 +212,8 @@ function ModeCard({ mode, index }: { mode: (typeof MODES)[number]; index: number
                   overall={p.overall}
                   colors={p.colors as [string, string]}
                   seasonLabel={p.season}
-                  slotPos={p.pos}
-                  badge={mode.badge}
-                  nameAccent={mode.nameAccent}
+                  variant={mode.key}
                   widthClass="w-[clamp(38px,20%,52px)]"
-                  portraitClass="h-[clamp(24px,7vw,34px)]"
                 />
               ))}
             </div>

@@ -249,7 +249,7 @@ export default function SquadPage() {
         </div>
 
         {/* ===================== B. TEAM SNAPSHOT ===================== */}
-        <div className="mt-6 grid gap-6 lg:grid-cols-[400px_1fr]">
+        <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,460px)_1fr]">
           <div>
             <div className={`glass rounded-2xl p-4 ${mode !== "view" ? "ring-2" : ""}`}
               style={mode !== "view" ? { boxShadow: `0 0 26px ${c.soft}` } : undefined}>

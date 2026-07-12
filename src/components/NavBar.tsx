@@ -6,23 +6,26 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useGame } from "@/lib/store";
 import { useHydrated } from "@/lib/useHydrated";
+import { useT } from "@/lib/i18n";
 import { play } from "@/lib/sound";
 import { CrestLogo } from "@/components/CrestLogo";
+import { LanguageToggle } from "@/components/LanguageToggle";
 
 const LINKS = [
-  { href: "/", label: "Home" },
-  { href: "/draft", label: "Draft" },
-  { href: "/tournament", label: "Tournament" },
-  { href: "/international", label: "International" },
-  { href: "/daily", label: "Daily" },
-  { href: "/history", label: "History" },
-  { href: "/stats", label: "Profile" },
+  { href: "/", key: "nav.home" },
+  { href: "/draft", key: "nav.draft" },
+  { href: "/tournament", key: "nav.tournament" },
+  { href: "/international", key: "nav.international" },
+  { href: "/daily", key: "nav.daily" },
+  { href: "/history", key: "nav.history" },
+  { href: "/stats", key: "nav.profile" },
 ];
 
 export function NavBar() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const mounted = useHydrated();
+  const t = useT();
   const soundOn = useGame((s) => s.profile.soundOn);
   const toggleSound = useGame((s) => s.toggleSound);
   const trophies = useGame((s) => s.profile.trophies);
@@ -69,7 +72,7 @@ export function NavBar() {
                     transition={{ type: "spring", stiffness: 380, damping: 32 }}
                   />
                 )}
-                <span className="relative">{l.label}</span>
+                <span className="relative">{t(l.key)}</span>
               </Link>
             );
           })}
@@ -81,15 +84,16 @@ export function NavBar() {
               🏆 {trophies}
             </span>
           )}
+          <span className="hidden md:inline-flex"><LanguageToggle /></span>
           <button
-            aria-label="Toggle sound"
+            aria-label={t("nav.toggleSound")}
             onClick={() => { toggleSound(); play("click"); }}
             className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 text-sm transition-all hover:scale-110 hover:border-gold/50"
           >
             {mounted && soundOn ? "🔊" : "🔇"}
           </button>
           <button
-            aria-label="Menu"
+            aria-label={t("nav.menu")}
             className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 transition-all active:scale-90 md:hidden"
             onClick={() => setOpen((o) => !o)}
           >
@@ -116,9 +120,13 @@ export function NavBar() {
                   pathname === l.href ? "bg-gold/10 text-gold" : "text-muted"
                 }`}
               >
-                {l.label}
+                {t(l.key)}
               </Link>
             ))}
+            <div className="mt-1 flex items-center justify-between border-t border-white/8 px-3 pt-3">
+              <span className="text-[0.62rem] font-bold uppercase tracking-widest text-muted">{t("nav.language")}</span>
+              <LanguageToggle />
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

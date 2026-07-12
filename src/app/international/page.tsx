@@ -19,6 +19,8 @@ import { Fireworks } from "@/components/fx/Fireworks";
 import { RainOverlay, CameraFlashes, Confetti, Sparks } from "@/components/fx/Atmosphere";
 import { EuroScene, CopaScene } from "@/components/fx/Scenes";
 import { LiveMatch, SimStyleChoice, type LiveLeg } from "@/components/LiveMatch";
+import { PageBoundary } from "@/components/PageBoundary";
+import { useT } from "@/lib/i18n";
 import { play } from "@/lib/sound";
 
 /* ================================================================== */
@@ -79,16 +81,53 @@ const PHASE_BURST: Record<string, string> = {
   final: "You're in the Final",
 };
 
-export default function InternationalPage() {
+/** Skeleton that renders into the static HTML (and while search params
+ *  suspend) — crawlers and the first paint see real content, never a blank. */
+function IntlLoading() {
   return (
-    <Suspense fallback={null}>
-      <International />
-    </Suspense>
+    <div className="mx-auto max-w-5xl px-4 pb-24 pt-28 sm:pt-32">
+      <div className="text-center">
+        <div className="cl-heading text-[0.62rem] tracking-[0.4em] text-cyan">National Teams</div>
+        <h1 className="mt-2 font-display text-3xl font-extrabold sm:text-5xl">
+          Choose Your International <span className="text-gradient-gold">Journey</span>
+        </h1>
+        <p className="mx-auto mt-3 max-w-xl text-muted">
+          Select a historic nation, build your XI, and compete in EURO or Copa América.
+        </p>
+      </div>
+      <div className="mt-10 grid gap-5 md:grid-cols-2" aria-hidden>
+        {[0, 1].map((i) => (
+          <div key={i} className="h-72 animate-pulse rounded-3xl bg-white/5" />
+        ))}
+      </div>
+    </div>
   );
 }
 
+function InternationalBoundary() {
+  const t = useT();
+  return (
+    <PageBoundary title={t("common.wentWrong")} body={t("common.wentWrongBody")} retry={t("common.retry")}>
+      <Suspense fallback={<IntlLoading />}>
+        <International />
+      </Suspense>
+    </PageBoundary>
+  );
+}
+
+export default function InternationalPage() {
+  return <InternationalBoundary />;
+}
+
+/** Localised bits that overlay the visual THEMES constant. */
+const COMP_TEXT: Record<IntlComp, { titleKey: string; subKey: string; blurbKey: string }> = {
+  euro: { titleKey: "mode.euro.title", subKey: "intl.euroSub", blurbKey: "intl.euroBlurb" },
+  copa: { titleKey: "mode.copa.title", subKey: "intl.copaSub", blurbKey: "intl.copaBlurb" },
+};
+
 function International() {
   const router = useRouter();
+  const tr = useT();
   const searchParams = useSearchParams();
   const intl = useGame((s) => s.intl);
   const startIntl = useGame((s) => s.startIntl);
@@ -198,14 +237,25 @@ function International() {
     return (
       <div className="mx-auto max-w-5xl px-4 pb-24 pt-28 sm:pt-32">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center">
-          <div className="cl-heading text-[0.62rem] tracking-[0.4em] text-cyan">National Teams</div>
+          <div className="cl-heading text-[0.62rem] tracking-[0.4em] text-cyan">{tr("intl.kicker")}</div>
           <h1 className="mt-2 font-display text-3xl font-extrabold sm:text-5xl">
-            International <span className="text-gradient-gold text-shine">Tournaments</span>
+            {tr("intl.emptyKicker")}
           </h1>
-          <p className="mx-auto mt-3 max-w-xl text-muted">
-            Lead a historic national team through a full tournament — group stage, knockouts,
-            and a final. Every squad rated for that exact summer.
-          </p>
+          <p className="mx-auto mt-3 max-w-xl text-muted">{tr("intl.emptyBody")}</p>
+          <div className="mt-5 flex flex-wrap justify-center gap-2.5">
+            <button
+              className="btn btn-euro text-[0.72rem]"
+              onClick={() => { setSelecting("euro"); play("select"); }}
+            >
+              {tr("intl.playEuro")}
+            </button>
+            <button
+              className="btn btn-copa text-[0.72rem]"
+              onClick={() => { setSelecting("copa"); play("select"); }}
+            >
+              {tr("intl.playCopa")}
+            </button>
+          </div>
         </motion.div>
 
         <div className="mt-10 grid gap-5 md:grid-cols-2">
@@ -241,19 +291,19 @@ function International() {
                     </div>
 
                     <div className="tilt-layer mt-3" style={{ ["--z" as string]: "28px" }}>
-                      <div className="cl-heading text-[0.6rem] tracking-[0.35em]" style={{ color: t.accent }}>{t.sub}</div>
-                      <h2 className={`mt-1 font-display text-3xl font-extrabold ${t.heading}`}>{t.title}</h2>
-                      <p className="mt-2 text-sm text-white/70">{t.blurb}</p>
+                      <div className="cl-heading text-[0.6rem] tracking-[0.35em]" style={{ color: t.accent }}>{tr(COMP_TEXT[comp].subKey)}</div>
+                      <h2 className={`mt-1 font-display text-3xl font-extrabold ${t.heading}`}>{tr(COMP_TEXT[comp].titleKey)}</h2>
+                      <p className="mt-2 text-sm text-white/70">{tr(COMP_TEXT[comp].blurbKey)}</p>
                     </div>
 
                     <div className="mt-4 flex flex-wrap gap-2 text-[0.62rem]">
-                      <span className="chip" style={{ background: t.soft, color: t.accent }}>{COMP_SQUADS[comp].length} historic squads</span>
-                      <span className="chip bg-white/8 text-white/70">{editions} editions</span>
+                      <span className="chip" style={{ background: t.soft, color: t.accent }}>{COMP_SQUADS[comp].length} {tr("common.historicSquads")}</span>
+                      <span className="chip bg-white/8 text-white/70">{editions} {tr("common.editions")}</span>
                     </div>
 
                     {/* waving flags of the past champions */}
                     <div className="mt-4">
-                      <div className="text-[0.55rem] uppercase tracking-[0.3em] text-white/40">Past Champions</div>
+                      <div className="text-[0.55rem] uppercase tracking-[0.3em] text-white/40">{tr("common.pastChampions")}</div>
                       <div className="mt-1.5 flex items-end gap-1.5">
                         {flagSquads.map((s, fi) => (
                           <motion.span key={s.club} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 + fi * 0.08 }} title={s.club}>
@@ -273,13 +323,13 @@ function International() {
                           router.push("/draft");
                         }}
                       >
-                        🎴 Draft Your XI →
+                        {tr("intl.draftYourXI")}
                       </button>
                       <button
                         className="btn btn-ghost text-[0.7rem]"
                         onClick={() => { setSelecting(comp); play("click"); }}
                       >
-                        Lead a Nation
+                        {tr("intl.leadNation")}
                       </button>
                     </div>
                   </div>
@@ -303,11 +353,11 @@ function International() {
         <div className="relative z-10 mx-auto max-w-6xl px-4 pb-24 pt-24 sm:pt-28">
           <div className="flex items-center justify-between">
             <div>
-              <div className="cl-heading text-[0.6rem] tracking-[0.35em]" style={{ color: t.accent }}>{t.title}</div>
-              <h1 className={`font-display text-3xl font-extrabold sm:text-4xl ${t.heading}`}>Choose Your Nation</h1>
-              <p className="mt-1 text-sm text-muted">Pick the squad you will lead — other nations draw a random vintage.</p>
+              <div className="cl-heading text-[0.6rem] tracking-[0.35em]" style={{ color: t.accent }}>{tr(COMP_TEXT[selecting].titleKey)}</div>
+              <h1 className={`font-display text-3xl font-extrabold sm:text-4xl ${t.heading}`}>{tr("intl.chooseNation")}</h1>
+              <p className="mt-1 text-sm text-muted">{tr("intl.chooseNationHint")}</p>
             </div>
-            <button className="btn btn-ghost text-xs" onClick={() => { setSelecting(null); router.replace("/international"); play("click"); }}>← Back</button>
+            <button className="btn btn-ghost text-xs" onClick={() => { setSelecting(null); router.replace("/international"); play("click"); }}>{tr("common.back")}</button>
           </div>
 
           <div className="mt-7 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -395,12 +445,12 @@ function International() {
     : null;
 
   const roundTitle =
-    intl.phase === "groups" ? `Matchday ${Math.min(intl.matchday, 3)}`
-      : intl.phase === "r16" ? "Round of 16"
-      : intl.phase === "qf" ? "Quarter-finals"
-      : intl.phase === "sf" ? "Semi-finals"
-      : inBronze ? "The Bronze Final"
-      : "The Final";
+    intl.phase === "groups" ? tr("intl.matchday", { n: Math.min(intl.matchday, 3) })
+      : intl.phase === "r16" ? tr("intl.round.r16")
+      : intl.phase === "qf" ? tr("intl.round.qf")
+      : intl.phase === "sf" ? tr("intl.round.sf")
+      : inBronze ? tr("intl.round.bronze")
+      : tr("intl.round.final");
 
   // fixture line shown inside the tunnel transition
   const nextOpponentDetail = (() => {
@@ -428,10 +478,10 @@ function International() {
             <div className="flex items-center gap-3">
               <CrestLogo size={40} />
               <div>
-                <div className="cl-heading text-[0.6rem] tracking-[0.35em]" style={{ color: t.accent }}>{t.title}</div>
+                <div className="cl-heading text-[0.6rem] tracking-[0.35em]" style={{ color: t.accent }}>{tr(COMP_TEXT[intl.comp].titleKey)}</div>
                 <h1 className={`font-display text-2xl font-extrabold sm:text-3xl ${t.heading}`}>{userLabel}</h1>
                 <div className="text-xs text-white/60">
-                  {intl.phase === "groups" ? `Group stage · Matchday ${Math.min(intl.matchday, 3)} of 3`
+                  {intl.phase === "groups" ? `${tr("intl.groupStage")} · ${tr("intl.matchdayOf", { n: Math.min(intl.matchday, 3) })}`
                     : isDone ? intl.exit?.text
                     : roundTitle}
                 </div>
@@ -440,21 +490,21 @@ function International() {
             <div>
               {intl.phase === "groups" && (
                 <button className="btn btn-gold btn-pulse" disabled={!!transition} onClick={() => runCinematic(roundTitle, t.title, advanceGroups)}>
-                  {transition ? "Playing…" : `Play ${roundTitle}`}
+                  {transition ? tr("intl.playing") : tr("intl.play", { round: roundTitle })}
                 </button>
               )}
               {["r16", "qf"].includes(intl.phase) && (
                 <button className="btn btn-gold btn-pulse" disabled={!!transition} onClick={() => runCinematic(roundTitle, t.title, advanceKO)}>
-                  {transition ? "Playing…" : `Play ${roundTitle}`}
+                  {transition ? tr("intl.playing") : tr("intl.play", { round: roundTitle })}
                 </button>
               )}
               {intl.phase === "sf" && (
                 <button className="btn btn-gold btn-pulse" disabled={!!transition || !!live} onClick={() => { setSimChoice(roundTitle); play("click"); }}>
-                  {transition || live ? "Playing…" : `Play ${roundTitle}`}
+                  {transition || live ? tr("intl.playing") : tr("intl.play", { round: roundTitle })}
                 </button>
               )}
               {isDone && dismissedEnd && (
-                <button className="btn btn-gold" onClick={() => { endIntl(); play("click"); }}>Finish & Save</button>
+                <button className="btn btn-gold" onClick={() => { endIntl(); play("click"); }}>{tr("intl.finishSave")}</button>
               )}
             </div>
           </div>
@@ -482,10 +532,10 @@ function International() {
               <CameraFlashes count={16} />
               <Sparks count={10} color={t.accent} />
               <div className="cl-heading text-[0.65rem] tracking-[0.45em]" style={{ color: t.accent }}>
-                {inBronze ? "One Last Stand · Bronze" : "One Night · One Trophy"}
+                {inBronze ? tr("intl.final.bronze") : tr("intl.final.tonight")}
               </div>
               <h2 className={`mt-1 font-display text-4xl font-extrabold sm:text-5xl ${t.heading}`}>
-                {inBronze ? "THIRD-PLACE MATCH" : "THE FINAL"}
+                {inBronze ? tr("intl.final.thirdMatch") : tr("intl.final.theFinal")}
               </h2>
               <div className="mx-auto mt-1 h-px w-40" style={{ background: `linear-gradient(90deg, transparent, ${t.accent}, transparent)` }} />
 
@@ -502,7 +552,7 @@ function International() {
                     <WavingFlag colors={team.colors} width={54} />
                     <TeamBadge colors={team.colors} code={team.short} size={44} />
                     <div className="font-display text-sm font-extrabold text-white">{team.name} {team.season}</div>
-                    {team.id === intl.userKey && <span className="chip" style={{ background: t.soft, color: t.accent }}>Your Nation</span>}
+                    {team.id === intl.userKey && <span className="chip" style={{ background: t.soft, color: t.accent }}>{tr("intl.yourNation")}</span>}
                   </motion.div>
                 ))}
                 <motion.div
@@ -521,7 +571,7 @@ function International() {
               </p>
               <button className="btn btn-gold btn-pulse mt-5" disabled={!!transition || !!live}
                 onClick={() => { setSimChoice(roundTitle); play("click"); }}>
-                {transition || live ? "Playing…" : inBronze ? "⚽ Kick Off the Bronze Final" : "⚽ Kick Off the Final"}
+                {transition || live ? tr("intl.playing") : inBronze ? tr("intl.kickBronze") : tr("intl.kickFinal")}
               </button>
             </motion.div>
         )}
@@ -538,7 +588,7 @@ function International() {
         {/* user's group fixtures */}
         {userFixtures.length > 0 && (intl.phase === "groups" || (isDone && intl.ties.length === 0)) && (
           <div className="glass mt-4 rounded-2xl p-4">
-            <h3 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted">Your Matches</h3>
+            <h3 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted">{tr("intl.yourMatches")}</h3>
             <div className="grid gap-2 sm:grid-cols-3">
               {userFixtures.map((f, i) => {
                 const isHome = f.home === intl.userKey;
@@ -573,7 +623,7 @@ function International() {
 
         <div className="mt-8 flex justify-center">
           <button className="btn btn-ghost text-xs" onClick={() => { endIntl(); play("click"); }}>
-            Abandon Tournament
+            {tr("intl.abandon")}
           </button>
         </div>
 
@@ -732,11 +782,11 @@ function International() {
                     style={{ borderColor: t.soft, color: t.accent }}
                     onClick={() => { setDismissedEnd(true); setModal({ result: lastUserMatch, title: "Your final match" }); }}
                   >
-                    View final match stats
+                    {tr("intl.viewFinalStats")}
                   </motion.button>
                 )}
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.1 }} className="mt-6 flex flex-wrap justify-center gap-3">
-                  <button className="btn btn-ghost text-xs" onClick={() => setDismissedEnd(true)}>View bracket</button>
+                  <button className="btn btn-ghost text-xs" onClick={() => setDismissedEnd(true)}>{tr("intl.viewBracket")}</button>
                   {won && (
                     <button
                       className="btn btn-ghost text-xs"
@@ -774,7 +824,7 @@ function International() {
                     </button>
                   )}
                   <button className="btn btn-gold" onClick={() => { endIntl(); play("click"); }}>
-                    {won ? "Lift the Trophy" : "Save & Return"}
+                    {won ? tr("intl.liftTrophy") : tr("intl.saveReturn")}
                   </button>
                 </motion.div>
               </div>
@@ -792,6 +842,7 @@ function International() {
 type Theme = (typeof THEMES)[IntlComp];
 
 function GroupCard({ intl, gi, theme }: { intl: IntlState; gi: number; theme: Theme }) {
+  const tr = useT();
   const rows: TableRow[] = groupTable(intl, gi);
   const qualifyCut = 2;
   return (
@@ -801,10 +852,10 @@ function GroupCard({ intl, gi, theme }: { intl: IntlState; gi: number; theme: Th
     >
       <div className="flex items-center justify-between px-3 pt-2.5">
         <span className="cl-heading text-[0.6rem] tracking-[0.3em]" style={{ color: theme.accent }}>
-          Group {String.fromCharCode(65 + gi)}
+          {tr("intl.group", { letter: String.fromCharCode(65 + gi) })}
         </span>
         <span className="text-[0.5rem] uppercase tracking-[0.2em] text-white/30">
-          Top {qualifyCut} + best thirds qualify
+          {tr("intl.topQualify", { n: qualifyCut })}
         </span>
       </div>
       <div className="grid grid-cols-[24px_1fr_repeat(3,30px)_34px] items-center gap-1 px-3 py-1 text-[0.55rem] font-bold uppercase tracking-wider text-white/40">
@@ -840,12 +891,12 @@ function GroupCard({ intl, gi, theme }: { intl: IntlState; gi: number; theme: Th
             {/* the qualification line — third place can still sneak through */}
             {i === qualifyCut - 1 && (
               <div className="relative mx-3 h-px" style={{ background: "linear-gradient(90deg, rgba(46,230,166,0.7), rgba(46,230,166,0.1))" }}>
-                <span className="absolute -top-[3px] right-0 text-[0.45rem] font-bold uppercase tracking-[0.2em] text-green/70">qualification</span>
+                <span className="absolute -top-[3px] right-0 text-[0.45rem] font-bold uppercase tracking-[0.2em] text-green/70">{tr("intl.qualification")}</span>
               </div>
             )}
             {i === qualifyCut && (
               <div className="relative mx-3 h-px" style={{ background: "linear-gradient(90deg, rgba(255,207,92,0.5), rgba(255,207,92,0.05))" }}>
-                <span className="absolute -top-[3px] right-0 text-[0.45rem] font-bold uppercase tracking-[0.2em]" style={{ color: "rgba(255,207,92,0.7)" }}>best thirds</span>
+                <span className="absolute -top-[3px] right-0 text-[0.45rem] font-bold uppercase tracking-[0.2em]" style={{ color: "rgba(255,207,92,0.7)" }}>{tr("intl.bestThirds")}</span>
               </div>
             )}
           </div>
@@ -861,6 +912,7 @@ function GroupCard({ intl, gi, theme }: { intl: IntlState; gi: number; theme: Th
 function IntlBracket({ intl, theme, onTieClick }: {
   intl: IntlState; theme: Theme; onTieClick: (tie: KOTie) => void;
 }) {
+  const tr = useT();
   const by = (r: KOTie["round"]) => intl.ties.filter((k) => k.round === r);
   const r16 = by("Round of 16");
   const qf = by("Quarter-final"); const sf = by("Semi-final");
@@ -915,7 +967,7 @@ function IntlBracket({ intl, theme, onTieClick }: {
       className={`relative mt-6 overflow-hidden rounded-3xl p-4 ${theme.panel} ${intl.comp === "copa" ? "copa-gold-border" : ""}`}
     >
       {championName && <Fireworks count={4} palette={[...theme.fireworks]} />}
-      <div className="mb-3 text-center cl-heading text-xs tracking-[0.35em]" style={{ color: theme.accent }}>Knockout Stage</div>
+      <div className="mb-3 text-center cl-heading text-xs tracking-[0.35em]" style={{ color: theme.accent }}>{tr("intl.knockoutStage")}</div>
       <div className="overflow-x-auto pb-1">
         <div
           className={`mx-auto grid gap-2 ${hasR16 ? "min-w-[1020px] max-w-[1300px] grid-cols-7" : "min-w-[720px] max-w-[980px] grid-cols-5"}`}
@@ -937,17 +989,17 @@ function IntlBracket({ intl, theme, onTieClick }: {
             >
               🏆
             </motion.div>
-            <span className="cl-heading text-[0.55rem] tracking-[0.3em]" style={{ color: theme.accent }}>Final</span>
+            <span className="cl-heading text-[0.55rem] tracking-[0.3em]" style={{ color: theme.accent }}>{tr("intl.finalShort")}</span>
             {cell(fin, "final", 0.3)}
             {third && (
               <div className="w-full">
-                <div className="mb-1 text-center text-[0.5rem] uppercase tracking-[0.25em] text-white/40">Third Place</div>
+                <div className="mb-1 text-center text-[0.5rem] uppercase tracking-[0.25em] text-white/40">{tr("intl.thirdPlace")}</div>
                 {cell(third, "third", 0.4)}
               </div>
             )}
             {championName && (
               <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="text-center">
-                <div className="text-[0.5rem] uppercase tracking-[0.25em] text-white/40">Champions</div>
+                <div className="text-[0.5rem] uppercase tracking-[0.25em] text-white/40">{tr("intl.champions")}</div>
                 <div className={`text-[0.7rem] font-extrabold ${theme.heading}`}>{championName}</div>
               </motion.div>
             )}

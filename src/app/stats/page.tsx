@@ -1,10 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { useGame } from "@/lib/store";
 import { ACHIEVEMENTS } from "@/lib/achievements";
 import type { DraftRecord } from "@/lib/types";
+import { useT } from "@/lib/i18n";
+import { LanguageToggle } from "@/components/LanguageToggle";
+import { ReportBug } from "@/components/ReportBug";
 import { play } from "@/lib/sound";
 
 const TIER_COLORS: Record<string, string> = {
@@ -41,14 +45,18 @@ function aggregate(drafts: DraftRecord[]) {
 }
 
 export default function StatsPage() {
+  const t = useT();
   const profile = useGame((s) => s.profile);
   const setName = useGame((s) => s.setProfileName);
-  const [tab, setTab] = useState<"stats" | "achievements" | "history">("stats");
+  const soundOn = useGame((s) => s.profile.soundOn);
+  const toggleSound = useGame((s) => s.toggleSound);
+  const [tab, setTab] = useState<"stats" | "achievements" | "history" | "settings">("stats");
   const [editing, setEditing] = useState(false);
   const [nameInput, setNameInput] = useState(profile.name);
 
   const agg = useMemo(() => aggregate(profile.drafts), [profile.drafts]);
   const unlocked = new Set(profile.achievements);
+  const isNew = profile.drafts.length === 0 && (profile.intlResults?.length ?? 0) === 0;
 
   const resultCounts = useMemo(() => {
     const order = ["champion", "final", "semi", "quarter", "r16", "playoff", "league"];
@@ -82,19 +90,37 @@ export default function StatsPage() {
               </button>
             )}
             <div className="mt-1 flex gap-3 text-sm text-muted">
-              <span>🏆 {profile.trophies} titles</span>
+              <span>🏆 {profile.trophies} {t("stats.titles")}</span>
               <span>🎖 {profile.achievements.length}/{ACHIEVEMENTS.length}</span>
-              <span>📋 {agg.played} drafts</span>
+              <span>📋 {agg.played} {t("stats.drafts")}</span>
             </div>
           </div>
         </div>
       </motion.div>
 
+      {/* NEW-MANAGER WELCOME — before the first draft, lead with what unlocks */}
+      {isNew && (
+        <motion.div
+          initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+          className="cl-panel cl-streaks shine relative mt-6 overflow-hidden rounded-3xl p-6 sm:p-7"
+        >
+          <div className="cl-heading text-[0.58rem] tracking-[0.4em] text-cyan">{t("stats.welcomeKicker")}</div>
+          <h2 className="mt-1.5 font-display text-2xl font-extrabold text-white sm:text-3xl">{t("stats.welcomeTitle")}</h2>
+          <p className="mt-2 max-w-lg text-sm text-white/65">{t("stats.unlockList")}</p>
+          <ul className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 text-[0.78rem] text-white/75 sm:max-w-md">
+            {["stats", "cabinet", "formation", "players", "history", "achievements"].map((k) => (
+              <li key={k} className="flex items-center gap-1.5"><span className="text-gold">•</span> {t(`stats.unlock.${k}`)}</li>
+            ))}
+          </ul>
+          <Link href="/draft" className="btn btn-gold btn-pulse mt-5 inline-flex" onClick={() => play("select")}>{t("stats.startFirst")}</Link>
+        </motion.div>
+      )}
+
       {/* tabs */}
-      <div className="mt-6 flex gap-2">
-        {(["stats", "achievements", "history"] as const).map((t) => (
-          <button key={t} onClick={() => { setTab(t); play("click"); }}
-            className={`chip capitalize ${tab === t ? "bg-gold/20 text-gold" : "bg-white/6 text-muted"}`}>{t}</button>
+      <div className="mt-6 flex flex-wrap gap-2">
+        {(["stats", "achievements", "history", "settings"] as const).map((tb) => (
+          <button key={tb} onClick={() => { setTab(tb); play("click"); }}
+            className={`chip ${tab === tb ? "bg-gold/20 text-gold" : "bg-white/6 text-muted"}`}>{t(`stats.tab.${tb === "settings" ? "settings" : tb}`)}</button>
         ))}
       </div>
 
@@ -102,8 +128,8 @@ export default function StatsPage() {
         <div className="mt-6 space-y-6">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[
-              ["Drafts Played", agg.played], ["CL Titles", agg.champions], ["Finals", agg.finals], ["Semi-finals", agg.semis],
-              ["Win %", `${agg.winPct}%`], ["Avg Overall", agg.avgOverall], ["Best Overall", agg.bestOverall], ["Total Goals", agg.totalGoals],
+              [t("stats.draftsPlayed"), agg.played], [t("stats.clTitles"), agg.champions], [t("stats.finals"), agg.finals], [t("stats.semis"), agg.semis],
+              [t("stats.winPct"), `${agg.winPct}%`], [t("stats.avgOverall"), agg.avgOverall], [t("stats.bestOverall"), agg.bestOverall], [t("stats.totalGoals"), agg.totalGoals],
             ].map(([label, value]) => (
               <div key={label} className="glass rounded-2xl px-3 py-4 text-center">
                 <div className="font-display text-2xl font-extrabold text-gradient-gold">{value}</div>
@@ -114,7 +140,7 @@ export default function StatsPage() {
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="glass rounded-2xl p-5">
-              <h3 className="mb-3 text-sm font-bold uppercase tracking-widest text-muted">Career Best Runs</h3>
+              <h3 className="mb-3 text-sm font-bold uppercase tracking-widest text-muted">{t("stats.bestRuns")}</h3>
               <div className="flex items-end gap-2" style={{ height: 140 }}>
                 {resultCounts.counts.map((c) => (
                   <div key={c.k} className="flex flex-1 flex-col items-center gap-1">
@@ -131,11 +157,11 @@ export default function StatsPage() {
               </div>
             </div>
             <div className="glass rounded-2xl p-5">
-              <h3 className="mb-3 text-sm font-bold uppercase tracking-widest text-muted">Favourites</h3>
+              <h3 className="mb-3 text-sm font-bold uppercase tracking-widest text-muted">{t("stats.favourites")}</h3>
               <dl className="space-y-2 text-sm">
                 {[
-                  ["Formation", agg.favFormation], ["Club drafted", agg.favClub],
-                  ["Most-drafted player", agg.mostDrafted], ["Total tournament goals", `${agg.totalGoals}`],
+                  [t("stats.fav.formation"), agg.favFormation], [t("stats.fav.club"), agg.favClub],
+                  [t("stats.fav.player"), agg.mostDrafted], [t("stats.fav.goals"), `${agg.totalGoals}`],
                 ].map(([k, v]) => (
                   <div key={k} className="flex justify-between border-b border-white/6 pb-1.5">
                     <dt className="text-muted">{k}</dt>
@@ -195,7 +221,7 @@ export default function StatsPage() {
               <h3 className="pt-3 text-xs font-bold uppercase tracking-widest text-muted">Champions Draft Runs</h3>
             </>
           )}
-          {profile.drafts.length === 0 && <p className="text-muted">No drafts yet. Go build an XI!</p>}
+          {profile.drafts.length === 0 && <p className="text-muted">{t("stats.noDrafts")}</p>}
           {profile.drafts.map((d) => (
             <div key={d.id} className="glass flex flex-wrap items-center justify-between gap-3 rounded-xl p-3">
               <div className="flex items-center gap-3">
@@ -212,6 +238,45 @@ export default function StatsPage() {
               </span>
             </div>
           ))}
+        </div>
+      )}
+
+      {tab === "settings" && (
+        <div className="mt-6 space-y-4">
+          <div className="glass rounded-2xl p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 className="font-display text-base font-bold">🌐 {t("settings.language")}</h3>
+                <p className="mt-0.5 text-xs text-muted">{t("settings.languageHint")}</p>
+              </div>
+              <LanguageToggle variant="full" />
+            </div>
+          </div>
+
+          <div className="glass rounded-2xl p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 className="font-display text-base font-bold">🔊 {t("settings.sound")}</h3>
+              </div>
+              <button
+                onClick={() => { toggleSound(); play("click"); }}
+                aria-pressed={soundOn}
+                className={`rounded-lg px-4 py-2 text-sm font-bold transition-all ${soundOn ? "bg-gold/20 text-gold ring-1 ring-gold/40" : "bg-white/6 text-muted"}`}
+              >
+                {soundOn ? `🔊 ${t("settings.soundOn")}` : `🔇 ${t("settings.soundOff")}`}
+              </button>
+            </div>
+          </div>
+
+          <div className="glass rounded-2xl p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="max-w-sm">
+                <h3 className="font-display text-base font-bold">🐛 {t("common.reportBug")}</h3>
+                <p className="mt-0.5 text-xs text-muted">{t("settings.reportHint")}</p>
+              </div>
+              <ReportBug className="rounded-lg bg-white/6 px-4 py-2 text-sm font-bold" />
+            </div>
+          </div>
         </div>
       )}
     </div>

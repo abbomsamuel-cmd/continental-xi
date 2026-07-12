@@ -4,6 +4,7 @@ import "./globals.css";
 import { StadiumBackground } from "@/components/StadiumBackground";
 import { NavBar } from "@/components/NavBar";
 import { SiteCredit } from "@/components/SiteCredit";
+import { LangProvider } from "@/lib/i18n";
 
 const display = Sora({
   subsets: ["latin"],
@@ -43,10 +44,12 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en" className={`${display.variable} ${sans.variable} h-full antialiased`}>
       <body className="min-h-full">
-        <StadiumBackground />
-        <NavBar />
-        <main className="relative z-10">{children}</main>
-        <SiteCredit />
+        <LangProvider>
+          <StadiumBackground />
+          <NavBar />
+          <main className="relative z-10">{children}</main>
+          <SiteCredit />
+        </LangProvider>
       </body>
     </html>
   );

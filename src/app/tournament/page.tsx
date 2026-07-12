@@ -16,8 +16,10 @@ import { RoundTransition } from "@/components/fx/RoundTransition";
 import { Fireworks } from "@/components/fx/Fireworks";
 import { CameraFlashes, Sparks, RainOverlay } from "@/components/fx/Atmosphere";
 import { LiveMatch, SimStyleChoice, type LiveLeg } from "@/components/LiveMatch";
+import { PageBoundary } from "@/components/PageBoundary";
 import { USER_TEAM_ID, teamLabel } from "@/lib/engine/tournament";
 import type { Fixture, KOTie, MatchResult } from "@/lib/types";
+import { useT } from "@/lib/i18n";
 import { play } from "@/lib/sound";
 
 const PHASE_LABEL: Record<string, string> = {
@@ -34,8 +36,32 @@ const PHASE_BURST: Record<string, string> = {
   final: "You're in the Final",
 };
 
+/** Skeleton shown while the persisted save rehydrates and in the static HTML —
+ *  never a blank page on refresh, shared links or incognito. */
+function TournamentLoading() {
+  return (
+    <div className="mx-auto max-w-5xl px-4 pb-24 pt-24 sm:pt-28" aria-hidden>
+      <div className="cl-panel cl-streaks h-32 animate-pulse rounded-3xl" />
+      <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {[0, 1, 2, 3].map((i) => <div key={i} className="glass h-24 animate-pulse rounded-2xl" />)}
+      </div>
+      <div className="glass mt-8 h-64 animate-pulse rounded-2xl" />
+    </div>
+  );
+}
+
 export default function TournamentPage() {
+  const t = useT();
+  return (
+    <PageBoundary title={t("common.wentWrong")} body={t("common.wentWrongBody")} retry={t("common.retry")}>
+      <TournamentInner />
+    </PageBoundary>
+  );
+}
+
+function TournamentInner() {
   const router = useRouter();
+  const t = useT();
   const tournament = useGame((s) => s.tournament);
   const advanceLeague = useGame((s) => s.advanceLeague);
   const advanceKnockout = useGame((s) => s.advanceKnockout);
@@ -64,7 +90,7 @@ export default function TournamentPage() {
   const profile = useGame((s) => s.profile);
   const intl = useGame((s) => s.intl);
 
-  if (!hydrated) return null;
+  if (!hydrated) return <TournamentLoading />;
   if (!tournament) return <CareerHub profile={profile} intlActive={!!intl} />;
 
   const table = getTable();
@@ -242,7 +268,7 @@ export default function TournamentPage() {
       {/* CAREER HUB — the campaign at a glance */}
       <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <div className="glass rounded-2xl p-3.5">
-          <div className="text-[0.55rem] font-bold uppercase tracking-[0.25em] text-muted">Record</div>
+          <div className="text-[0.55rem] font-bold uppercase tracking-[0.25em] text-muted">{t("tour.record")}</div>
           <div className="mt-1 font-display text-xl font-extrabold">
             <span className="text-green">{record.w}W</span>
             <span className="mx-1 text-white/50">{record.d}D</span>
@@ -251,7 +277,7 @@ export default function TournamentPage() {
           <div className="text-[0.62rem] text-muted">{record.gf} scored · {record.ga} conceded</div>
         </div>
         <div className="glass rounded-2xl p-3.5">
-          <div className="text-[0.55rem] font-bold uppercase tracking-[0.25em] text-muted">Last Result</div>
+          <div className="text-[0.55rem] font-bold uppercase tracking-[0.25em] text-muted">{t("tour.lastResult")}</div>
           {lastResult ? (() => {
             const isHome = lastResult.home === USER_TEAM_ID;
             const uf = isHome ? lastResult.homeGoals : lastResult.awayGoals;
@@ -269,11 +295,11 @@ export default function TournamentPage() {
               </>
             );
           })() : (
-            <div className="mt-1 text-sm text-muted">The season starts now.</div>
+            <div className="mt-1 text-sm text-muted">{t("tour.seasonStarts")}</div>
           )}
         </div>
         <div className="glass rounded-2xl p-3.5">
-          <div className="text-[0.55rem] font-bold uppercase tracking-[0.25em] text-muted">Next Opponent</div>
+          <div className="text-[0.55rem] font-bold uppercase tracking-[0.25em] text-muted">{t("tour.nextOpponent")}</div>
           {nextOpp ? (
             <>
               <div className="mt-1 flex items-center gap-2">
@@ -285,15 +311,15 @@ export default function TournamentPage() {
               </div>
             </>
           ) : (
-            <div className="mt-1 text-sm text-muted">{isDone ? "Campaign over" : "Waiting on the draw…"}</div>
+            <div className="mt-1 text-sm text-muted">{isDone ? t("tour.campaignOver") : t("tour.waitingDraw")}</div>
           )}
         </div>
         <div className="glass flex flex-col justify-between rounded-2xl p-3.5">
-          <div className="text-[0.55rem] font-bold uppercase tracking-[0.25em] text-muted">Manager Desk</div>
+          <div className="text-[0.55rem] font-bold uppercase tracking-[0.25em] text-muted">{t("tour.managerDesk")}</div>
           <div className="mt-1.5 flex flex-wrap gap-1.5 text-[0.62rem]">
-            <Link className="chip bg-white/8 text-white/80 hover:text-gold" href="/squad" onClick={() => play("click")}>Squad</Link>
-            <Link className="chip bg-white/8 text-white/80 hover:text-gold" href="/history" onClick={() => play("click")}>History</Link>
-            <Link className="chip bg-white/8 text-white/80 hover:text-gold" href="/stats" onClick={() => play("click")}>Trophy Cabinet</Link>
+            <Link className="chip bg-white/8 text-white/80 hover:text-gold" href="/squad" onClick={() => play("click")}>{t("tour.squad")}</Link>
+            <Link className="chip bg-white/8 text-white/80 hover:text-gold" href="/history" onClick={() => play("click")}>{t("nav.history")}</Link>
+            <Link className="chip bg-white/8 text-white/80 hover:text-gold" href="/stats" onClick={() => play("click")}>{t("tour.trophyCabinet")}</Link>
           </div>
         </div>
       </div>
@@ -403,9 +429,9 @@ export default function TournamentPage() {
           className="btn btn-ghost text-xs"
           onClick={() => { resetDraft(); play("click"); router.push("/draft"); }}
         >
-          New Draft
+          {t("tour.newDraft")}
         </button>
-        {saved && <button className="btn btn-ghost text-xs" onClick={() => router.push("/stats")}>View Profile</button>}
+        {saved && <button className="btn btn-ghost text-xs" onClick={() => router.push("/stats")}>{t("tour.viewProfile")}</button>}
       </div>
 
       <AnimatePresence>
@@ -557,6 +583,7 @@ const RESULT_LABEL: Record<string, string> = {
 };
 
 function CareerHub({ profile, intlActive }: { profile: ReturnType<typeof useGame.getState>["profile"]; intlActive: boolean }) {
+  const t = useT();
   const campaigns = [
     ...profile.drafts.map((d) => ({
       key: `cl-${d.id}`, comp: "Champions League", accent: "#22e0ff",
@@ -577,17 +604,14 @@ function CareerHub({ profile, intlActive }: { profile: ReturnType<typeof useGame
     <div className="mx-auto max-w-5xl px-4 pb-24 pt-24 sm:pt-28">
       <div className="cl-panel cl-streaks shine relative overflow-hidden rounded-3xl p-6">
         <Sparks count={8} color="#d4af37" />
-        <div className="cl-heading text-[0.6rem] tracking-[0.4em] text-cyan">Career Hub</div>
+        <div className="cl-heading text-[0.6rem] tracking-[0.4em] text-cyan">{t("tour.careerHub")}</div>
         <h1 className="mt-1 font-display text-3xl font-extrabold sm:text-4xl">
-          No campaign in progress
+          {t("tour.noCampaign")}
         </h1>
-        <p className="mt-2 max-w-lg text-sm text-muted">
-          This is where a live season runs — the table, the bracket, your record.
-          Start a draft and it comes alive.
-        </p>
+        <p className="mt-2 max-w-lg text-sm text-muted">{t("tour.noCampaignBody")}</p>
         <div className="mt-5 flex flex-wrap gap-2.5">
-          <Link href="/draft" className="btn btn-gold btn-pulse" onClick={() => play("select")}>⚡ Start New Draft</Link>
-          <Link href="/international" className="btn btn-ghost" onClick={() => play("click")}>Lead a Nation</Link>
+          <Link href="/draft" className="btn btn-gold btn-pulse" onClick={() => play("select")}>{t("tour.startNewDraft")}</Link>
+          <Link href="/international" className="btn btn-ghost" onClick={() => play("click")}>{t("home.leadNation")}</Link>
         </div>
       </div>
 
@@ -597,10 +621,10 @@ function CareerHub({ profile, intlActive }: { profile: ReturnType<typeof useGame
           className="euro-panel euro-grid shine mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl p-4"
         >
           <div>
-            <div className="cl-heading text-[0.58rem] tracking-[0.3em] text-cyan">Active Campaign</div>
-            <div className="font-display font-extrabold text-white">You have an international tournament in progress</div>
+            <div className="cl-heading text-[0.58rem] tracking-[0.3em] text-cyan">{t("tour.activeCampaign")}</div>
+            <div className="font-display font-extrabold text-white">{t("tour.intlInProgress")}</div>
           </div>
-          <Link href="/international" className="btn btn-cyan text-xs" onClick={() => play("select")}>Continue →</Link>
+          <Link href="/international" className="btn btn-cyan text-xs" onClick={() => play("select")}>{t("common.continue")}</Link>
         </motion.div>
       )}
 
@@ -621,10 +645,10 @@ function CareerHub({ profile, intlActive }: { profile: ReturnType<typeof useGame
 
       {/* past campaigns */}
       <div className="mt-6">
-        <h2 className="text-sm font-bold uppercase tracking-widest text-muted">Past Campaigns</h2>
+        <h2 className="text-sm font-bold uppercase tracking-widest text-muted">{t("tour.pastCampaigns")}</h2>
         {campaigns.length === 0 ? (
           <div className="glass mt-3 rounded-2xl border-dashed p-6 text-center text-sm text-muted">
-            Your career starts with the first draft — every run you finish is recorded here.
+            {t("tour.pastEmpty")}
           </div>
         ) : (
           <div className="mt-3 space-y-2">

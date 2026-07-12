@@ -15,13 +15,10 @@ import { SQUADS } from "@/lib/players";
 import type { GameMode } from "@/lib/types";
 import type { Difficulty } from "@/lib/store";
 import type { DraftPool } from "@/lib/players";
+import { useT } from "@/lib/i18n";
 import { play } from "@/lib/sound";
 
-const DIFFICULTIES: { id: Difficulty; title: string; body: string; rerolls: string }[] = [
-  { id: "easy", title: "Easy", body: "Plenty of team re-rolls to shape a dream squad.", rerolls: "3 team re-rolls" },
-  { id: "medium", title: "Medium", body: "A few re-rolls — pick your moments.", rerolls: "1 team re-roll" },
-  { id: "hard", title: "Hard", body: "No re-rolls. Take what the reel gives you.", rerolls: "No re-rolls" },
-];
+const DIFFICULTY_IDS: Difficulty[] = ["easy", "medium", "hard"];
 
 /* Each competition is a different draft world — different colours, different
    rules, different feel. */
@@ -54,8 +51,16 @@ const COMP_THEME: Record<DraftPool, {
   },
 };
 
+/** pool → translation keys (title + scoring note). */
+const POOL_KEYS: Record<DraftPool, { titleKey: string; noteKey: string }> = {
+  clubs: { titleKey: "mode.cl.title", noteKey: "draft.note.clubs" },
+  euro: { titleKey: "mode.euro.title", noteKey: "draft.note.euro" },
+  copa: { titleKey: "mode.copa.title", noteKey: "draft.note.copa" },
+};
+
 export default function DraftPage() {
   const router = useRouter();
+  const tr = useT();
   const setup = useGame((s) => s.setup);
   const draftComplete = useGame((s) => s.draftComplete);
   const startDraft = useGame((s) => s.startDraft);
@@ -81,19 +86,16 @@ export default function DraftPage() {
   return (
     <div className="mx-auto max-w-5xl px-4 pb-24 pt-24 sm:pt-28">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-        <div className="cl-heading text-[0.6rem] tracking-[0.4em]" style={{ color: t.accent }}>Draft Studio</div>
+        <div className="cl-heading text-[0.6rem] tracking-[0.4em]" style={{ color: t.accent }}>{tr("draft.kicker")}</div>
         <h1 className="mt-1 font-display text-3xl font-extrabold sm:text-4xl">
-          Build a <span className={t.heading}>{t.label}</span> XI
+          {tr("draft.buildA")}<span className={t.heading}>{tr(POOL_KEYS[pendingPool].titleKey)}</span>{tr("draft.buildXI")}
         </h1>
-        <p className="mt-2 max-w-lg text-sm text-muted">
-          Pick a position, spin for a legendary squad, then choose a player who genuinely fits
-          the role — and where he plays. Choose your competition, shape and challenge to begin.
-        </p>
+        <p className="mt-2 max-w-lg text-sm text-muted">{tr("draft.intro")}</p>
       </motion.div>
 
       {/* COMPETITION — the first decision changes everything below */}
       <section className="mt-8">
-        <h2 className="mb-3 text-sm font-bold uppercase tracking-widest text-muted">Competition</h2>
+        <h2 className="mb-3 text-sm font-bold uppercase tracking-widest text-muted">{tr("draft.competition")}</h2>
         <div className="grid gap-3 sm:grid-cols-3">
           {(Object.keys(COMP_THEME) as DraftPool[]).map((pool) => {
             const ct = COMP_THEME[pool];
@@ -112,11 +114,11 @@ export default function DraftPage() {
                 {active && <Sparks count={5} color={ct.accent} />}
                 <div className="flex items-start justify-between">
                   <span className="text-3xl" style={{ filter: `drop-shadow(0 4px 16px ${ct.soft})` }}>{ct.emoji}</span>
-                  {active && <span className="chip" style={{ background: ct.soft, color: ct.accent }}>Selected</span>}
+                  {active && <span className="chip" style={{ background: ct.soft, color: ct.accent }}>{tr("common.selected")}</span>}
                 </div>
                 <div className="mt-2 cl-heading text-[0.55rem] tracking-[0.3em]" style={{ color: ct.accent }}>{ct.sub}</div>
-                <div className="font-display text-lg font-extrabold text-white">{ct.label}</div>
-                <div className="mt-1 text-[0.68rem] text-white/60">{squadCount} historic squads</div>
+                <div className="font-display text-lg font-extrabold text-white">{tr(POOL_KEYS[pool].titleKey)}</div>
+                <div className="mt-1 text-[0.68rem] text-white/60">{squadCount} {tr("common.historicSquads")}</div>
                 {flagSquads && flagSquads.length > 0 && (
                   <div className="mt-2 flex gap-1">
                     {flagSquads.map((s) => <WavingFlag key={s!.club} colors={s!.colors} width={26} />)}
@@ -134,32 +136,29 @@ export default function DraftPage() {
             className="mt-3 flex items-center gap-2.5 rounded-xl px-4 py-2.5 text-[0.72rem] text-white/70"
             style={{ background: t.soft, border: `1px solid ${t.accent}33` }}
           >
-            <span className="text-base">{t.noteIcon}</span> {t.note}
+            <span className="text-base">{t.noteIcon}</span> {tr(POOL_KEYS[pendingPool].noteKey)}
           </motion.div>
         </AnimatePresence>
       </section>
 
       {/* MODE */}
       <section className="mt-10">
-        <h2 className="mb-3 text-sm font-bold uppercase tracking-widest text-muted">Game Mode</h2>
+        <h2 className="mb-3 text-sm font-bold uppercase tracking-widest text-muted">{tr("draft.gameMode")}</h2>
         <div className="grid gap-4 sm:grid-cols-2">
-          {([
-            { id: "classic", title: "Classic", tag: "Show everything", body: "Ratings, all six attributes and full stats are visible on every card." },
-            { id: "expert", title: "Expert", tag: "Knowledge test", body: "Overall and attributes hidden. Only name, club, position and season — reward real football knowledge." },
-          ] as const).map((m) => (
+          {(["classic", "expert"] as const).map((id) => (
             <button
-              key={m.id}
-              onClick={() => { setMode(m.id); play("click"); }}
+              key={id}
+              onClick={() => { setMode(id); play("click"); }}
               className="glass relative overflow-hidden rounded-2xl p-5 text-left transition-all hover:ring-1 hover:ring-white/20"
-              style={ringStyle(mode === m.id)}
+              style={ringStyle(mode === id)}
             >
               <div className="flex items-center justify-between">
-                <h3 className="font-display text-xl font-bold">{m.title}</h3>
-                <span className="chip" style={mode === m.id ? { background: t.soft, color: t.accent } : { background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.6)" }}>
-                  {m.tag}
+                <h3 className="font-display text-xl font-bold">{tr(`draft.mode.${id}.title`)}</h3>
+                <span className="chip" style={mode === id ? { background: t.soft, color: t.accent } : { background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.6)" }}>
+                  {tr(`draft.mode.${id}.tag`)}
                 </span>
               </div>
-              <p className="mt-2 text-sm text-muted">{m.body}</p>
+              <p className="mt-2 text-sm text-muted">{tr(`draft.mode.${id}.body`)}</p>
             </button>
           ))}
         </div>
@@ -167,7 +166,7 @@ export default function DraftPage() {
 
       {/* FORMATION */}
       <section className="mt-10">
-        <h2 className="mb-3 text-sm font-bold uppercase tracking-widest text-muted">Formation</h2>
+        <h2 className="mb-3 text-sm font-bold uppercase tracking-widest text-muted">{tr("draft.formation")}</h2>
         <div className="grid gap-6 md:grid-cols-[1fr_auto]">
           <div className="space-y-4">
             {FORMATION_CATEGORIES.map((cat) => {
@@ -235,23 +234,29 @@ export default function DraftPage() {
 
       {/* DIFFICULTY */}
       <section className="mt-10">
-        <h2 className="mb-3 text-sm font-bold uppercase tracking-widest text-muted">Difficulty</h2>
+        <h2 className="mb-3 text-sm font-bold uppercase tracking-widest text-muted">{tr("draft.difficulty")}</h2>
         <div className="grid gap-3 sm:grid-cols-3">
-          {DIFFICULTIES.map((d) => (
+          {DIFFICULTY_IDS.map((id) => (
             <button
-              key={d.id}
-              onClick={() => { setDifficulty(d.id); play("click"); }}
-              className="glass rounded-2xl p-4 text-left transition-all hover:ring-1 hover:ring-white/20"
-              style={ringStyle(difficulty === d.id)}
+              key={id}
+              onClick={() => { setDifficulty(id); play("click"); }}
+              className="glass relative rounded-2xl p-4 text-left transition-all hover:ring-1 hover:ring-white/20"
+              style={ringStyle(difficulty === id)}
             >
+              {id === "medium" && (
+                <span className="absolute -top-2 right-3 rounded-full bg-gold px-2 py-0.5 text-[0.5rem] font-extrabold uppercase tracking-wider text-[#08131f]">
+                  ★ {tr("draft.diff.medium.recommended")}
+                </span>
+              )}
               <div className="flex items-center justify-between">
-                <h3 className="font-display text-lg font-bold">{d.title}</h3>
-                <span className="chip" style={difficulty === d.id ? { background: t.soft, color: t.accent } : { background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.6)" }}>
-                  {d.id === "hard" ? "🔥" : d.id === "medium" ? "⚖️" : "🎯"}
+                <h3 className="font-display text-lg font-bold">{tr(`draft.diff.${id}.title`)}</h3>
+                <span className="chip" style={difficulty === id ? { background: t.soft, color: t.accent } : { background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.6)" }}>
+                  {id === "hard" ? "🔥" : id === "medium" ? "⚖️" : "🎯"}
                 </span>
               </div>
-              <p className="mt-1 text-xs text-muted">{d.body}</p>
-              <p className="mt-2 text-[0.68rem] font-semibold" style={{ color: t.accent }}>{d.rerolls}</p>
+              <p className="mt-1 text-xs text-muted">{tr(`draft.diff.${id}.body`)}</p>
+              <p className="mt-2 text-[0.68rem] font-semibold" style={{ color: t.accent }}>{tr(`draft.diff.${id}.rerolls`)}</p>
+              <p className="mt-1 text-[0.6rem] text-white/45">{tr(`draft.diff.${id}.extra`)}</p>
             </button>
           ))}
         </div>
@@ -262,7 +267,7 @@ export default function DraftPage() {
           className={`btn btn-pulse px-10 ${pendingPool === "copa" ? "btn-copa" : pendingPool === "euro" ? "btn-euro" : "btn-gold"}`}
           onClick={() => { startDraft(mode, formation, difficulty, undefined, pendingPool); play("select"); }}
         >
-          {pendingPool === "clubs" ? "Begin Champions Draft →" : `Begin ${t.label} Draft →`}
+          {pendingPool === "clubs" ? tr("draft.beginCl") : tr("draft.begin", { label: tr(POOL_KEYS[pendingPool].titleKey) })}
         </button>
       </div>
     </div>

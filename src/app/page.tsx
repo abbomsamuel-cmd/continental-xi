@@ -579,7 +579,7 @@ export default function Home() {
         </section>
 
         {/* ===================== GAME NEWS ===================== */}
-        <section className="mt-16">
+        <section id="news" className="mt-16 scroll-mt-24">
           <SectionHeading kicker={t("home.news.kicker")} title={t("home.news.title")} />
           <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {NEWS.map((n, i) => (
@@ -618,7 +618,7 @@ export default function Home() {
           </details>
         </section>
 
-        <section className="mt-12">
+        <section id="faq" className="mt-12 scroll-mt-24">
           <SectionHeading kicker={t("home.faq.kicker")} title={t("home.faq.title")} />
           <div className="mt-5 space-y-3">
             {FAQ_KEYS.map((f) => (

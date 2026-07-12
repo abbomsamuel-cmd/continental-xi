@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { useGame } from "@/lib/store";
 import { ACHIEVEMENTS } from "@/lib/achievements";
@@ -44,13 +45,26 @@ function aggregate(drafts: DraftRecord[]) {
   };
 }
 
+type Tab = "stats" | "achievements" | "history" | "settings";
+const TABS: Tab[] = ["stats", "achievements", "history", "settings"];
+
 export default function StatsPage() {
+  return (
+    <Suspense fallback={<div className="mx-auto max-w-5xl px-4 pt-24 sm:pt-28"><div className="glass-strong h-28 animate-pulse rounded-3xl" /></div>}>
+      <StatsInner />
+    </Suspense>
+  );
+}
+
+function StatsInner() {
   const t = useT();
+  const params = useSearchParams();
+  const initialTab: Tab = TABS.includes(params.get("tab") as Tab) ? (params.get("tab") as Tab) : "stats";
   const profile = useGame((s) => s.profile);
   const setName = useGame((s) => s.setProfileName);
   const soundOn = useGame((s) => s.profile.soundOn);
   const toggleSound = useGame((s) => s.toggleSound);
-  const [tab, setTab] = useState<"stats" | "achievements" | "history" | "settings">("stats");
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [editing, setEditing] = useState(false);
   const [nameInput, setNameInput] = useState(profile.name);
 

@@ -313,6 +313,23 @@ body {
   animation: pulse-glow 2.6s ease-in-out infinite;
 }
 
+/* ---------- Page transitions (opacity only — safe for fixed overlays) ---------- */
+@keyframes pageFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.page-enter {
+  animation: pageFade 0.3s ease-out both;
+}
+
+/* ---------- Focus visibility (keyboard a11y polish) ---------- */
+.btn:focus-visible,
+a:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
 /* ---------- Utility ---------- */
 .chip {
   display: inline-flex;

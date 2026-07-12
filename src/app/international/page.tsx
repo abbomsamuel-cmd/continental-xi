@@ -8,8 +8,9 @@ import {
   COMP_SQUADS, groupTable, squadKey, INTL_USER, type IntlComp, type IntlState,
 } from "@/lib/engine/international";
 import { shareTrophyCard, type CardPlayer } from "@/lib/trophy-card";
-import type { KOTie, MatchResult, Player, RawSquad, TableRow } from "@/lib/types";
+import type { KOTie, KORoundName, MatchResult, Player, RawSquad, TableRow } from "@/lib/types";
 import { MatchModal } from "@/components/MatchModal";
+import { PremiumBracket, type BracketTeam } from "@/components/PremiumBracket";
 import { TeamBadge } from "@/components/TeamBadge";
 import { CrestLogo } from "@/components/CrestLogo";
 import { TiltCard } from "@/components/fx/TiltCard";
@@ -617,7 +618,7 @@ function International() {
 
         {/* KNOCKOUT BRACKET */}
         {intl.ties.length > 0 && (
-          <IntlBracket intl={intl} theme={t}
+          <IntlBracket intl={intl}
             onTieClick={(tie) => tie.leg1 && setModal({ result: tie.leg1, title: tie.round })} />
         )}
 
@@ -907,112 +908,30 @@ function GroupCard({ intl, gi, theme }: { intl: IntlState; gi: number; theme: Th
 }
 
 /* ================================================================== */
-/*  Compact two-sided 8-team bracket (single-leg ties)                 */
+/*  International knockout — the shared premium broadcast bracket       */
 /* ================================================================== */
-function IntlBracket({ intl, theme, onTieClick }: {
-  intl: IntlState; theme: Theme; onTieClick: (tie: KOTie) => void;
+function IntlBracket({ intl, onTieClick }: {
+  intl: IntlState; onTieClick: (tie: KOTie) => void;
 }) {
-  const tr = useT();
-  const by = (r: KOTie["round"]) => intl.ties.filter((k) => k.round === r);
-  const r16 = by("Round of 16");
-  const qf = by("Quarter-final"); const sf = by("Semi-final");
-  const fin = by("Final")[0] ?? null; const third = by("Third Place")[0] ?? null;
-  const pad = (arr: KOTie[], n: number) => { const o: (KOTie | null)[] = [...arr]; while (o.length < n) o.push(null); return o; };
-  const hasR16 = r16.length > 0;
-  const R16 = pad(r16, 8);
-  const QF = pad(qf, 4); const SF = pad(sf, 2);
-
-  const cell = (tie: KOTie | null, key: string, delay = 0) => tie ? (
-    <motion.button
-      key={key} disabled={!tie.leg1} onClick={() => onTieClick(tie)}
-      initial={{ opacity: 0, scale: 0.9, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }}
-      transition={{ delay, type: "spring", stiffness: 200, damping: 20 }}
-      className={`w-full overflow-hidden rounded-lg text-left ${tie.leg1 ? "hover:brightness-125" : ""}`}
-      style={{
-        background: "rgba(0,0,0,0.32)",
-        border: `1px solid ${tie.teamA === intl.userKey || tie.teamB === intl.userKey ? theme.accent : theme.soft}`,
-        boxShadow: tie.teamA === intl.userKey || tie.teamB === intl.userKey ? `0 0 14px ${theme.soft}` : undefined,
-      }}>
-      {[tie.teamA, tie.teamB].map((id) => {
-        const team = intl.teams[id];
-        const goals = tie.leg1 ? (id === tie.teamA ? tie.leg1.homeGoals : tie.leg1.awayGoals) : null;
-        const won = tie.winner === id;
-        return (
-          <div key={id} className={`flex items-center justify-between gap-1 px-1.5 py-1 ${won ? "" : tie.winner ? "text-white/40" : "text-white/90"}`}
-            style={won ? { color: theme.accent, background: `linear-gradient(90deg, ${theme.soft}, transparent)` } : undefined}>
-            <span className="flex min-w-0 items-center gap-1">
-              <TeamBadge colors={team.colors} code={team.short} size={15} />
-              <span className="truncate text-[0.58rem] font-bold">{team.name} {team.season}</span>
-            </span>
-            <span className="font-display text-[0.68rem] font-extrabold">{goals ?? ""}</span>
-          </div>
-        );
-      })}
-      {tie.leg1?.penalties && (
-        <div className="bg-black/40 px-1.5 py-[1px] text-center text-[0.48rem] font-bold" style={{ color: theme.accent }}>
-          pens {tie.leg1.penalties[0]}-{tie.leg1.penalties[1]}
-        </div>
-      )}
-    </motion.button>
-  ) : (
-    <div key={key} className="grid h-[42px] w-full place-items-center rounded-lg border border-dashed border-white/20 text-white/25"
-      style={{ background: "rgba(0,0,0,0.2)" }}>🛡️</div>
-  );
-
-  const championName = intl.champion ? `${intl.teams[intl.champion].name} ${intl.teams[intl.champion].season}` : null;
-
+  const teams: Record<string, BracketTeam> = {};
+  for (const [id, tm] of Object.entries(intl.teams)) {
+    teams[id] = { id, name: tm.name, short: tm.short, colors: tm.colors, season: tm.season != null ? String(tm.season) : undefined, isUser: id === intl.userKey };
+  }
+  const rounds: KORoundName[] = intl.comp === "euro"
+    ? ["Round of 16", "Quarter-final", "Semi-final", "Final"]
+    : ["Quarter-final", "Semi-final", "Final"];
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-      className={`relative mt-6 overflow-hidden rounded-3xl p-4 ${theme.panel} ${intl.comp === "copa" ? "copa-gold-border" : ""}`}
-    >
-      {championName && <Fireworks count={4} palette={[...theme.fireworks]} />}
-      <div className="mb-3 text-center cl-heading text-xs tracking-[0.35em]" style={{ color: theme.accent }}>{tr("intl.knockoutStage")}</div>
-      <div className="overflow-x-auto pb-1">
-        <div
-          className={`mx-auto grid gap-2 ${hasR16 ? "min-w-[1020px] max-w-[1300px] grid-cols-7" : "min-w-[720px] max-w-[980px] grid-cols-5"}`}
-          style={{ minHeight: hasR16 ? 340 : 240 }}
-        >
-          {hasR16 && (
-            <div className="flex flex-col justify-around gap-2">
-              {[R16[0], R16[1], R16[2], R16[3]].map((k, i) => cell(k, `r16l${i}`, i * 0.06))}
-            </div>
-          )}
-          <div className="flex flex-col justify-around gap-2">{[QF[0], QF[1]].map((k, i) => cell(k, `ql${i}`, i * 0.08))}</div>
-          <div className="flex flex-col justify-around gap-2">{[SF[0]].map((k, i) => cell(k, `sl${i}`, 0.2))}</div>
-          <div className="flex flex-col items-center justify-center gap-2">
-            <motion.div
-              className="text-4xl"
-              animate={championName ? { y: [0, -6, 0], scale: [1, 1.08, 1] } : undefined}
-              transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
-              style={{ filter: `drop-shadow(0 0 18px ${theme.soft})` }}
-            >
-              🏆
-            </motion.div>
-            <span className="cl-heading text-[0.55rem] tracking-[0.3em]" style={{ color: theme.accent }}>{tr("intl.finalShort")}</span>
-            {cell(fin, "final", 0.3)}
-            {third && (
-              <div className="w-full">
-                <div className="mb-1 text-center text-[0.5rem] uppercase tracking-[0.25em] text-white/40">{tr("intl.thirdPlace")}</div>
-                {cell(third, "third", 0.4)}
-              </div>
-            )}
-            {championName && (
-              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="text-center">
-                <div className="text-[0.5rem] uppercase tracking-[0.25em] text-white/40">{tr("intl.champions")}</div>
-                <div className={`text-[0.7rem] font-extrabold ${theme.heading}`}>{championName}</div>
-              </motion.div>
-            )}
-          </div>
-          <div className="flex flex-col justify-around gap-2">{[SF[1]].map((k, i) => cell(k, `sr${i}`, 0.2))}</div>
-          <div className="flex flex-col justify-around gap-2">{[QF[2], QF[3]].map((k, i) => cell(k, `qr${i}`, i * 0.08))}</div>
-          {hasR16 && (
-            <div className="flex flex-col justify-around gap-2">
-              {[R16[4], R16[5], R16[6], R16[7]].map((k, i) => cell(k, `r16r${i}`, i * 0.06))}
-            </div>
-          )}
-        </div>
-      </div>
-    </motion.div>
+    <div className="mt-6">
+      <PremiumBracket
+        ties={intl.ties}
+        teams={teams}
+        userKey={intl.userKey}
+        champion={intl.champion}
+        variant={intl.comp}
+        rounds={rounds}
+        thirdPlace
+        onTieClick={onTieClick}
+      />
+    </div>
   );
 }

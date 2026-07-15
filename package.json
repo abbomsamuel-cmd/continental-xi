@@ -10,6 +10,7 @@
     "simtest": "tsx scripts/simtest.ts"
   },
   "dependencies": {
+    "@vercel/analytics": "^2.0.1",
     "framer-motion": "^12.42.2",
     "next": "16.2.10",
     "react": "19.2.4",

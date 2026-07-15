@@ -5,6 +5,7 @@ import { StadiumBackground } from "@/components/StadiumBackground";
 import { NavBar } from "@/components/NavBar";
 import { SiteCredit } from "@/components/SiteCredit";
 import { LangProvider } from "@/lib/i18n";
+import { Analytics } from "@vercel/analytics/next";
 
 const display = Sora({
   subsets: ["latin"],
@@ -50,6 +51,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           <main className="relative z-10">{children}</main>
           <SiteCredit />
         </LangProvider>
+        <Analytics />
       </body>
     </html>
   );

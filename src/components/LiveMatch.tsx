@@ -2,16 +2,23 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import type { MatchResult } from "@/lib/types";
+import type { MatchResult, Player } from "@/lib/types";
 import { TeamBadge } from "@/components/TeamBadge";
 import { PenaltyShootout } from "@/components/PenaltyShootout";
-import { play } from "@/lib/sound";
+import { CameraFlashes } from "@/components/fx/Atmosphere";
+import {
+  buildFeed, extendedStats, liveRating, matchStory, matchSeed,
+  refereeName, attendance, type FeedLine, type FeedKind,
+} from "@/lib/broadcast";
+import { useGame } from "@/lib/store";
+import { play, startAmbience, stopAmbience } from "@/lib/sound";
 
 /**
- * Live Match Mode — replays an already-simulated MatchResult minute by minute
- * like a Football Manager broadcast: kick-off, goals, cards, saves, half-time,
- * penalties, full time. Pause / ×2 / ×4 / skip-to-result controls, and the
- * statistics panel fills in live as the match unfolds.
+ * Live Match 2.0 — a broadcast, not a dashboard. Replays an already-simulated
+ * MatchResult like a TV production: cinematic intro, premium scoreboard,
+ * typed commentary cards, live momentum, live player ratings, expanded
+ * statistics and a full-time studio recap. The simulation engine is never
+ * touched — everything here is presentation over the finished result.
  */
 
 interface LiveTeamRef {
@@ -19,6 +26,7 @@ interface LiveTeamRef {
   short: string;
   colors: [string, string];
   season?: number;
+  isUser?: boolean;
 }
 
 export interface LiveLeg {
@@ -27,99 +35,72 @@ export interface LiveLeg {
   label?: string;
 }
 
-interface FeedLine {
-  minute: number;
-  icon: string;
-  text: string;
-  sub?: string;
-  team?: 0 | 1;
-  kind: "system" | "event" | "filler" | "goal";
-}
+export type BroadcastVariant = "cl" | "euro" | "copa";
 
-/** Deterministic pseudo-random from the match itself, so replays look identical. */
-function frac(n: number): number {
-  const x = Math.sin(n) * 43758.5453;
-  return x - Math.floor(x);
-}
+/* ------------------------------------------------------------------ */
+/*  Competition identity                                               */
+/* ------------------------------------------------------------------ */
+
+const VARIANTS: Record<BroadcastVariant, {
+  accent: string; soft: string; page: string; emblem: string; compLabel: string;
+  introGlow: string;
+}> = {
+  cl: {
+    accent: "#d4af37", soft: "rgba(212,175,55,0.16)",
+    page: "radial-gradient(120% 90% at 50% 15%, #0a1b4d, #020714 78%)",
+    emblem: "★", compLabel: "Champions Draft",
+    introGlow: "rgba(41,98,255,0.4)",
+  },
+  euro: {
+    accent: "#37e0ff", soft: "rgba(55,224,255,0.15)",
+    page: "radial-gradient(120% 90% at 50% 15%, #081b56, #030818 78%)",
+    emblem: "✦", compLabel: "UEFA EURO",
+    introGlow: "rgba(27,79,255,0.45)",
+  },
+  copa: {
+    accent: "#ffc93c", soft: "rgba(255,201,60,0.15)",
+    page: "radial-gradient(120% 90% at 50% 15%, #0a3a24, #02120a 78%)",
+    emblem: "◆", compLabel: "Copa América",
+    introGlow: "rgba(23,201,122,0.4)",
+  },
+};
+
+/* ------------------------------------------------------------------ */
+/*  Per-event visual identity                                          */
+/* ------------------------------------------------------------------ */
+
+const EVENT_STYLE: Record<FeedKind, { icon: string; color: string; big?: boolean }> = {
+  kickoff: { icon: "🟢", color: "#eaf1ff" },
+  goal: { icon: "⚽", color: "#2ee6a6", big: true },
+  yellow: { icon: "🟨", color: "#ffcf5c" },
+  red: { icon: "🟥", color: "#ff5a6a", big: true },
+  var: { icon: "📺", color: "#5aa8ff" },
+  chance: { icon: "⚡", color: "#ff8a3d" },
+  save: { icon: "🧤", color: "#2ee6a6" },
+  corner: { icon: "🚩", color: "#9fb3d1" },
+  sub: { icon: "🔁", color: "#b58cff" },
+  midfield: { icon: "🎙️", color: "#9fb3d1" },
+  crossbar: { icon: "💥", color: "#ff8a3d", big: true },
+  atmo: { icon: "📣", color: "#9fb3d1" },
+  ht: { icon: "⏸", color: "#7fb0ff", big: true },
+  secondhalf: { icon: "🟢", color: "#eaf1ff" },
+  ft: { icon: "🏁", color: "#d4af37", big: true },
+};
+
+/** The one sound each beat is allowed to make, ranked so a busy minute plays
+ *  only its most important cue — never a pile-up. */
+const EVENT_SOUND: Partial<Record<FeedKind, Parameters<typeof play>[0]>> = {
+  goal: "goal", red: "error", crossbar: "crossbar", save: "save",
+  var: "draw", chance: "kick", sub: "sub", yellow: "flip",
+  ht: "whistle", secondhalf: "whistle",
+};
+const SOUND_PRIORITY: FeedKind[] = ["goal", "red", "crossbar", "save", "var", "ht", "secondhalf", "chance", "sub", "yellow"];
 
 const MS_PER_MINUTE = 340; // ~32s for a full match at ×1
 
-const CHANCE_LINES = [
-  "drills one just wide of the far post!",
-  "gets a shot away — deflected behind for a corner.",
-  "curls an effort towards the top corner… over the bar!",
-  "breaks in behind but the flag is up. Offside.",
-  "hits a first-time volley straight at the keeper.",
-  "wins a free-kick in a dangerous position.",
-];
-const SAVE_LINES = [
-  "HUGE SAVE! The keeper gets fingertips to it!",
-  "What a stop — turned around the post at full stretch!",
-  "Point-blank save! How has that stayed out?",
-];
-const MIDFIELD_LINES = [
-  "A patient spell of possession, probing for an opening.",
-  "Crunching tackle in the middle of the park.",
-  "The press wins the ball back high up the pitch.",
-  "Tempo drops for a moment — both benches are up, shouting instructions.",
-];
-
-/** Build the full minute-by-minute script for one leg. */
-function buildScript(r: MatchResult, home: LiveTeamRef, away: LiveTeamRef): FeedLine[] {
-  const teamName = (t: 0 | 1) => (t === 0 ? home.name : away.name);
-  const seed = r.homeGoals * 97 + r.awayGoals * 31 + r.stats.shots[0] * 7 + r.stats.shots[1] * 3;
-  const lines: FeedLine[] = [{ minute: 1, icon: "🟢", text: "Kick-off!", sub: "The referee gets us underway.", kind: "system" }];
-  const used = new Set<number>(r.events.map((e) => e.minute));
-
-  // real events
-  for (const e of r.events) {
-    if (e.type === "goal") {
-      lines.push({
-        minute: e.minute, icon: "⚽", team: e.team, kind: "goal",
-        text: `GOAL! ${e.player} scores for ${teamName(e.team)}!`,
-        sub: e.assist ? `Assisted by ${e.assist}.` : "A moment of individual brilliance.",
-      });
-    } else if (e.type === "yellow") {
-      lines.push({ minute: e.minute, icon: "🟨", team: e.team, kind: "event", text: `Yellow card — ${e.player}`, sub: teamName(e.team) });
-    } else if (e.type === "red") {
-      lines.push({ minute: e.minute, icon: "🟥", team: e.team, kind: "event", text: `RED CARD! ${e.player} is off!`, sub: `${teamName(e.team)} are down to ten.` });
-    } else if (e.type === "var") {
-      lines.push({ minute: e.minute, icon: "📺", team: e.team, kind: "event", text: "VAR review…", sub: e.note });
-    }
-  }
-
-  // filler commentary drawn deterministically from the stats
-  const freeMinute = (n: number) => {
-    let m = 4 + Math.floor(frac(seed + n * 13.7) * 86);
-    let guard = 0;
-    while ((used.has(m) || m === 45 || m === 46) && guard++ < 40) m = 4 + Math.floor(frac(seed + n * 13.7 + guard * 3.1) * 86);
-    used.add(m);
-    return m;
-  };
-  const saves = Math.max(0, Math.min(3, r.stats.onTarget[0] + r.stats.onTarget[1] - r.homeGoals - r.awayGoals - 2));
-  const chances = Math.min(5, Math.max(2, Math.round((r.stats.shots[0] + r.stats.shots[1]) / 6)));
-  let n = 0;
-  for (let i = 0; i < chances; i++) {
-    const team = (frac(seed + i * 7.3) > r.stats.shots[1] / (r.stats.shots[0] + r.stats.shots[1] || 1) ? 0 : 1) as 0 | 1;
-    lines.push({
-      minute: freeMinute(n++), icon: "⚡", team, kind: "filler",
-      text: `${teamName(team)} ${CHANCE_LINES[Math.floor(frac(seed + i * 5.1) * CHANCE_LINES.length)]}`,
-    });
-  }
-  for (let i = 0; i < saves; i++) {
-    lines.push({ minute: freeMinute(n++), icon: "🧤", kind: "filler", text: SAVE_LINES[Math.floor(frac(seed + i * 9.7) * SAVE_LINES.length)] });
-  }
-  for (let i = 0; i < 2; i++) {
-    lines.push({ minute: freeMinute(n++), icon: "🎙️", kind: "filler", text: MIDFIELD_LINES[Math.floor(frac(seed + i * 11.3) * MIDFIELD_LINES.length)] });
-  }
-
-  // structural beats
-  const htScore = (t: 0 | 1) => r.events.filter((e) => e.type === "goal" && e.team === t && e.minute <= 45).length;
-  lines.push({ minute: 45, icon: "⏸", text: `HALF TIME — ${home.short} ${htScore(0)}-${htScore(1)} ${away.short}`, sub: "The players head down the tunnel.", kind: "system" });
-  lines.push({ minute: 46, icon: "🟢", text: "Second half under way.", sub: "No changes at the break — or are there? The shape looks different.", kind: "system" });
-
-  lines.sort((a, b) => a.minute - b.minute || (a.kind === "system" ? -1 : 1));
-  return lines;
+function frac(n: number): number {
+  const x = Math.sin(n) * 43758.5453;
+  return x - Math.floor(x);
 }
 
 /** Ease a final stat towards its full-time value as the clock runs. */
@@ -130,13 +111,584 @@ function liveStat(finalVal: number, minute: number, endMinute: number, wobbleSee
   return Math.max(0, finalVal * Math.min(1, eased + wobble));
 }
 
+/* ================================================================== */
+/*  Cinematic intro — competition ident → round → teams → kick-off     */
+/* ================================================================== */
+
+function MatchIntro({
+  variant, round, home, away, stadium, legLabel, onDone,
+}: {
+  variant: BroadcastVariant; round: string; home: LiveTeamRef; away: LiveTeamRef;
+  stadium?: string; legLabel?: string; onDone: () => void;
+}) {
+  const v = VARIANTS[variant];
+  const [step, setStep] = useState(0);
+  const doneRef = useRef(false);
+
+  const finish = () => {
+    if (doneRef.current) return;
+    doneRef.current = true;
+    play("whistle");
+    onDone();
+  };
+
+  useEffect(() => {
+    play("advance");
+    const timers = [
+      setTimeout(() => setStep(1), 1150),
+      setTimeout(() => setStep(2), 2250),
+      setTimeout(() => setStep(3), 3600),
+      setTimeout(finish, 5000),
+    ];
+    return () => timers.forEach(clearTimeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, transition: { duration: 0.45 } }}
+      className="fixed inset-0 z-[150] flex items-center justify-center overflow-hidden"
+      style={{ background: v.page }}
+    >
+      {/* anthem-night glow + flashes */}
+      <div className="pointer-events-none absolute inset-0" aria-hidden>
+        <div className="absolute left-1/2 top-[-20%] h-[70vh] w-[80vw] -translate-x-1/2 rounded-full opacity-60"
+          style={{ background: `radial-gradient(circle, ${v.introGlow}, transparent 65%)`, filter: "blur(40px)" }} />
+        <CameraFlashes count={14} />
+      </div>
+
+      <div className="relative z-10 px-6 text-center">
+        <AnimatePresence mode="wait">
+          {step === 0 && (
+            <motion.div key="ident" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.1 }} transition={{ duration: 0.5 }}>
+              <div className="text-6xl sm:text-7xl" style={{ color: v.accent, textShadow: `0 0 44px ${v.accent}` }}>{v.emblem}</div>
+              <div className="cl-heading mt-3 text-lg tracking-[0.5em] text-white sm:text-2xl">{v.compLabel.toUpperCase()}</div>
+            </motion.div>
+          )}
+          {step === 1 && (
+            <motion.div key="round" initial={{ opacity: 0, y: 26 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.45 }}>
+              <div className="cl-heading text-[0.65rem] tracking-[0.5em]" style={{ color: v.accent }}>{v.compLabel}</div>
+              <div className="mt-2 font-display text-4xl font-extrabold text-white sm:text-6xl">{round}</div>
+              {legLabel && <div className="mt-2 text-sm font-bold uppercase tracking-[0.3em] text-white/60">{legLabel}</div>}
+            </motion.div>
+          )}
+          {step === 2 && (
+            <motion.div key="teams" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center justify-center gap-5 sm:gap-9">
+              <motion.div initial={{ x: -70, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ type: "spring", stiffness: 130, damping: 15 }} className="flex flex-col items-center gap-2.5">
+                <TeamBadge colors={home.colors} code={home.short} size={72} />
+                <div className="max-w-[9rem] font-display text-sm font-extrabold text-white sm:max-w-none sm:text-lg">{home.name}</div>
+              </motion.div>
+              <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.25, type: "spring", stiffness: 240, damping: 14 }}
+                className="font-display text-2xl font-extrabold sm:text-3xl" style={{ color: v.accent }}>
+                VS
+              </motion.div>
+              <motion.div initial={{ x: 70, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ type: "spring", stiffness: 130, damping: 15 }} className="flex flex-col items-center gap-2.5">
+                <TeamBadge colors={away.colors} code={away.short} size={72} />
+                <div className="max-w-[9rem] font-display text-sm font-extrabold text-white sm:max-w-none sm:text-lg">{away.name}</div>
+              </motion.div>
+            </motion.div>
+          )}
+          {step === 3 && (
+            <motion.div key="venue" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }}>
+              <div className="text-3xl">🏟️</div>
+              <div className="mt-2 font-display text-xl font-extrabold text-white sm:text-2xl">{stadium ?? "A cauldron under the lights"}</div>
+              <div className="mt-1.5 text-[0.7rem] uppercase tracking-[0.3em] text-white/50">The players walk out · the anthem fades</div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      <button
+        onClick={finish}
+        className="absolute bottom-6 right-6 rounded-full border border-white/20 bg-black/30 px-4 py-1.5 text-[0.65rem] font-bold uppercase tracking-widest text-white/70 backdrop-blur transition-colors hover:text-white"
+      >
+        Skip intro ⏭
+      </button>
+    </motion.div>
+  );
+}
+
+/* ================================================================== */
+/*  Broadcast scoreboard                                               */
+/* ================================================================== */
+
+function Scoreboard({
+  home, away, hGoals, aGoals, minute, endMinute, finished, clockLabel, v,
+  compLine, aggNote, pens, lastGoal,
+}: {
+  home: LiveTeamRef; away: LiveTeamRef; hGoals: number; aGoals: number;
+  minute: number; endMinute: number; finished: boolean; clockLabel: string;
+  v: (typeof VARIANTS)["cl"]; compLine: string; aggNote: string | null;
+  pens: [number, number] | null; lastGoal: { team: 0 | 1; minute: number } | null;
+}) {
+  const glow = (team: 0 | 1) =>
+    lastGoal && lastGoal.team === team && minute - lastGoal.minute <= 2 && !finished
+      ? { filter: `drop-shadow(0 0 14px ${v.accent})` }
+      : undefined;
+  const winner: 0 | 1 | null = finished
+    ? pens ? (pens[0] > pens[1] ? 0 : 1) : hGoals > aGoals ? 0 : aGoals > hGoals ? 1 : null
+    : null;
+
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-black/50 shadow-[0_18px_50px_rgba(0,0,0,0.45)] backdrop-blur">
+      {/* competition + round line */}
+      <div className="flex items-center justify-center gap-2 border-b border-white/8 px-3 py-1.5">
+        <span style={{ color: v.accent }}>{v.emblem}</span>
+        <span className="cl-heading text-[0.55rem] tracking-[0.35em] text-white/65">{compLine}</span>
+        <span style={{ color: v.accent }}>{v.emblem}</span>
+      </div>
+      <div className="absolute inset-y-0 left-0 w-1.5" style={{ background: `linear-gradient(180deg, ${home.colors[0]}, ${home.colors[1]})` }} />
+      <div className="absolute inset-y-0 right-0 w-1.5" style={{ background: `linear-gradient(180deg, ${away.colors[0]}, ${away.colors[1]})` }} />
+
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 py-3.5 sm:px-7">
+        <div className="flex min-w-0 items-center gap-2.5 sm:gap-3.5">
+          <motion.div style={glow(0)} animate={glow(0) ? { scale: [1, 1.12, 1] } : {}} transition={{ duration: 0.7 }}>
+            <TeamBadge colors={home.colors} code={home.short} size={44} />
+          </motion.div>
+          <div className="min-w-0">
+            <div className={`truncate font-display text-sm font-extrabold sm:text-lg ${winner === 0 ? "" : "text-white"}`}
+              style={winner === 0 ? { color: v.accent } : undefined}>
+              {home.name}
+            </div>
+            {home.season ? <div className="text-[0.6rem] text-white/45">{home.season}</div> : null}
+          </div>
+        </div>
+
+        <div className="px-1 text-center sm:px-3">
+          <div className="flex items-center justify-center gap-2.5 font-display text-4xl font-extrabold sm:text-5xl">
+            <AnimatePresence mode="popLayout" initial={false}>
+              <motion.span key={`h${hGoals}`} initial={{ y: -26, opacity: 0, scale: 1.3 }} animate={{ y: 0, opacity: 1, scale: 1 }} exit={{ y: 26, opacity: 0 }}
+                transition={{ type: "spring", stiffness: 300, damping: 18 }} className="text-white">{hGoals}</motion.span>
+            </AnimatePresence>
+            <span className="text-2xl text-white/30 sm:text-3xl">–</span>
+            <AnimatePresence mode="popLayout" initial={false}>
+              <motion.span key={`a${aGoals}`} initial={{ y: -26, opacity: 0, scale: 1.3 }} animate={{ y: 0, opacity: 1, scale: 1 }} exit={{ y: 26, opacity: 0 }}
+                transition={{ type: "spring", stiffness: 300, damping: 18 }} className="text-white">{aGoals}</motion.span>
+            </AnimatePresence>
+          </div>
+          <div className="mx-auto mt-1.5 flex w-fit items-center gap-1.5 rounded-md px-2.5 py-0.5 font-display text-[0.68rem] font-extrabold tracking-widest"
+            style={{ background: v.soft, color: v.accent }}>
+            {!finished && minute !== 45 && (
+              <motion.span className="inline-block h-1.5 w-1.5 rounded-full bg-red-500"
+                animate={{ opacity: [1, 0.25, 1] }} transition={{ duration: 1.4, repeat: Infinity }} />
+            )}
+            {clockLabel}
+          </div>
+          {pens && <div className="mt-1 text-[0.62rem] font-bold text-white/70">Penalties {pens[0]}–{pens[1]}</div>}
+          {aggNote && <div className="mt-1 text-[0.58rem] text-white/50">{aggNote}</div>}
+        </div>
+
+        <div className="flex min-w-0 items-center justify-end gap-2.5 text-right sm:gap-3.5">
+          <div className="min-w-0">
+            <div className={`truncate font-display text-sm font-extrabold sm:text-lg ${winner === 1 ? "" : "text-white"}`}
+              style={winner === 1 ? { color: v.accent } : undefined}>
+              {away.name}
+            </div>
+            {away.season ? <div className="text-[0.6rem] text-white/45">{away.season}</div> : null}
+          </div>
+          <motion.div style={glow(1)} animate={glow(1) ? { scale: [1, 1.12, 1] } : {}} transition={{ duration: 0.7 }}>
+            <TeamBadge colors={away.colors} code={away.short} size={44} />
+          </motion.div>
+        </div>
+      </div>
+
+      {/* match progress strip */}
+      <div className="h-1 w-full bg-white/6">
+        <div className="h-full transition-[width] duration-300"
+          style={{ width: `${(Math.min(minute, endMinute) / endMinute) * 100}%`, background: `linear-gradient(90deg, ${v.accent}88, ${v.accent})` }} />
+      </div>
+    </div>
+  );
+}
+
+/* ================================================================== */
+/*  Momentum graph — pressure bars, goals & cards along the timeline   */
+/* ================================================================== */
+
+function MomentumChart({
+  r, minute, endMinute, home, away, v,
+}: {
+  r: MatchResult; minute: number; endMinute: number;
+  home: LiveTeamRef; away: LiveTeamRef; v: (typeof VARIANTS)["cl"];
+}) {
+  const W = 320, H = 78, MID = H / 2;
+  const n = r.momentum.length;
+  const visibleSamples = Math.max(1, Math.min(n, Math.ceil((minute / endMinute) * n)));
+  const barW = W / n - 2;
+
+  return (
+    <div className="glass rounded-2xl p-3.5">
+      <div className="mb-1.5 flex items-center justify-between">
+        <span className="text-[0.55rem] font-bold uppercase tracking-[0.3em] text-white/40">Momentum</span>
+        <span className="flex items-center gap-2 text-[0.55rem] text-white/50">
+          <span className="flex items-center gap-1"><span className="h-1.5 w-3 rounded-full" style={{ background: home.colors[0] }} />{home.short}</span>
+          <span className="flex items-center gap-1"><span className="h-1.5 w-3 rounded-full" style={{ background: away.colors[0] }} />{away.short}</span>
+        </span>
+      </div>
+      <svg viewBox={`0 0 ${W} ${H + 14}`} className="w-full" aria-hidden>
+        <line x1="0" y1={MID} x2={W} y2={MID} stroke="rgba(255,255,255,0.14)" strokeWidth="1" strokeDasharray="3 4" />
+        {r.momentum.slice(0, visibleSamples).map((m, i) => {
+          const x = (i / n) * W + 1;
+          const h = Math.abs(m) * (MID - 6);
+          const up = m >= 0;
+          return (
+            <rect key={i} x={x} y={up ? MID - h : MID} width={barW} height={Math.max(2, h)} rx={1.5}
+              fill={up ? home.colors[0] : away.colors[0]} opacity={0.32 + Math.abs(m) * 0.6} />
+          );
+        })}
+        {/* event markers */}
+        {r.events.filter((e) => e.minute <= minute).map((e, i) => {
+          const x = Math.min(W - 6, (e.minute / endMinute) * W);
+          if (e.type === "goal") {
+            return <text key={i} x={x} y={e.team === 0 ? 11 : H + 8} fontSize="10" textAnchor="middle">⚽</text>;
+          }
+          if (e.type === "yellow" || e.type === "red") {
+            return <rect key={i} x={x - 2} y={e.team === 0 ? 4 : H - 2} width="4" height="6" rx="1"
+              fill={e.type === "red" ? "#ff5a6a" : "#ffcf5c"} />;
+          }
+          return null;
+        })}
+        {/* now cursor */}
+        {minute < endMinute && (
+          <line x1={(minute / endMinute) * W} y1="2" x2={(minute / endMinute) * W} y2={H + 4}
+            stroke={v.accent} strokeWidth="1.5" opacity="0.8" />
+        )}
+      </svg>
+    </div>
+  );
+}
+
+/* ================================================================== */
+/*  Commentary card                                                    */
+/* ================================================================== */
+
+function FeedCard({ line, latest, v }: { line: FeedLine; latest: boolean; v: (typeof VARIANTS)["cl"] }) {
+  const st = EVENT_STYLE[line.kind];
+  const minuteLabel = line.minute > 90 ? `90+${line.minute - 90}'` : `${line.minute}'`;
+  if (st.big) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, x: -18, scale: 0.97 }} animate={{ opacity: 1, x: 0, scale: 1 }}
+        transition={{ type: "spring", stiffness: 280, damping: 22 }}
+        className={`mb-2 overflow-hidden rounded-xl border p-3 ${latest ? "" : "opacity-85"}`}
+        style={{ borderColor: `${st.color}55`, background: `linear-gradient(100deg, ${st.color}1c, transparent 70%)` }}
+      >
+        <div className="flex items-center gap-2.5">
+          <span className="text-xl leading-none">{st.icon}</span>
+          <span className="font-display text-[0.6rem] font-extrabold tracking-widest" style={{ color: st.color }}>{minuteLabel}</span>
+          <span className="min-w-0 flex-1 font-display text-[0.82rem] font-extrabold leading-snug text-white">{line.text}</span>
+        </div>
+        {line.sub && <div className="mt-1 pl-8 text-[0.66rem] text-white/55">{line.sub}</div>}
+      </motion.div>
+    );
+  }
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -14 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.25 }}
+      className={`flex gap-2.5 border-b border-white/5 px-1 py-2 last:border-0 ${latest ? "" : "opacity-75"}`}
+    >
+      <span className="w-9 shrink-0 text-right font-display text-[0.68rem] font-extrabold" style={{ color: v.accent }}>{minuteLabel}</span>
+      <span className="shrink-0 text-sm leading-5">{st.icon}</span>
+      <span className="min-w-0">
+        <span className="block text-[0.73rem] leading-snug" style={{ color: line.kind === "midfield" || line.kind === "atmo" ? "rgba(255,255,255,0.6)" : st.color }}>
+          {line.text}
+        </span>
+        {line.sub && <span className="block text-[0.6rem] text-white/40">{line.sub}</span>}
+      </span>
+    </motion.div>
+  );
+}
+
+/* ================================================================== */
+/*  Live ratings                                                       */
+/* ================================================================== */
+
+interface RatedPlayer { name: string; position?: string; team: 0 | 1 }
+
+function ratingColor(x: number): string {
+  return x >= 8 ? "#d4af37" : x >= 7 ? "#2ee6a6" : x >= 6 ? "#eaf1ff" : "#ff5a6a";
+}
+
+function RatingsPanel({
+  r, minute, finished, players, home, away,
+}: {
+  r: MatchResult; minute: number; finished: boolean;
+  players: RatedPlayer[]; home: LiveTeamRef; away: LiveTeamRef;
+}) {
+  const rated = players
+    .map((p) => ({ ...p, rating: liveRating(r, { name: p.name, team: p.team, position: p.position, minute, finished }) }))
+    .sort((a, b) => b.rating - a.rating);
+  const sides: [LiveTeamRef, LiveTeamRef] = [home, away];
+
+  return (
+    <div className="glass rounded-2xl p-4">
+      <div className="mb-2 flex items-center justify-between">
+        <span className="text-[0.55rem] font-bold uppercase tracking-[0.3em] text-white/40">Live Player Ratings</span>
+        <span className="text-[0.55rem] text-white/40">{finished ? "Final" : "Updating live"}</span>
+      </div>
+      <div className="space-y-1.5">
+        {rated.map((p) => (
+          <div key={`${p.team}-${p.name}`} className="flex items-center gap-2.5">
+            <span className="h-4 w-1 shrink-0 rounded-full" style={{ background: sides[p.team].colors[0] }} />
+            {p.position && <span className="w-8 shrink-0 text-[0.55rem] font-bold uppercase text-white/40">{p.position}</span>}
+            <span className={`min-w-0 flex-1 truncate text-[0.72rem] font-semibold ${finished && r.motm === p.name ? "text-gold" : "text-white/85"}`}>
+              {p.name}{finished && r.motm === p.name ? " ⭐" : ""}
+            </span>
+            <div className="h-1.5 w-16 overflow-hidden rounded-full bg-white/8 sm:w-24">
+              <motion.div className="h-full rounded-full" animate={{ width: `${((p.rating - 4) / 6) * 100}%` }}
+                transition={{ duration: 0.6 }} style={{ background: ratingColor(p.rating) }} />
+            </div>
+            <motion.span key={p.rating} initial={{ scale: 1.25 }} animate={{ scale: 1 }}
+              className="w-8 shrink-0 text-right font-display text-[0.78rem] font-extrabold" style={{ color: ratingColor(p.rating) }}>
+              {p.rating.toFixed(1)}
+            </motion.span>
+          </div>
+        ))}
+        {rated.length === 0 && <p className="py-2 text-center text-[0.68rem] text-white/45">Ratings appear as the match develops…</p>}
+      </div>
+    </div>
+  );
+}
+
+/* ================================================================== */
+/*  Star performer card (live player of the match)                     */
+/* ================================================================== */
+
+function StarPerformer({
+  r, minute, finished, players, v,
+}: {
+  r: MatchResult; minute: number; finished: boolean; players: RatedPlayer[]; v: (typeof VARIANTS)["cl"];
+}) {
+  const rated = players.map((p) => ({
+    ...p,
+    rating: liveRating(r, { name: p.name, team: p.team, position: p.position, minute, finished }),
+  }));
+  const star = finished
+    ? rated.find((p) => p.name === r.motm) ?? rated.sort((a, b) => b.rating - a.rating)[0]
+    : rated.sort((a, b) => b.rating - a.rating)[0];
+  if (!star) return null;
+
+  const goals = r.events.filter((e) => e.minute <= minute && e.type === "goal" && e.player === star.name).length;
+  const assists = r.events.filter((e) => e.minute <= minute && e.type === "goal" && e.assist === star.name).length;
+  const seed = matchSeed(r) + star.name.length * 31;
+  const isGK = star.position === "GK";
+  const extra: [string, string][] = isGK
+    ? [["Saves", `${Math.max(0, r.stats.onTarget[star.team === 0 ? 1 : 0] - (star.team === 0 ? r.awayGoals : r.homeGoals))}`], ["Claims", `${1 + Math.floor(frac(seed) * 3)}`]]
+    : [["Key passes", `${1 + Math.floor(frac(seed + 3) * 3) + assists}`], ["Dribbles", `${Math.floor(frac(seed + 7) * 4)}`]];
+
+  return (
+    <div className="glass relative overflow-hidden rounded-2xl p-4">
+      <div className="absolute right-0 top-0 h-24 w-24 rounded-full opacity-25" style={{ background: `radial-gradient(circle, ${v.accent}, transparent 70%)` }} />
+      <div className="text-[0.55rem] font-bold uppercase tracking-[0.3em] text-white/40">
+        {finished ? "⭐ Player of the Match" : "⭐ Star Performer"}
+      </div>
+      <div className="mt-2 flex items-center gap-3">
+        <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl font-display text-base font-extrabold text-white"
+          style={{ background: `linear-gradient(150deg, ${v.accent}44, rgba(0,0,0,0.4))`, border: `1px solid ${v.accent}55` }}>
+          {star.name.split(" ").map((w) => w[0]).slice(0, 2).join("")}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="truncate font-display text-sm font-extrabold text-white">{star.name}</div>
+          {star.position && <div className="text-[0.6rem] uppercase tracking-wider text-white/45">{star.position}</div>}
+        </div>
+        <motion.div key={star.rating} initial={{ scale: 1.3 }} animate={{ scale: 1 }}
+          className="rounded-lg px-2.5 py-1 font-display text-lg font-extrabold"
+          style={{ background: v.soft, color: ratingColor(star.rating) }}>
+          {star.rating.toFixed(1)}
+        </motion.div>
+      </div>
+      <div className="mt-3 grid grid-cols-4 gap-1.5 text-center">
+        {[["Goals", `${goals}`], ["Assists", `${assists}`], ...extra].map(([k, val]) => (
+          <div key={k} className="rounded-lg bg-white/5 px-1 py-1.5">
+            <div className="font-display text-sm font-extrabold text-white">{val}</div>
+            <div className="text-[0.48rem] uppercase tracking-wider text-white/40">{k}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ================================================================== */
+/*  Statistics panel (expanded, animated)                              */
+/* ================================================================== */
+
+function StatsPanel({
+  r, minute, endMinute, finished, home, away, v, condensed,
+}: {
+  r: MatchResult; minute: number; endMinute: number; finished: boolean;
+  home: LiveTeamRef; away: LiveTeamRef; v: (typeof VARIANTS)["cl"]; condensed?: boolean;
+}) {
+  const all = useMemo(() => extendedStats(r), [r]);
+  const rows = condensed ? all.slice(0, 6) : all;
+  // possession converges from 50/50 to the final split
+  const possT = Math.min(1, minute / 60);
+
+  return (
+    <div className="glass rounded-2xl p-4">
+      <div className="mb-2.5 flex items-center justify-between">
+        <span className="flex items-center gap-1.5 text-[0.62rem] font-bold text-white/70"><TeamBadge colors={home.colors} code={home.short} size={16} />{home.short}</span>
+        <span className="text-[0.55rem] font-bold uppercase tracking-[0.3em] text-white/40">{condensed ? "Key Stats" : "Match Statistics"}</span>
+        <span className="flex items-center gap-1.5 text-[0.62rem] font-bold text-white/70">{away.short}<TeamBadge colors={away.colors} code={away.short} size={16} /></span>
+      </div>
+      <div className="space-y-2.5">
+        {rows.map((row) => {
+          const isPoss = row.label === "Possession";
+          const hv = finished ? row.h : isPoss ? Math.round(50 + (row.h - 50) * possT) : liveStat(row.h, minute, endMinute, row.h * 13 + 1);
+          const av = finished ? row.a : isPoss ? Math.round(50 + (row.a - 50) * possT) : liveStat(row.a, minute, endMinute, row.a * 17 + 2);
+          const share = hv + av > 0 ? (hv / (hv + av)) * 100 : 50;
+          const fmt = (x: number) => `${x.toFixed(row.decimals ?? 0)}${row.suffix ?? ""}`;
+          return (
+            <div key={row.label}>
+              <div className="flex items-baseline justify-between text-[0.7rem]">
+                <span className="font-display font-extrabold text-white">{fmt(hv)}</span>
+                <span className="text-[0.55rem] uppercase tracking-widest text-white/45">{row.label}</span>
+                <span className="font-display font-extrabold text-white">{fmt(av)}</span>
+              </div>
+              <div className="mt-1 flex h-1.5 gap-0.5 overflow-hidden rounded-full bg-white/8">
+                <motion.div className="h-full rounded-l-full" animate={{ width: `${share}%` }} transition={{ duration: 0.5 }}
+                  style={{ background: `linear-gradient(90deg, ${home.colors[0]}, ${v.accent})` }} />
+                <div className="h-full flex-1 rounded-r-full" style={{ background: "rgba(255,255,255,0.14)" }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ================================================================== */
+/*  Match facts                                                        */
+/* ================================================================== */
+
+function FactsPanel({
+  r, home, away, round, comp, stadium, legLabel, finished,
+}: {
+  r: MatchResult; home: LiveTeamRef; away: LiveTeamRef;
+  round: string; comp: string; stadium?: string; legLabel?: string; finished: boolean;
+}) {
+  const rows: [string, string][] = [
+    ["Competition", comp],
+    ["Round", `${round}${legLabel ? ` · ${legLabel}` : ""}`],
+    ["Fixture", `${home.name} vs ${away.name}`],
+    ["Venue", stadium ?? "Continental Arena"],
+    ["Referee", refereeName(r)],
+    ["Attendance", attendance(r).toLocaleString()],
+    ...(finished ? [["Player of the Match", r.motm] as [string, string]] : []),
+  ];
+  return (
+    <div className="glass rounded-2xl p-4">
+      <div className="mb-2 text-[0.55rem] font-bold uppercase tracking-[0.3em] text-white/40">Match Facts</div>
+      <dl className="space-y-2 text-[0.74rem]">
+        {rows.map(([k, val]) => (
+          <div key={k} className="flex items-baseline justify-between gap-3 border-b border-white/6 pb-1.5 last:border-0">
+            <dt className="shrink-0 text-white/45">{k}</dt>
+            <dd className="min-w-0 truncate text-right font-semibold text-white">{val}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
+/* ================================================================== */
+/*  Full-time studio board                                             */
+/* ================================================================== */
+
+function FullTimeBoard({
+  r, home, away, v, round, pens, story, onContinue, continueLabel, players,
+}: {
+  r: MatchResult; home: LiveTeamRef; away: LiveTeamRef; v: (typeof VARIANTS)["cl"];
+  round: string; pens: [number, number] | null; story: string;
+  onContinue: () => void; continueLabel: string; players: RatedPlayer[];
+}) {
+  const winnerIdx: 0 | 1 | null = pens
+    ? (pens[0] > pens[1] ? 0 : 1)
+    : r.homeGoals > r.awayGoals ? 0 : r.awayGoals > r.homeGoals ? 1 : null;
+  const winner = winnerIdx === null ? null : winnerIdx === 0 ? home : away;
+  const scorers = (team: 0 | 1) =>
+    r.events.filter((e) => e.type === "goal" && e.team === team).map((e) => `${e.player} ${e.minute}'`);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 22, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ type: "spring", stiffness: 200, damping: 22 }}
+      className="overflow-hidden rounded-2xl border"
+      style={{ borderColor: `${v.accent}45`, background: `linear-gradient(160deg, ${v.soft}, rgba(0,0,0,0.5))` }}
+    >
+      <div className="p-4 text-center sm:p-5">
+        <div className="cl-heading text-[0.6rem] tracking-[0.45em]" style={{ color: v.accent }}>FULL TIME · {round.toUpperCase()}</div>
+        <div className="mt-1.5 font-display text-2xl font-extrabold text-white sm:text-3xl">
+          {home.short} {r.homeGoals}–{r.awayGoals} {away.short}
+          {pens ? <span className="ml-2 text-base text-white/70">({pens[0]}–{pens[1]} pens)</span> : null}
+        </div>
+        {winner && (
+          <div className="mt-1 text-sm font-bold" style={{ color: v.accent }}>
+            {winner.name} {pens ? "win on penalties" : r.homeGoals === r.awayGoals ? "" : "take it"} 🏆
+          </div>
+        )}
+
+        {/* scorers */}
+        <div className="mx-auto mt-3 grid max-w-md grid-cols-2 gap-3 text-[0.68rem]">
+          {[0, 1].map((t) => (
+            <div key={t} className={t === 0 ? "text-right" : "text-left"}>
+              {scorers(t as 0 | 1).map((s) => <div key={s} className="text-white/75">⚽ {s}</div>)}
+              {scorers(t as 0 | 1).length === 0 && <div className="text-white/30">—</div>}
+            </div>
+          ))}
+        </div>
+
+        {/* the story of the match */}
+        <p className="mx-auto mt-4 max-w-lg text-[0.76rem] leading-relaxed text-white/70">{story}</p>
+
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-[0.62rem] text-white/50">
+          <span>⭐ {r.motm}</span>
+          <span>Possession {r.stats.possession[0]}%–{r.stats.possession[1]}%</span>
+          <span>xG {r.stats.xg[0].toFixed(2)}–{r.stats.xg[1].toFixed(2)}</span>
+        </div>
+
+        <button className="btn btn-gold btn-pulse mt-5" onClick={onContinue}>{continueLabel}</button>
+      </div>
+      {/* players strip: top three performers */}
+      <div className="flex justify-center gap-2 border-t border-white/8 bg-black/25 px-3 py-2">
+        {players
+          .map((p) => ({ ...p, rating: liveRating(r, { name: p.name, team: p.team, minute: 200, finished: true }) }))
+          .sort((a, b) => b.rating - a.rating)
+          .slice(0, 3)
+          .map((p) => (
+            <span key={p.name} className="flex items-center gap-1.5 rounded-full bg-white/6 px-2.5 py-1 text-[0.6rem] text-white/70">
+              {p.name.split(" ").pop()}
+              <span className="font-display font-extrabold" style={{ color: ratingColor(p.rating) }}>{p.rating.toFixed(1)}</span>
+            </span>
+          ))}
+      </div>
+    </motion.div>
+  );
+}
+
+/* ================================================================== */
+/*  The broadcast itself                                               */
+/* ================================================================== */
+
+type Tab = "overview" | "timeline" | "stats" | "ratings" | "facts";
+const TABS: { id: Tab; label: string }[] = [
+  { id: "overview", label: "Overview" },
+  { id: "timeline", label: "Timeline" },
+  { id: "stats", label: "Statistics" },
+  { id: "ratings", label: "Ratings" },
+  { id: "facts", label: "Facts" },
+];
+
 export function LiveMatch({
   legs,
   homeOf,
   awayOf,
   title,
   subtitle,
-  accent = "#d4af37",
+  accent,
+  variant = "cl",
+  stadium,
   onDone,
 }: {
   legs: LiveLeg[];
@@ -146,8 +698,11 @@ export function LiveMatch({
   title: string;
   subtitle?: string;
   accent?: string;
+  variant?: BroadcastVariant;
+  stadium?: string;
   onDone: () => void;
 }) {
+  const v = accent ? { ...VARIANTS[variant], accent, soft: `${accent}26` } : VARIANTS[variant];
   const [legIdx, setLegIdx] = useState(0);
   const leg = legs[legIdx];
   const r = leg.result;
@@ -155,12 +710,37 @@ export function LiveMatch({
   const away = awayOf(r);
 
   const endMinute = useMemo(() => Math.max(90, ...r.events.map((e) => e.minute)), [r]);
-  const script = useMemo(() => buildScript(r, home, away), [r]); // eslint-disable-line react-hooks/exhaustive-deps
+  const feed = useMemo(() => buildFeed(r, home, away), [r]); // eslint-disable-line react-hooks/exhaustive-deps
+  const story = useMemo(() => matchStory(r, home, away, title), [r]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // players for ratings: the user's XI (from the store) + every opponent name
+  // that appears in the events
+  const players = useMemo<RatedPlayer[]>(() => {
+    const userSide: 0 | 1 | null = home.isUser ? 0 : away.isUser ? 1 : null;
+    const out: RatedPlayer[] = [];
+    if (userSide !== null) {
+      const xi = useGame.getState().getXI().filter(Boolean) as Player[];
+      xi.forEach((p) => out.push({ name: p.name, position: p.position, team: userSide }));
+    }
+    const known = new Set(out.map((p) => p.name));
+    for (const e of r.events) {
+      for (const name of [e.player, e.assist]) {
+        if (!name || known.has(name) || name === "VAR Review") continue;
+        const team = e.team as 0 | 1;
+        if (team === (home.isUser ? 0 : away.isUser ? 1 : -1)) continue;
+        known.add(name);
+        out.push({ name, team });
+      }
+    }
+    return out;
+  }, [r]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const [introDone, setIntroDone] = useState(false);
   const [minute, setMinute] = useState(0);
   const [paused, setPaused] = useState(false);
   const [speed, setSpeed] = useState(1);
   const [finished, setFinished] = useState(false);
+  const [tab, setTab] = useState<Tab>("overview");
   // a shootout is watched (or skipped) before its score is ever revealed
   const [shootoutDone, setShootoutDone] = useState(false);
   const feedRef = useRef<HTMLDivElement>(null);
@@ -171,10 +751,15 @@ export function LiveMatch({
     r.events.filter((e) => e.type === "goal" && e.team === team && e.minute <= m).length;
   const hGoals = finished ? r.homeGoals : goalsAt(0, minute);
   const aGoals = finished ? r.awayGoals : goalsAt(1, minute);
+  const lastGoal = useMemo(() => {
+    const g = r.events.filter((e) => e.type === "goal" && e.minute <= minute);
+    const last = g[g.length - 1];
+    return last ? { team: last.team as 0 | 1, minute: last.minute } : null;
+  }, [r.events, minute]);
 
-  // the clock
+  // the clock — only once the intro has handed over
   useEffect(() => {
-    if (paused || finished) return;
+    if (!introDone || paused || finished) return;
     if (minute >= endMinute) {
       const id = setTimeout(() => { setFinished(true); play("whistle"); }, 700);
       return () => clearTimeout(id);
@@ -183,48 +768,35 @@ export function LiveMatch({
     const isBeat = minute === 45 || r.events.some((e) => e.type === "goal" && e.minute === minute);
     const id = setTimeout(() => setMinute((m) => m + 1), (isBeat ? MS_PER_MINUTE * 3.2 : MS_PER_MINUTE) / speed);
     return () => clearTimeout(id);
-  }, [minute, paused, speed, finished, endMinute, r.events]);
+  }, [minute, paused, speed, finished, endMinute, r.events, introDone]);
 
-  // goal sting
+  // one cue per beat, most important first — never a sound pile-up
   useEffect(() => {
-    if (r.events.some((e) => e.type === "goal" && e.minute === minute)) play("goal");
-  }, [minute, r.events]);
+    if (!introDone || finished) return;
+    const here = feed.filter((l) => l.minute === minute);
+    if (!here.length) return;
+    for (const kind of SOUND_PRIORITY) {
+      const line = here.find((l) => l.kind === kind);
+      if (line) { const cue = EVENT_SOUND[kind]; if (cue) play(cue); break; }
+    }
+  }, [minute, feed, introDone, finished]);
+
+  // crowd bed: rises after the intro, falls at the whistle
+  useEffect(() => {
+    if (introDone && !finished) startAmbience();
+    if (finished) stopAmbience();
+    return () => stopAmbience(0.5);
+  }, [introDone, finished]);
 
   // keep the newest commentary in view
   useEffect(() => {
     feedRef.current?.scrollTo({ top: 0, behavior: "smooth" });
   }, [minute]);
 
-  const visible = script.filter((l) => l.minute <= minute).reverse();
+  const visible = feed.filter((l) => l.minute <= minute && (l.kind !== "ft" || finished)).reverse();
   const clockLabel = finished
     ? r.penalties ? "FT · PENS" : "FULL TIME"
-    : minute === 45 ? "HT" : minute >= 90 ? `90+${minute - 90}'` : `${minute}'`;
-
-  const stat = (pair: [number, number], decimals = 0): [string, string, number] => {
-    const h = liveStat(pair[0], minute, endMinute, pair[0] * 13 + 1);
-    const a = liveStat(pair[1], minute, endMinute, pair[1] * 17 + 2);
-    const hv = finished ? pair[0] : h;
-    const av = finished ? pair[1] : a;
-    const share = hv + av > 0 ? (hv / (hv + av)) * 100 : 50;
-    return [hv.toFixed(decimals), av.toFixed(decimals), share];
-  };
-  // possession converges from 50/50 to the final split
-  const possT = Math.min(1, minute / 60);
-  const possH = finished ? r.stats.possession[0] : Math.round(50 + (r.stats.possession[0] - 50) * possT);
-
-  const rows: { label: string; h: string; a: string; share: number }[] = [
-    { label: "Possession", h: `${possH}%`, a: `${100 - possH}%`, share: possH },
-    ...([
-      ["Shots", r.stats.shots, 0],
-      ["On Target", r.stats.onTarget, 0],
-      ["xG", r.stats.xg, 2],
-      ["Corners", r.stats.corners, 0],
-      ["Fouls", r.stats.fouls, 0],
-    ] as [string, [number, number], number][]).map(([label, pair, d]) => {
-      const [h, a, share] = stat(pair, d);
-      return { label, h, a, share };
-    }),
-  ];
+    : minute === 45 ? "HALF TIME" : minute >= 90 ? `90+${minute - 90}'` : `${minute}'`;
 
   const skip = () => { setMinute(endMinute); setFinished(true); play("whistle"); };
 
@@ -236,7 +808,8 @@ export function LiveMatch({
       setFinished(false);
       setShootoutDone(false);
       setPaused(false);
-      play("whistle");
+      setIntroDone(false);
+      setTab("overview");
     } else {
       onDone();
     }
@@ -248,178 +821,143 @@ export function LiveMatch({
     // sides swap between legs: leg1 home == leg2 away
     const homeAgg = (finished ? r.homeGoals : hGoals) + l1.awayGoals;
     const awayAgg = (finished ? r.awayGoals : aGoals) + l1.homeGoals;
-    return `Aggregate ${homeAgg}-${awayAgg}`;
+    return `Aggregate ${homeAgg}–${awayAgg}`;
   })() : null;
+
+  const compLine = `${subtitle ?? v.compLabel} · ${title}${leg.label ? ` · ${leg.label}` : ""}`;
+  const pens = finished && r.penalties && pensRevealed ? r.penalties : null;
 
   return (
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[140] flex items-center justify-center overflow-y-auto p-3 sm:p-6"
-      style={{ background: "radial-gradient(120% 90% at 50% 20%, #081233, #020714 78%)" }}
+      className="fixed inset-0 z-[140] overflow-y-auto"
+      style={{ background: v.page }}
     >
-      <div className="w-full max-w-3xl">
-        {/* broadcast header */}
-        <div className="text-center">
-          <div className="cl-heading text-[0.6rem] tracking-[0.45em]" style={{ color: accent }}>
-            {subtitle ? `${subtitle} · ` : ""}{title}{leg.label ? ` · ${leg.label}` : ""} · LIVE
-          </div>
-        </div>
+      {/* stadium ambience layer */}
+      <div className="pointer-events-none fixed inset-0" aria-hidden>
+        <div className="absolute left-[12%] top-[-14%] h-[46vh] w-[42vw] rounded-full opacity-35"
+          style={{ background: `radial-gradient(circle, ${v.introGlow}, transparent 65%)`, filter: "blur(46px)" }} />
+        <div className="absolute right-[8%] top-[20%] h-[38vh] w-[36vw] rounded-full opacity-25"
+          style={{ background: `radial-gradient(circle, ${v.soft}, transparent 65%)`, filter: "blur(42px)" }} />
+        <CameraFlashes count={8} />
+        {/* crowd silhouette band */}
+        <div className="absolute inset-x-0 bottom-0 h-[22vh]"
+          style={{ background: "linear-gradient(to top, rgba(0,0,0,0.75), transparent)" }} />
+      </div>
 
-        {/* scoreboard */}
-        <div className="relative mt-3 overflow-hidden rounded-2xl border border-white/10 bg-black/45">
-          <div className="absolute inset-y-0 left-0 w-1.5" style={{ background: `linear-gradient(180deg, ${home.colors[0]}, ${home.colors[1]})` }} />
-          <div className="absolute inset-y-0 right-0 w-1.5" style={{ background: `linear-gradient(180deg, ${away.colors[0]}, ${away.colors[1]})` }} />
-          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 py-3 sm:px-6">
-            <div className="flex min-w-0 items-center gap-2.5">
-              <TeamBadge colors={home.colors} code={home.short} size={38} />
-              <div className="min-w-0">
-                <div className="truncate font-display text-sm font-extrabold text-white sm:text-base">{home.name}</div>
-                {home.season ? <div className="text-[0.6rem] text-white/45">{home.season}</div> : null}
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="flex items-center justify-center gap-2 font-display text-3xl font-extrabold sm:text-4xl">
-                <AnimatePresence mode="popLayout" initial={false}>
-                  <motion.span key={`h${hGoals}`} initial={{ y: -18, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 18, opacity: 0 }} className="text-white">{hGoals}</motion.span>
-                </AnimatePresence>
-                <span className="text-white/35">–</span>
-                <AnimatePresence mode="popLayout" initial={false}>
-                  <motion.span key={`a${aGoals}`} initial={{ y: -18, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 18, opacity: 0 }} className="text-white">{aGoals}</motion.span>
-                </AnimatePresence>
-              </div>
-              <div
-                className="mx-auto mt-1 w-fit rounded-md px-2 py-0.5 font-display text-[0.65rem] font-extrabold tracking-widest"
-                style={{ background: `${accent}22`, color: accent }}
-              >
-                {clockLabel}
-              </div>
-              {finished && r.penalties && pensRevealed && (
-                <div className="mt-1 text-[0.62rem] font-bold text-white/70">Penalties {r.penalties[0]}–{r.penalties[1]}</div>
-              )}
-              {aggNote && <div className="mt-1 text-[0.58rem] text-white/50">{aggNote}</div>}
-            </div>
-            <div className="flex min-w-0 items-center justify-end gap-2.5 text-right">
-              <div className="min-w-0">
-                <div className="truncate font-display text-sm font-extrabold text-white sm:text-base">{away.name}</div>
-                {away.season ? <div className="text-[0.6rem] text-white/45">{away.season}</div> : null}
-              </div>
-              <TeamBadge colors={away.colors} code={away.short} size={38} />
-            </div>
-          </div>
-          {/* match progress strip */}
-          <div className="h-1 w-full bg-white/6">
-            <div className="h-full transition-[width] duration-300" style={{ width: `${(Math.min(minute, endMinute) / endMinute) * 100}%`, background: accent }} />
-          </div>
-        </div>
+      <div className="relative mx-auto w-full max-w-3xl p-3 pb-10 sm:p-6">
+        <Scoreboard
+          home={home} away={away} hGoals={hGoals} aGoals={aGoals}
+          minute={minute} endMinute={endMinute} finished={finished}
+          clockLabel={introDone ? clockLabel : "PRE-MATCH"} v={v} compLine={compLine}
+          aggNote={aggNote} pens={pens} lastGoal={lastGoal}
+        />
 
         {/* controls */}
-        <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-          <button
-            className="btn btn-ghost px-4 py-1.5 text-[0.68rem]"
-            onClick={() => { setPaused((p) => !p); play("click"); }}
-            disabled={finished}
-          >
-            {paused ? "▶ Resume" : "⏸ Pause"}
-          </button>
-          {[1, 2, 4].map((s) => (
-            <button
-              key={s}
-              onClick={() => { setSpeed(s); play("click"); }}
-              disabled={finished}
-              className="rounded-full px-3 py-1.5 text-[0.68rem] font-extrabold uppercase tracking-wider transition-colors"
-              style={speed === s
-                ? { background: accent, color: "#06101f" }
-                : { background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.6)" }}
-            >
-              ×{s}
+        {!finished && introDone && (
+          <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+            <button className="btn btn-ghost px-4 py-1.5 text-[0.68rem]" onClick={() => { setPaused((p) => !p); play("click"); }}>
+              {paused ? "▶ Resume" : "⏸ Pause"}
             </button>
-          ))}
-          {!finished && (
+            {[1, 2, 4].map((s) => (
+              <button
+                key={s}
+                onClick={() => { setSpeed(s); play("click"); }}
+                className="rounded-full px-3 py-1.5 text-[0.68rem] font-extrabold uppercase tracking-wider transition-colors"
+                style={speed === s ? { background: v.accent, color: "#06101f" } : { background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.6)" }}
+              >
+                ×{s}
+              </button>
+            ))}
             <button className="btn btn-ghost px-4 py-1.5 text-[0.68rem]" onClick={skip}>⏭ Skip to Result</button>
-          )}
-        </div>
-
-        <div className="mt-3 grid gap-3 md:grid-cols-[1.25fr_1fr]">
-          {/* commentary feed */}
-          <div ref={feedRef} className="glass max-h-[42vh] overflow-y-auto rounded-2xl p-3 md:max-h-[46vh]">
-            <AnimatePresence initial={false}>
-              {finished && (
-                <motion.div
-                  initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }}
-                  className="mb-2 rounded-xl border px-3 py-2.5 text-center"
-                  style={{ borderColor: `${accent}66`, background: `${accent}14` }}
-                >
-                  <div className="font-display text-sm font-extrabold" style={{ color: accent }}>
-                    FULL TIME — {home.short} {r.homeGoals}-{r.awayGoals} {away.short}
-                    {r.penalties && pensRevealed ? ` (${r.penalties[0]}–${r.penalties[1]} pens)` : ""}
-                  </div>
-                  <div className="mt-0.5 text-[0.65rem] text-white/60">⭐ Player of the Match: {r.motm}</div>
-                </motion.div>
-              )}
-              {finished && r.penalties && pensRevealed && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mb-2 rounded-lg bg-white/5 px-3 py-2 text-[0.7rem] text-white/70">
-                  🥅 Level after extra time — decided on penalties, {r.penalties[0]}–{r.penalties[1]}.
-                </motion.div>
-              )}
-              {visible.map((l, i) => (
-                <motion.div
-                  key={`${l.minute}-${l.text}`}
-                  initial={{ opacity: 0, x: -14 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.25 }}
-                  className={`flex gap-2.5 border-b border-white/5 px-1 py-2 last:border-0 ${i === 0 ? "" : "opacity-80"}`}
-                  style={l.kind === "goal" ? { background: `linear-gradient(90deg, ${accent}18, transparent)`, borderRadius: 10 } : undefined}
-                >
-                  <span className="w-9 shrink-0 text-right font-display text-[0.7rem] font-extrabold" style={{ color: accent }}>
-                    {l.minute > 90 ? `90+${l.minute - 90}'` : `${l.minute}'`}
-                  </span>
-                  <span className="shrink-0 text-sm leading-5">{l.icon}</span>
-                  <span className="min-w-0">
-                    <span className={`block text-[0.74rem] leading-snug ${l.kind === "goal" ? "font-extrabold text-white" : l.kind === "system" ? "font-bold text-white/85" : "text-white/70"}`}>
-                      {l.text}
-                    </span>
-                    {l.sub && <span className="block text-[0.62rem] text-white/45">{l.sub}</span>}
-                  </span>
-                </motion.div>
-              ))}
-            </AnimatePresence>
-            {visible.length === 0 && (
-              <div className="px-1 py-3 text-center text-[0.7rem] text-white/50">The teams are in the tunnel…</div>
-            )}
           </div>
+        )}
 
-          {/* live statistics */}
-          <div className="glass rounded-2xl p-4">
-            <div className="mb-2 text-[0.58rem] font-bold uppercase tracking-[0.3em] text-white/40">Live Statistics</div>
-            <div className="space-y-2.5">
-              {rows.map((row) => (
-                <div key={row.label}>
-                  <div className="flex items-baseline justify-between text-[0.7rem]">
-                    <span className="font-display font-extrabold text-white">{row.h}</span>
-                    <span className="text-[0.58rem] uppercase tracking-widest text-white/45">{row.label}</span>
-                    <span className="font-display font-extrabold text-white">{row.a}</span>
-                  </div>
-                  <div className="mt-1 flex h-1.5 gap-0.5 overflow-hidden rounded-full bg-white/8">
-                    <div className="h-full rounded-l-full transition-[width] duration-500" style={{ width: `${row.share}%`, background: `linear-gradient(90deg, ${home.colors[0]}, ${accent})` }} />
-                    <div className="h-full flex-1 rounded-r-full" style={{ background: "rgba(255,255,255,0.14)" }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* full-time continue — hidden while a shootout still has to be watched */}
+        {/* FULL-TIME STUDIO — the story of the night */}
         <AnimatePresence>
           {finished && pensRevealed && (
-            <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="mt-4 flex justify-center">
-              <button className="btn btn-gold btn-pulse" onClick={continueFrom}>
-                {nextLeg ? "Continue to the 2nd Leg →" : "Continue →"}
-              </button>
-            </motion.div>
+            <div className="mt-3">
+              <FullTimeBoard
+                r={r} home={home} away={away} v={v} round={title} pens={pens} story={story}
+                onContinue={continueFrom}
+                continueLabel={nextLeg ? "Continue to the 2nd Leg →" : "Continue →"}
+                players={players}
+              />
+            </div>
           )}
         </AnimatePresence>
+
+        {/* tab bar */}
+        <div className="mt-3 flex gap-1.5 overflow-x-auto pb-0.5">
+          {TABS.map((tb) => (
+            <button
+              key={tb.id}
+              onClick={() => { setTab(tb.id); play("click"); }}
+              className="shrink-0 rounded-full px-3.5 py-1.5 text-[0.62rem] font-extrabold uppercase tracking-wider transition-colors"
+              style={tab === tb.id ? { background: v.soft, color: v.accent, boxShadow: `inset 0 0 0 1px ${v.accent}55` } : { background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.55)" }}
+            >
+              {tb.label}
+            </button>
+          ))}
+        </div>
+
+        {/* tab content */}
+        <div className="mt-3">
+          {tab === "overview" && (
+            <div className="grid gap-3 md:grid-cols-[1.3fr_1fr]">
+              <div className="space-y-3">
+                <MomentumChart r={r} minute={minute} endMinute={endMinute} home={home} away={away} v={v} />
+                <div ref={feedRef} className="glass max-h-[34vh] overflow-y-auto rounded-2xl p-3">
+                  <AnimatePresence initial={false}>
+                    {visible.slice(0, 6).map((l, i) => (
+                      <FeedCard key={`${l.minute}-${l.kind}-${l.text}`} line={l} latest={i === 0} v={v} />
+                    ))}
+                  </AnimatePresence>
+                  {visible.length === 0 && (
+                    <div className="px-1 py-3 text-center text-[0.7rem] text-white/50">The teams are in the tunnel…</div>
+                  )}
+                </div>
+              </div>
+              <div className="space-y-3">
+                <StarPerformer r={r} minute={minute} finished={finished} players={players} v={v} />
+                <StatsPanel r={r} minute={minute} endMinute={endMinute} finished={finished} home={home} away={away} v={v} condensed />
+              </div>
+            </div>
+          )}
+          {tab === "timeline" && (
+            <div className="glass max-h-[58vh] overflow-y-auto rounded-2xl p-3">
+              <AnimatePresence initial={false}>
+                {visible.map((l, i) => (
+                  <FeedCard key={`${l.minute}-${l.kind}-${l.text}`} line={l} latest={i === 0} v={v} />
+                ))}
+              </AnimatePresence>
+              {visible.length === 0 && (
+                <div className="px-1 py-3 text-center text-[0.7rem] text-white/50">The teams are in the tunnel…</div>
+              )}
+            </div>
+          )}
+          {tab === "stats" && (
+            <StatsPanel r={r} minute={minute} endMinute={endMinute} finished={finished} home={home} away={away} v={v} />
+          )}
+          {tab === "ratings" && (
+            <RatingsPanel r={r} minute={minute} finished={finished} players={players} home={home} away={away} />
+          )}
+          {tab === "facts" && (
+            <FactsPanel r={r} home={home} away={away} round={title} comp={subtitle ?? v.compLabel} stadium={stadium} legLabel={leg.label} finished={finished} />
+          )}
+        </div>
       </div>
+
+      {/* TV broadcast intro — plays before each leg, skippable */}
+      <AnimatePresence>
+        {!introDone && (
+          <MatchIntro
+            variant={variant} round={title} home={home} away={away}
+            stadium={stadium} legLabel={leg.label}
+            onDone={() => setIntroDone(true)}
+          />
+        )}
+      </AnimatePresence>
 
       {/* penalty shootout — plays out before the score is ever revealed */}
       <AnimatePresence>
@@ -428,7 +966,7 @@ export function LiveMatch({
             shootout={r.shootout}
             home={{ name: home.name, short: home.short, colors: home.colors }}
             away={{ name: away.name, short: away.short, colors: away.colors }}
-            accent={accent}
+            accent={v.accent}
             roundLabel={title}
             defaultLive
             onDone={() => setShootoutDone(true)}
@@ -477,11 +1015,11 @@ export function SimStyleChoice({
             <div className="flex items-center gap-2 font-display text-base font-extrabold text-white">
               <span className="grid h-8 w-8 place-items-center rounded-lg text-lg" style={{ background: `${accent}22` }}>📡</span>
               Live Match
-              <span className="chip ml-auto" style={{ background: `${accent}22`, color: accent }}>New</span>
+              <span className="chip ml-auto" style={{ background: `${accent}22`, color: accent }}>Broadcast</span>
             </div>
             <p className="mt-1.5 text-[0.72rem] leading-relaxed text-white/60">
-              Watch it unfold minute by minute — commentary, goals, cards and live statistics.
-              Pause, speed up ×2/×4, or skip to the result at any time.
+              The full TV experience — cinematic intro, commentary, momentum, live ratings
+              and statistics. Pause, speed up ×2/×4, or skip to the result at any time.
             </p>
           </button>
           <button

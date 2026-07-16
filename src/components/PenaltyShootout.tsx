@@ -44,6 +44,9 @@ export function PenaltyShootout({
     if (!started || shown >= total) return;
     const k = shootout.kicks[shown];
     const step = mode === "live" ? (k.suddenDeath ? 1500 : 1350) : 620;
+    // sudden-death tension — fires as the taker walks up, independent of the
+    // outcome, so it can never spoil the kick
+    if (k.suddenDeath && mode === "live") play("heartbeat");
     timer.current = setTimeout(() => {
       // sound only once the kick is on screen — never a spoiler.
       // goal → roar, saved → keeper denial, missed/post → sting.

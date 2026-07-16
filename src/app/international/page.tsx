@@ -20,6 +20,7 @@ import { Fireworks } from "@/components/fx/Fireworks";
 import { RainOverlay, CameraFlashes, Confetti, Sparks } from "@/components/fx/Atmosphere";
 import { EuroScene, CopaScene } from "@/components/fx/Scenes";
 import { LiveMatch, SimStyleChoice, type LiveLeg } from "@/components/LiveMatch";
+import { MatchdayLive, type MDFixtureView, type MiniRow } from "@/components/MatchdayLive";
 import { PageBoundary } from "@/components/PageBoundary";
 import { useT } from "@/lib/i18n";
 import { play } from "@/lib/sound";
@@ -132,7 +133,6 @@ function International() {
   const searchParams = useSearchParams();
   const intl = useGame((s) => s.intl);
   const startIntl = useGame((s) => s.startIntl);
-  const advanceGroups = useGame((s) => s.advanceIntlGroups);
   const advanceKO = useGame((s) => s.advanceIntlKO);
   const endIntl = useGame((s) => s.endIntl);
   const setPendingPool = useGame((s) => s.setPendingPool);
@@ -147,6 +147,10 @@ function International() {
   // Live Match mode — the big nights can be watched minute by minute
   const [simChoice, setSimChoice] = useState<string | null>(null);
   const [live, setLive] = useState<{ legs: LiveLeg[]; title: string; prevPhase: string } | null>(null);
+  // Matchday broadcast — group-stage nights play out as a live results show
+  const [matchdayShow, setMatchdayShow] = useState<{
+    fixtures: MDFixtureView[]; baseTable: MiniRow[]; title: string; prevPhase: string;
+  } | null>(null);
   const pendingFn = useRef<(() => void) | null>(null);
   // synchronous double-click guard — React state alone races (two fast clicks
   // both see idle state and would advance two rounds at once)
@@ -229,6 +233,51 @@ function International() {
   const onLiveDone = () => {
     const prevPhase = live?.prevPhase;
     setLive(null);
+    busyRef.current = false;
+    fireBurstIfQualified(prevPhase);
+  };
+
+  // Group-stage matchday: snapshot the user's group table, simulate the round,
+  // then reveal every fixture across the tournament as a live results show.
+  const startGroupMatchday = () => {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    play("whistle");
+    const state = useGame.getState();
+    const cur = state.intl;
+    if (!cur || cur.phase !== "groups") { busyRef.current = false; return; }
+    const prevPhase = cur.phase;
+    const md = cur.matchday;
+    const mdTeam = (key: string) => {
+      const team = cur.teams[key];
+      return {
+        id: key,
+        name: team.isUser ? team.name : `${team.name}${team.season ? ` ${team.season}` : ""}`,
+        short: team.short, colors: team.colors, isUser: team.isUser || key === cur.userKey,
+      };
+    };
+    const gi = cur.groups.findIndex((g) => g.includes(cur.userKey));
+    const baseTable: MiniRow[] = groupTable(cur, Math.max(0, gi)).map((row) => ({
+      ...mdTeam(row.teamId), points: row.points, gd: row.gf - row.ga,
+    }));
+    state.advanceIntlGroups();
+    const next = useGame.getState().intl;
+    if (!next) { busyRef.current = false; return; }
+    // user's group first so the show feels local, then the rest of the field
+    const played = next.fixtures.filter((f) => f.matchday === md && f.result);
+    const inUserGroup = (f: (typeof played)[number]) =>
+      gi >= 0 && (next.groups[gi].includes(f.home) || next.groups[gi].includes(f.away));
+    played.sort((a, b) => Number(inUserGroup(b)) - Number(inUserGroup(a)));
+    const fixtures: MDFixtureView[] = played.map((f) => ({
+      home: mdTeam(f.home), away: mdTeam(f.away), result: f.result!,
+    }));
+    if (!fixtures.length) { busyRef.current = false; fireBurstIfQualified(prevPhase); return; }
+    setMatchdayShow({ fixtures, baseTable, title: tr("intl.matchday", { n: md }), prevPhase });
+  };
+
+  const onMatchdayDone = () => {
+    const prevPhase = matchdayShow?.prevPhase;
+    setMatchdayShow(null);
     busyRef.current = false;
     fireBurstIfQualified(prevPhase);
   };
@@ -490,8 +539,8 @@ function International() {
             </div>
             <div>
               {intl.phase === "groups" && (
-                <button className="btn btn-gold btn-pulse" disabled={!!transition} onClick={() => runCinematic(roundTitle, t.title, advanceGroups)}>
-                  {transition ? tr("intl.playing") : tr("intl.play", { round: roundTitle })}
+                <button className="btn btn-gold btn-pulse" disabled={!!matchdayShow} onClick={startGroupMatchday}>
+                  {matchdayShow ? tr("intl.playing") : tr("intl.play", { round: roundTitle })}
                 </button>
               )}
               {["r16", "qf"].includes(intl.phase) && (
@@ -685,6 +734,20 @@ function International() {
           )}
         </AnimatePresence>
 
+        {/* MATCHDAY BROADCAST — the group-stage results show */}
+        <AnimatePresence>
+          {matchdayShow && (
+            <MatchdayLive
+              comp={intl.comp}
+              compName={t.title}
+              title={matchdayShow.title}
+              fixtures={matchdayShow.fixtures}
+              baseTable={matchdayShow.baseTable}
+              onDone={onMatchdayDone}
+            />
+          )}
+        </AnimatePresence>
+
         {/* LIVE MATCH — minute-by-minute broadcast of the user's match */}
         <AnimatePresence>
           {live && (
@@ -695,6 +758,7 @@ function International() {
               title={live.title}
               subtitle={t.title}
               accent={t.accent}
+              variant={intl.comp}
               onDone={onLiveDone}
             />
           )}

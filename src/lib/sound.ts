@@ -13,7 +13,9 @@ type SoundName =
   | "flip" | "click" | "select" | "goal" | "whistle"
   | "win" | "lose" | "trophy" | "hover" | "error"
   // layered additions
-  | "save" | "unlock" | "advance" | "draw" | "kick" | "menu";
+  | "save" | "unlock" | "advance" | "draw" | "kick" | "menu"
+  // broadcast cues (Live Match 2.0)
+  | "crossbar" | "sub" | "heartbeat" | "tick";
 
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
@@ -41,6 +43,7 @@ function bus(): AudioNode | null {
 
 export function setSoundEnabled(on: boolean) {
   enabled = on;
+  if (!on) stopAmbience(0.2);
 }
 
 export function isSoundEnabled() {
@@ -119,6 +122,62 @@ function crowd(start: number, dur: number, peak = 0.05, freq = 900) {
   src.start(t0);
 }
 
+/* ---------------------------------------------------------------- */
+/*  Crowd ambience — a continuous, very quiet stadium bed that fades  */
+/*  in for live broadcasts and out when they end. One instance only.  */
+/* ---------------------------------------------------------------- */
+
+let amb: { src: AudioBufferSourceNode; gain: GainNode; lfo: OscillatorNode } | null = null;
+
+export function startAmbience(level = 0.016) {
+  if (!enabled) return;
+  const a = ac();
+  const out = bus();
+  if (!a || !out || amb) return;
+  if (a.state === "suspended") a.resume();
+
+  // 2s of noise, looped, band-passed into a distant-crowd murmur
+  const buffer = a.createBuffer(1, a.sampleRate * 2, a.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+  const src = a.createBufferSource();
+  src.buffer = buffer;
+  src.loop = true;
+  const bp = a.createBiquadFilter();
+  bp.type = "bandpass";
+  bp.frequency.value = 620;
+  bp.Q.value = 0.55;
+  const gain = a.createGain();
+  gain.gain.setValueAtTime(0.0001, a.currentTime);
+  gain.gain.exponentialRampToValueAtTime(level, a.currentTime + 1.6);
+  // slow swell — the crowd breathes (LFO wobbles the gain gently)
+  const lfo = a.createOscillator();
+  lfo.frequency.value = 0.09;
+  const lfoDepth = a.createGain();
+  lfoDepth.gain.value = level * 0.45;
+  lfo.connect(lfoDepth).connect(gain.gain);
+  src.connect(bp).connect(gain).connect(out);
+  src.start();
+  lfo.start();
+  amb = { src, gain, lfo };
+}
+
+export function stopAmbience(fade = 1.2) {
+  const a = ctx;
+  if (!a || !amb) return;
+  const { src, gain, lfo } = amb;
+  amb = null;
+  try {
+    gain.gain.cancelScheduledValues(a.currentTime);
+    gain.gain.setValueAtTime(Math.max(0.0001, gain.gain.value), a.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + fade);
+    src.stop(a.currentTime + fade + 0.05);
+    lfo.stop(a.currentTime + fade + 0.05);
+  } catch {
+    try { src.stop(); lfo.stop(); } catch { /* already stopped */ }
+  }
+}
+
 export function play(name: SoundName) {
   if (!enabled) return;
   const a = ac();
@@ -178,5 +237,19 @@ export function play(name: SoundName) {
       [523, 659, 784, 1046, 1318].forEach((f, i) => tone(f, i * 0.1, 0.5, "triangle", 0.06));
       break;
     case "error": tone(196, 0, 0.2, "sawtooth", 0.05); break;
+    case "crossbar":
+      // metallic ping — two detuned high partials with a hard noise hit
+      noise(0, 0.05, 0.06); tone(1244, 0, 0.4, "triangle", 0.05); tone(1867, 0.005, 0.32, "sine", 0.03);
+      crowd(0.05, 0.5, 0.04, 700);
+      break;
+    case "sub":
+      // board goes up — soft descending then ascending chirp
+      sweep(760, 420, 0, 0.12, "sine", 0.035); sweep(420, 760, 0.14, 0.12, "sine", 0.035);
+      break;
+    case "heartbeat":
+      // penalty tension — two low thumps
+      tone(72, 0, 0.12, "sine", 0.09); tone(64, 0.22, 0.16, "sine", 0.07);
+      break;
+    case "tick": tone(1180, 0, 0.035, "sine", 0.025); break;
   }
 }

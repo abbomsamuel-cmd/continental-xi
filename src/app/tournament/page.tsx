@@ -16,9 +16,10 @@ import { RoundTransition } from "@/components/fx/RoundTransition";
 import { Fireworks } from "@/components/fx/Fireworks";
 import { CameraFlashes, Sparks, RainOverlay } from "@/components/fx/Atmosphere";
 import { LiveMatch, SimStyleChoice, type LiveLeg } from "@/components/LiveMatch";
+import { MatchdayLive, type MDFixtureView, type MiniRow } from "@/components/MatchdayLive";
 import { PageBoundary } from "@/components/PageBoundary";
 import { USER_TEAM_ID, teamLabel } from "@/lib/engine/tournament";
-import type { Fixture, KOTie, MatchResult } from "@/lib/types";
+import type { Fixture, KOTie, MatchResult, SimTeam } from "@/lib/types";
 import { useT } from "@/lib/i18n";
 import { play } from "@/lib/sound";
 
@@ -35,6 +36,11 @@ const PHASE_BURST: Record<string, string> = {
   sf: "Through to the Semi-finals",
   final: "You're in the Final",
 };
+
+/** Broadcast-ready team ref for the matchday results show. */
+function mdRef(t: SimTeam) {
+  return { id: t.id, name: t.isUser ? t.name : teamLabel(t), short: t.short, colors: t.colors, isUser: t.isUser };
+}
 
 /** Skeleton shown while the persisted save rehydrates and in the static HTML —
  *  never a blank page on refresh, shared links or incognito. */
@@ -63,7 +69,6 @@ function TournamentInner() {
   const router = useRouter();
   const t = useT();
   const tournament = useGame((s) => s.tournament);
-  const advanceLeague = useGame((s) => s.advanceLeague);
   const advanceKnockout = useGame((s) => s.advanceKnockout);
   const getTable = useGame((s) => s.getTable);
   const recordResult = useGame((s) => s.recordResult);
@@ -78,6 +83,10 @@ function TournamentInner() {
   // Live Match mode — semi-finals and the final can be watched minute by minute
   const [simChoice, setSimChoice] = useState<string | null>(null);
   const [live, setLive] = useState<{ legs: LiveLeg[]; title: string; prevPhase: string } | null>(null);
+  // Matchday broadcast — league nights play out as a live results show
+  const [matchdayShow, setMatchdayShow] = useState<{
+    fixtures: MDFixtureView[]; baseTable: MiniRow[]; title: string; prevPhase: string;
+  } | null>(null);
   const pendingFn = useRef<(() => void) | null>(null);
   // Synchronous double-click guard: React state alone lets two fast clicks both
   // see idle state and advance TWO rounds at once — you'd watch one opponent
@@ -123,6 +132,40 @@ function TournamentInner() {
     pendingFn.current?.();
     pendingFn.current = null;
     setTransition(null);
+    busyRef.current = false;
+    fireBurstIfQualified(prevPhase);
+  };
+
+  // Matchday broadcast: snapshot the standings, simulate the round, then let
+  // the results show reveal every fixture live — scores, goals, table and all.
+  const startMatchdayShow = () => {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    play("whistle");
+    const state = useGame.getState();
+    const prevPhase = state.tournament?.phase ?? "league";
+    const md = state.tournament?.matchday ?? 1;
+    // standings BEFORE the round — points animate in as results land
+    const baseTable: MiniRow[] = state.getTable().map((row) => {
+      const team = state.tournament!.teams[row.teamId];
+      return { ...mdRef(team), points: row.points, gd: row.gf - row.ga };
+    });
+    const played = state.advanceLeague();
+    const teams = useGame.getState().tournament?.teams;
+    if (!played.length || !teams) {
+      busyRef.current = false;
+      fireBurstIfQualified(prevPhase);
+      return;
+    }
+    const fixtures: MDFixtureView[] = played
+      .filter((f) => f.result)
+      .map((f) => ({ home: mdRef(teams[f.home]), away: mdRef(teams[f.away]), result: f.result! }));
+    setMatchdayShow({ fixtures, baseTable, title: `Matchday ${md}`, prevPhase });
+  };
+
+  const onMatchdayDone = () => {
+    const prevPhase = matchdayShow?.prevPhase;
+    setMatchdayShow(null);
     busyRef.current = false;
     fireBurstIfQualified(prevPhase);
   };
@@ -229,9 +272,9 @@ function TournamentInner() {
           </div>
           <div className="flex gap-2">
             {isLeague && (
-              <button className="btn btn-gold btn-pulse" disabled={!!transition || tournament.matchday > 8}
-                onClick={() => runCinematic(`Matchday ${tournament.matchday}`, advanceLeague)}>
-                {transition ? "Playing…" : tournament.matchday > 8 ? "Phase Done" : `Play Matchday ${tournament.matchday}`}
+              <button className="btn btn-gold btn-pulse" disabled={!!matchdayShow || tournament.matchday > 8}
+                onClick={startMatchdayShow}>
+                {matchdayShow ? "Playing…" : tournament.matchday > 8 ? "Phase Done" : `Play Matchday ${tournament.matchday}`}
               </button>
             )}
             {!isLeague && !isDone && !["final", "sf"].includes(tournament.phase) && (
@@ -504,6 +547,20 @@ function TournamentInner() {
         )}
       </AnimatePresence>
 
+      {/* MATCHDAY BROADCAST — the league night results show */}
+      <AnimatePresence>
+        {matchdayShow && (
+          <MatchdayLive
+            comp="cl"
+            compName="Champions Draft"
+            title={matchdayShow.title}
+            fixtures={matchdayShow.fixtures}
+            baseTable={matchdayShow.baseTable}
+            onDone={onMatchdayDone}
+          />
+        )}
+      </AnimatePresence>
+
       {/* LIVE MATCH — minute-by-minute broadcast of the user's tie */}
       <AnimatePresence>
         {live && (
@@ -513,6 +570,7 @@ function TournamentInner() {
             awayOf={(r) => tournament.teams[r.away]}
             title={live.title}
             subtitle="Champions Draft"
+            variant="cl"
             onDone={onLiveDone}
           />
         )}

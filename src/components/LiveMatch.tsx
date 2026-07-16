@@ -11,7 +11,8 @@ import {
   refereeName, attendance, type FeedLine, type FeedKind,
 } from "@/lib/broadcast";
 import { useGame } from "@/lib/store";
-import { play, startAmbience, stopAmbience } from "@/lib/sound";
+import { useFxLevel } from "@/lib/fx";
+import { play, speak, isVoiceEnabled, setVoiceEnabled, stopSpeaking, startAmbience, stopAmbience } from "@/lib/sound";
 
 /**
  * Live Match 2.0 — a broadcast, not a dashboard. Replays an already-simulated
@@ -124,6 +125,9 @@ function MatchIntro({
   const v = VARIANTS[variant];
   const [step, setStep] = useState(0);
   const doneRef = useRef(false);
+  // mobile performance mode halves the intro — still cinematic, never sluggish
+  const lvl = useFxLevel();
+  const m = lvl === "full" ? 1 : 0.5;
 
   const finish = () => {
     if (doneRef.current) return;
@@ -135,10 +139,10 @@ function MatchIntro({
   useEffect(() => {
     play("advance");
     const timers = [
-      setTimeout(() => setStep(1), 1150),
-      setTimeout(() => setStep(2), 2250),
-      setTimeout(() => setStep(3), 3600),
-      setTimeout(finish, 5000),
+      setTimeout(() => setStep(1), 1150 * m),
+      setTimeout(() => setStep(2), 2250 * m),
+      setTimeout(() => setStep(3), 3600 * m),
+      setTimeout(finish, 5000 * m),
     ];
     return () => timers.forEach(clearTimeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -152,7 +156,7 @@ function MatchIntro({
     >
       {/* anthem-night glow + flashes */}
       <div className="pointer-events-none absolute inset-0" aria-hidden>
-        <div className="absolute left-1/2 top-[-20%] h-[70vh] w-[80vw] -translate-x-1/2 rounded-full opacity-60"
+        <div className="fx-glow absolute left-1/2 top-[-20%] h-[70vh] w-[80vw] -translate-x-1/2 rounded-full opacity-60"
           style={{ background: `radial-gradient(circle, ${v.introGlow}, transparent 65%)`, filter: "blur(40px)" }} />
         <CameraFlashes count={14} />
       </div>
@@ -736,6 +740,7 @@ export function LiveMatch({
   }, [r]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [introDone, setIntroDone] = useState(false);
+  const [voiceOn, setVoiceOn] = useState(() => isVoiceEnabled());
   const [minute, setMinute] = useState(0);
   const [paused, setPaused] = useState(false);
   const [speed, setSpeed] = useState(1);
@@ -777,9 +782,24 @@ export function LiveMatch({
     if (!here.length) return;
     for (const kind of SOUND_PRIORITY) {
       const line = here.find((l) => l.kind === kind);
-      if (line) { const cue = EVENT_SOUND[kind]; if (cue) play(cue); break; }
+      if (line) {
+        const cue = EVENT_SOUND[kind];
+        if (cue) play(cue);
+        // the commentary voice calls only the biggest moments
+        if (voiceOn && (kind === "goal" || kind === "red" || kind === "crossbar")) speak(line.text);
+        break;
+      }
     }
-  }, [minute, feed, introDone, finished]);
+  }, [minute, feed, introDone, finished, voiceOn]);
+
+  // full-time call + silence on unmount
+  useEffect(() => {
+    if (finished && voiceOn) {
+      speak(`Full time. ${home.name} ${r.homeGoals}, ${away.name} ${r.awayGoals}.`);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [finished]);
+  useEffect(() => () => stopSpeaking(), []);
 
   // crowd bed: rises after the intro, falls at the whistle
   useEffect(() => {
@@ -835,9 +855,9 @@ export function LiveMatch({
     >
       {/* stadium ambience layer */}
       <div className="pointer-events-none fixed inset-0" aria-hidden>
-        <div className="absolute left-[12%] top-[-14%] h-[46vh] w-[42vw] rounded-full opacity-35"
+        <div className="fx-glow absolute left-[12%] top-[-14%] h-[46vh] w-[42vw] rounded-full opacity-35"
           style={{ background: `radial-gradient(circle, ${v.introGlow}, transparent 65%)`, filter: "blur(46px)" }} />
-        <div className="absolute right-[8%] top-[20%] h-[38vh] w-[36vw] rounded-full opacity-25"
+        <div className="fx-glow absolute right-[8%] top-[20%] h-[38vh] w-[36vw] rounded-full opacity-25"
           style={{ background: `radial-gradient(circle, ${v.soft}, transparent 65%)`, filter: "blur(42px)" }} />
         <CameraFlashes count={8} />
         {/* crowd silhouette band */}
@@ -870,6 +890,14 @@ export function LiveMatch({
               </button>
             ))}
             <button className="btn btn-ghost px-4 py-1.5 text-[0.68rem]" onClick={skip}>⏭ Skip to Result</button>
+            <button
+              className="rounded-full px-3 py-1.5 text-[0.68rem] font-extrabold uppercase tracking-wider transition-colors"
+              style={voiceOn ? { background: v.soft, color: v.accent, boxShadow: `inset 0 0 0 1px ${v.accent}55` } : { background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.6)" }}
+              onClick={() => { const next = !voiceOn; setVoiceOn(next); setVoiceEnabled(next); play("click"); }}
+              title="AI commentary voice"
+            >
+              🎙️ {voiceOn ? "Voice on" : "Voice off"}
+            </button>
           </div>
         )}
 

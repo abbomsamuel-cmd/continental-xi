@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { TeamBadge } from "@/components/TeamBadge";
 import { CameraFlashes, Sparks } from "@/components/fx/Atmosphere";
+import { useFxLevel } from "@/lib/fx";
 import { play } from "@/lib/sound";
 
 /**
@@ -59,20 +60,37 @@ export function RoundTransition({
   const isFinal = stage === "final";
   const isSf = stage === "sf";
   const [count, setCount] = useState<number | null>(null);
+  const doneRef = useRef(false);
+  // mobile performance mode keeps stage intros short (200–400ms feel per beat)
+  const lvl = useFxLevel();
+  const dur = lvl === "full" ? duration : Math.max(1100, Math.round(duration * 0.5));
 
   useEffect(() => {
     if (!show) return;
+    doneRef.current = false;
+    const finish = () => {
+      if (doneRef.current) return;
+      doneRef.current = true;
+      onDone();
+    };
     play("advance");
-    const timers: ReturnType<typeof setTimeout>[] = [setTimeout(onDone, duration)];
+    const timers: ReturnType<typeof setTimeout>[] = [setTimeout(finish, dur)];
     // the Final counts itself in: 3 · 2 · 1 · whistle
-    if (isFinal && duration >= 3200) {
+    if (isFinal && dur >= 3200) {
       [3, 2, 1].forEach((n, i) => {
-        timers.push(setTimeout(() => { setCount(n); play("tick"); }, duration - 1700 + i * 450));
+        timers.push(setTimeout(() => { setCount(n); play("tick"); }, dur - 1700 + i * 450));
       });
-      timers.push(setTimeout(() => { setCount(null); play("whistle"); }, duration - 300));
+      timers.push(setTimeout(() => { setCount(null); play("whistle"); }, dur - 300));
     }
     return () => { timers.forEach(clearTimeout); setCount(null); };
-  }, [show, duration, onDone, isFinal]);
+  }, [show, dur, onDone, isFinal]);
+
+  const skipNow = () => {
+    if (doneRef.current) return;
+    doneRef.current = true;
+    play("click");
+    onDone();
+  };
 
   const bars = useMemo(() => Array.from({ length: 7 }, (_, i) => i), []);
   const flashCount = isFinal ? 22 : isSf ? 14 : 8;
@@ -107,7 +125,7 @@ export function RoundTransition({
           {/* stadium glow + fog */}
           <motion.div
             aria-hidden
-            className="absolute left-1/2 top-[-16%] h-[60vh] w-[85vw] -translate-x-1/2 rounded-full"
+            className="fx-glow absolute left-1/2 top-[-16%] h-[60vh] w-[85vw] -translate-x-1/2 rounded-full"
             style={{ background: `radial-gradient(circle, ${pal.glow}, transparent 65%)`, filter: "blur(46px)" }}
             initial={{ opacity: 0 }} animate={{ opacity: isFinal ? 0.85 : 0.55 }} transition={{ duration: 0.8 }}
           />
@@ -236,6 +254,16 @@ export function RoundTransition({
               </motion.div>
             )}
           </div>
+
+          {/* anything longer than 2s can always be skipped */}
+          {dur > 2000 && (
+            <button
+              onClick={skipNow}
+              className="absolute bottom-5 right-5 rounded-full border border-white/20 bg-black/30 px-4 py-1.5 text-[0.62rem] font-bold uppercase tracking-widest text-white/70 transition-colors hover:text-white"
+            >
+              Skip ⏭
+            </button>
+          )}
         </motion.div>
       )}
     </AnimatePresence>

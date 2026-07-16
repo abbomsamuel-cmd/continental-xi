@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { usePathname } from "next/navigation";
+import { useFxLevel } from "@/lib/fx";
 
 /**
  * Per-screen background ambience: a handful of slowly-drifting light motes and
@@ -33,13 +34,15 @@ const THEMES: Record<string, Theme> = {
 
 export function Ambience() {
   const pathname = usePathname();
+  const lvl = useFxLevel();
   const seg = (pathname ?? "/").split("/").filter(Boolean)[0] ?? "";
   const theme = THEMES[seg] ?? THEMES[""];
+  const moteCount = lvl === "off" ? 0 : lvl === "reduced" ? 6 : 16;
 
   // one calm field of motes; re-seeded per route so screens feel distinct
   const motes = useMemo(() => {
     const seed = seg.length + 1;
-    return Array.from({ length: 16 }, (_, i) => {
+    return Array.from({ length: moteCount }, (_, i) => {
       const k = (i + 1) * seed;
       return {
         id: i,
@@ -53,19 +56,25 @@ export function Ambience() {
         maxOpacity: 0.18 + frac(k * 7.3) * 0.32,
       };
     });
-  }, [seg, theme.motes]);
+  }, [seg, theme.motes, moteCount]);
 
+  if (lvl === "off") return null;
   return (
     <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden" aria-hidden>
-      {/* two soft spotlights that breathe across the frame */}
-      <div
-        className="aurora absolute -top-[12%] left-[8%] h-[52vh] w-[48vw] rounded-full"
-        style={{ background: `radial-gradient(circle, ${theme.spotA}, transparent 68%)` }}
-      />
-      <div
-        className="aurora absolute bottom-[-10%] right-[6%] h-[48vh] w-[44vw] rounded-full"
-        style={{ background: `radial-gradient(circle, ${theme.spotB}, transparent 68%)`, animationDelay: "-8s" }}
-      />
+      {/* two soft spotlights that breathe across the frame — full mode only
+          (a full-screen blur is the single most expensive layer on phones) */}
+      {lvl === "full" && (
+        <>
+          <div
+            className="aurora absolute -top-[12%] left-[8%] h-[52vh] w-[48vw] rounded-full"
+            style={{ background: `radial-gradient(circle, ${theme.spotA}, transparent 68%)` }}
+          />
+          <div
+            className="aurora absolute bottom-[-10%] right-[6%] h-[48vh] w-[44vw] rounded-full"
+            style={{ background: `radial-gradient(circle, ${theme.spotB}, transparent 68%)`, animationDelay: "-8s" }}
+          />
+        </>
+      )}
       {/* drifting light motes */}
       {motes.map((m) => (
         <span

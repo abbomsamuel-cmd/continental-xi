@@ -43,7 +43,54 @@ function bus(): AudioNode | null {
 
 export function setSoundEnabled(on: boolean) {
   enabled = on;
-  if (!on) stopAmbience(0.2);
+  if (!on) {
+    stopAmbience(0.2);
+    stopSpeaking();
+  }
+}
+
+/* ---------------------------------------------------------------- */
+/*  AI commentary voice — browser speech synthesis for the big beats */
+/*  (goals, red cards, full time). Never overlaps itself and never   */
+/*  fires while sound is muted.                                      */
+/* ---------------------------------------------------------------- */
+
+let voiceEnabled = false;
+
+export function setVoiceEnabled(on: boolean) {
+  voiceEnabled = on;
+  try { localStorage.setItem("cxi-voice", on ? "1" : "0"); } catch { /* private mode */ }
+  if (!on) stopSpeaking();
+}
+
+export function isVoiceEnabled(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const stored = localStorage.getItem("cxi-voice");
+    if (stored !== null) voiceEnabled = stored === "1";
+  } catch { /* private mode */ }
+  return voiceEnabled && "speechSynthesis" in window;
+}
+
+export function stopSpeaking() {
+  if (typeof window !== "undefined" && "speechSynthesis" in window) {
+    window.speechSynthesis.cancel();
+  }
+}
+
+/** Speak one commentary line with an energetic broadcast delivery. */
+export function speak(text: string) {
+  if (!enabled || !voiceEnabled) return;
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+  const synth = window.speechSynthesis;
+  synth.cancel(); // a new moment always interrupts the last — no overlap
+  const u = new SpeechSynthesisUtterance(text.replace(/[⚽🟥🟨🏁📺🧤💥]/g, ""));
+  u.rate = 1.12;
+  u.pitch = 1.06;
+  u.volume = 0.9;
+  const en = synth.getVoices().find((v) => v.lang.startsWith("en"));
+  if (en) u.voice = en;
+  synth.speak(u);
 }
 
 export function isSoundEnabled() {

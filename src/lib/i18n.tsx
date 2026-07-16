@@ -546,6 +546,18 @@ const DICT: Record<string, Entry> = {
   "stats.fav.player": { en: "Most-drafted player", es: "Jugador más elegido" },
   "stats.fav.goals": { en: "Total tournament goals", es: "Goles totales en torneos" },
   "stats.noDrafts": { en: "No drafts yet. Go build an XI!", es: "Aún sin sorteos. ¡Ve a construir un once!" },
+  /* ---- lobby featured CTAs + motion setting ---- */
+  "intl.viewEuro": { en: "View EURO", es: "Ver Eurocopa" },
+  "intl.viewCopa": { en: "View Copa América", es: "Ver Copa América" },
+  "settings.motion": { en: "Motion & effects", es: "Movimiento y efectos" },
+  "settings.motionHint": {
+    en: "Auto trims heavy effects on phones. Reduced keeps it light everywhere; Off freezes all motion.",
+    es: "Auto reduce los efectos pesados en móviles. Reducido lo mantiene ligero siempre; Sin efectos congela todo el movimiento.",
+  },
+  "settings.motion.auto": { en: "Auto", es: "Auto" },
+  "settings.motion.full": { en: "Full", es: "Completo" },
+  "settings.motion.reduced": { en: "Reduced", es: "Reducido" },
+  "settings.motion.off": { en: "Off", es: "Sin efectos" },
   /* ---- hidden emblems (easter eggs) ---- */
   "egg.discovered": { en: "Emblem Discovered", es: "Emblema Descubierto" },
   "egg.title": { en: "Hidden Emblems", es: "Emblemas Ocultos" },

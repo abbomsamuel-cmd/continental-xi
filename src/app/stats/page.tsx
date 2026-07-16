@@ -11,6 +11,7 @@ import type { DraftRecord } from "@/lib/types";
 import { useT } from "@/lib/i18n";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { ReportBug } from "@/components/ReportBug";
+import { getFxSetting, setFxSetting, type FxSetting } from "@/lib/fx";
 import { play } from "@/lib/sound";
 
 const TIER_COLORS: Record<string, string> = {
@@ -68,6 +69,7 @@ function StatsInner() {
   const [tab, setTab] = useState<Tab>(initialTab);
   const [editing, setEditing] = useState(false);
   const [nameInput, setNameInput] = useState(profile.name);
+  const [motionPref, setMotionPref] = useState<FxSetting>(() => getFxSetting());
 
   const agg = useMemo(() => aggregate(profile.drafts), [profile.drafts]);
   const unlocked = new Set(profile.achievements);
@@ -318,6 +320,26 @@ function StatsInner() {
               >
                 {soundOn ? `🔊 ${t("settings.soundOn")}` : `🔇 ${t("settings.soundOff")}`}
               </button>
+            </div>
+          </div>
+
+          <div className="glass rounded-2xl p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="max-w-sm">
+                <h3 className="font-display text-base font-bold">🎞️ {t("settings.motion")}</h3>
+                <p className="mt-0.5 text-xs text-muted">{t("settings.motionHint")}</p>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {(["auto", "full", "reduced", "off"] as FxSetting[]).map((opt) => (
+                  <button
+                    key={opt}
+                    onClick={() => { setMotionPref(opt); setFxSetting(opt); play("click"); }}
+                    className={`chip press ${motionPref === opt ? "bg-gold/20 text-gold ring-1 ring-gold/40" : "bg-white/6 text-muted"}`}
+                  >
+                    {t(`settings.motion.${opt}`)}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 

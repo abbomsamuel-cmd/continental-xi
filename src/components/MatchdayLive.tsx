@@ -340,7 +340,7 @@ export function MatchdayLive({
     >
       {/* stadium night backdrop */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden>
-        <div className="absolute left-1/2 top-[-18%] h-[60vh] w-[85vw] -translate-x-1/2 rounded-full opacity-50"
+        <div className="fx-glow absolute left-1/2 top-[-18%] h-[60vh] w-[85vw] -translate-x-1/2 rounded-full opacity-50"
           style={{ background: `radial-gradient(circle, ${pal.glow}, transparent 65%)`, filter: "blur(46px)" }} />
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 select-none font-display text-[38vw] font-extrabold leading-none opacity-[0.04]"
           style={{ color: pal.accent }}>

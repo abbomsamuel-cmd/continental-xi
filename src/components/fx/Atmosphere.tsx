@@ -2,6 +2,12 @@
 
 import { useMemo } from "react";
 import { motion } from "framer-motion";
+import { useFxLevel } from "@/lib/fx";
+
+/** Scale a particle count by the effective FX level (0 hides the layer). */
+function scaled(full: number, lvl: "full" | "reduced" | "off"): number {
+  return lvl === "off" ? 0 : lvl === "reduced" ? Math.ceil(full / 3) : full;
+}
 
 function frac(n: number): number {
   const x = Math.sin(n) * 43758.5453;
@@ -12,9 +18,11 @@ function frac(n: number): number {
 
 /** Falling rain streaks — the elimination-night weather. Transform-only. */
 export function RainOverlay({ drops = 42, opacity = 0.5 }: { drops?: number; opacity?: number }) {
+  const lvl = useFxLevel();
+  const n = scaled(drops, lvl);
   const rain = useMemo(
     () =>
-      Array.from({ length: drops }, (_, i) => ({
+      Array.from({ length: n }, (_, i) => ({
         id: i,
         x: frac(i * 1.37) * 100,
         len: 34 + frac(i * 2.9) * 50,
@@ -22,8 +30,9 @@ export function RainOverlay({ drops = 42, opacity = 0.5 }: { drops?: number; opa
         delay: frac(i * 6.3) * 1.4,
         alpha: 0.12 + frac(i * 8.7) * 0.25,
       })),
-    [drops],
+    [n],
   );
+  if (n === 0) return null;
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden" style={{ opacity }} aria-hidden>
       {rain.map((r) => (
@@ -44,9 +53,11 @@ export function RainOverlay({ drops = 42, opacity = 0.5 }: { drops?: number; opa
 
 /** Camera flashes popping across the stands. */
 export function CameraFlashes({ count = 14 }: { count?: number }) {
+  const lvl = useFxLevel();
+  const n = scaled(count, lvl);
   const flashes = useMemo(
     () =>
-      Array.from({ length: count }, (_, i) => ({
+      Array.from({ length: n }, (_, i) => ({
         id: i,
         x: frac(i * 3.1) * 100,
         y: 35 + frac(i * 5.7) * 60,
@@ -54,8 +65,9 @@ export function CameraFlashes({ count = 14 }: { count?: number }) {
         delay: frac(i * 9.1) * 4,
         size: 3 + frac(i * 11.3) * 5,
       })),
-    [count],
+    [n],
   );
+  if (n === 0) return null;
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
       {flashes.map((f) => (
@@ -85,9 +97,11 @@ export function Confetti({
   count?: number;
   colors?: string[];
 }) {
+  const lvl = useFxLevel();
+  const n = scaled(count, lvl);
   const pieces = useMemo(
     () =>
-      Array.from({ length: count }, (_, i) => ({
+      Array.from({ length: n }, (_, i) => ({
         id: i,
         x: frac(i * 1.13) * 100,
         delay: frac(i * 2.7) * 2.5,
@@ -97,8 +111,9 @@ export function Confetti({
         rot: frac(i * 7.3) * 360,
         sway: (frac(i * 9.9) - 0.5) * 80,
       })),
-    [count, colors],
+    [n, colors],
   );
+  if (n === 0) return null;
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
       {pieces.map((p) => (
@@ -117,9 +132,11 @@ export function Confetti({
 
 /** Rising sparks / embers for hot celebration scenes. */
 export function Sparks({ count = 22, color = "#ffd76b" }: { count?: number; color?: string }) {
+  const lvl = useFxLevel();
+  const n = scaled(count, lvl);
   const sparks = useMemo(
     () =>
-      Array.from({ length: count }, (_, i) => ({
+      Array.from({ length: n }, (_, i) => ({
         id: i,
         x: frac(i * 2.3) * 100,
         size: 2 + frac(i * 4.9) * 3,
@@ -127,8 +144,9 @@ export function Sparks({ count = 22, color = "#ffd76b" }: { count?: number; colo
         delay: frac(i * 8.3) * 5,
         drift: (frac(i * 10.7) - 0.5) * 60,
       })),
-    [count],
+    [n],
   );
+  if (n === 0) return null;
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
       {sparks.map((s) => (

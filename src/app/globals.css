@@ -671,6 +671,65 @@ button:focus-visible {
   }
 }
 
+/* ---------- FX levels (mobile performance mode / manual Motion setting) ----
+   <html data-fx="reduced"> strips the GPU-heavy layers while keeping the
+   premium identity: softer blurs, no shimmer sweeps, no infinite pulses.
+   <html data-fx="off"> additionally freezes all animation (gameplay intact). */
+[data-fx="reduced"] .aurora {
+  animation: none;
+  filter: blur(24px);
+}
+[data-fx="reduced"] .fx-glow {
+  filter: none !important;
+  opacity: 0.5;
+}
+[data-fx="reduced"] .glass,
+[data-fx="reduced"] .glass-strong,
+[data-fx="reduced"] .nav-menu {
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+[data-fx="reduced"] .shine::before,
+[data-fx="reduced"] .btn::after,
+[data-fx="reduced"] .shimmer::after,
+[data-fx="reduced"] .cl-streaks::after,
+[data-fx="reduced"] .scanlines {
+  display: none;
+}
+[data-fx="reduced"] .btn-pulse,
+[data-fx="reduced"] .text-shine,
+[data-fx="reduced"] .float-y,
+[data-fx="reduced"] .slow-pan,
+[data-fx="reduced"] .flag-wave {
+  animation: none;
+}
+[data-fx="reduced"] .page-enter {
+  animation-duration: 0.18s;
+}
+[data-fx="off"] *,
+[data-fx="off"] *::before,
+[data-fx="off"] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+}
+[data-fx="off"] .fx-glow {
+  filter: none !important;
+  opacity: 0.4;
+}
+[data-fx="off"] .glass,
+[data-fx="off"] .glass-strong,
+[data-fx="off"] .nav-menu {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+[data-fx="off"] .shine::before,
+[data-fx="off"] .btn::after,
+[data-fx="off"] .shimmer::after,
+[data-fx="off"] .scanlines {
+  display: none;
+}
+
 /* ---------- Mobile / touch ---------- */
 html {
   -webkit-text-size-adjust: 100%;

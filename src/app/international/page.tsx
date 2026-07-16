@@ -24,6 +24,7 @@ import { LiveMatch, SimStyleChoice, type LiveLeg } from "@/components/LiveMatch"
 import { MatchdayLive, type MDFixtureView, type MiniRow } from "@/components/MatchdayLive";
 import { PageBoundary } from "@/components/PageBoundary";
 import { useT } from "@/lib/i18n";
+import { useFxLevel } from "@/lib/fx";
 import { play } from "@/lib/sound";
 
 /* ================================================================== */
@@ -211,13 +212,15 @@ function International() {
     if (ceremonyVisible) play(wonFinal ? "trophy" : "lose");
   }, [ceremonyVisible, wonFinal]);
 
-  // deep link from the home screen mode cards: /international?comp=euro —
-  // derived, not synced via effect, so the URL stays the source of truth
+  // deep link from the home screen mode cards: /international?comp=copa —
+  // the linked competition is FEATURED in the lobby (highlight + primary CTA)
+  // rather than auto-jumping screens, so nothing visibly rebuilds after load
   const paramComp = ((): IntlComp | null => {
     const c = searchParams.get("comp");
     return c === "euro" || c === "copa" ? c : null;
   })();
-  const selecting = selectingState ?? (!intl ? paramComp : null);
+  const selecting = selectingState;
+  const fx = useFxLevel();
 
   const runCinematic = (title: string, subtitle: string, fn: () => void) => {
     if (busyRef.current) return;
@@ -346,22 +349,23 @@ function International() {
           <p className="mx-auto mt-3 max-w-xl text-muted">{tr("intl.emptyBody")}</p>
           <div className="mt-5 flex flex-wrap justify-center gap-2.5">
             <button
-              className="btn btn-euro text-[0.72rem]"
+              className={`btn ${paramComp === "copa" ? "btn-ghost" : "btn-euro"} text-[0.72rem]`}
               onClick={() => { setSelecting("euro"); play("select"); }}
             >
-              {tr("intl.playEuro")}
+              {paramComp === "copa" ? tr("intl.viewEuro") : tr("intl.playEuro")}
             </button>
             <button
-              className="btn btn-copa text-[0.72rem]"
+              className={`btn ${paramComp === "euro" ? "btn-ghost" : "btn-copa"} ${paramComp === "copa" ? "btn-pulse" : ""} text-[0.72rem]`}
               onClick={() => { setSelecting("copa"); play("select"); }}
             >
-              {tr("intl.playCopa")}
+              {paramComp === "euro" ? tr("intl.viewCopa") : tr("intl.playCopa")}
             </button>
           </div>
         </motion.div>
 
         <div className="mt-10 grid gap-5 md:grid-cols-2">
           {(["euro", "copa"] as IntlComp[]).map((comp, i) => {
+            const featured = paramComp === comp;
             const t = THEMES[comp];
             const editions = new Set(COMP_SQUADS[comp].map((s) => s.season)).size;
             const flagSquads = t.champs
@@ -369,22 +373,26 @@ function International() {
               .filter((s): s is RawSquad => !!s)
               .slice(0, 5);
             return (
-              <motion.div key={comp} initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.12 }}>
+              <motion.div key={comp} initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.12 }}
+                className={featured ? "order-first md:order-none" : ""}
+                style={featured ? { borderRadius: 24, boxShadow: `0 0 0 1.5px ${t.accent}88, 0 14px 44px ${t.soft}` } : undefined}>
                 <TiltCard className={`shine h-full overflow-hidden rounded-3xl ${t.panel}`}>
                   <div className="relative flex h-full flex-col p-7 text-left" style={{ transformStyle: "preserve-3d" }}>
                     <Sparks count={8} color={t.accent} />
                     {/* trophy with glow rings */}
                     <div className="tilt-layer relative w-fit" style={{ ["--z" as string]: "44px" }}>
-                      <motion.span
-                        aria-hidden
-                        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
-                        style={{ width: 90, height: 90, border: `1px solid ${t.soft}` }}
-                        animate={{ scale: [1, 1.35], opacity: [0.7, 0] }}
-                        transition={{ duration: 2.4, repeat: Infinity, ease: "easeOut", delay: i * 0.5 }}
-                      />
+                      {fx === "full" && (
+                        <motion.span
+                          aria-hidden
+                          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
+                          style={{ width: 90, height: 90, border: `1px solid ${t.soft}` }}
+                          animate={{ scale: [1, 1.35], opacity: [0.7, 0] }}
+                          transition={{ duration: 2.4, repeat: Infinity, ease: "easeOut", delay: i * 0.5 }}
+                        />
+                      )}
                       <motion.div
                         className="relative text-6xl"
-                        animate={{ y: [0, -6, 0] }}
+                        animate={fx === "full" ? { y: [0, -6, 0] } : undefined}
                         transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut", delay: i * 0.4 }}
                         style={{ filter: `drop-shadow(0 0 26px ${t.soft})` }}
                       >
@@ -428,7 +436,7 @@ function International() {
                         {tr("intl.draftYourXI")}
                       </button>
                       <button
-                        className="btn btn-ghost text-[0.7rem]"
+                        className={`btn ${featured ? "btn-gold btn-pulse" : "btn-ghost"} text-[0.7rem]`}
                         onClick={() => { setSelecting(comp); play("click"); }}
                       >
                         {tr("intl.leadNation")}

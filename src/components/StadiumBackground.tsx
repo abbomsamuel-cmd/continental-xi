@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useFxLevel } from "@/lib/fx";
 
 /**
  * Canvas-based stadium atmosphere: sweeping floodlight beams with lens flares,
@@ -10,6 +11,7 @@ import { useEffect, useRef } from "react";
  */
 export function StadiumBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const lvl = useFxLevel();
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -17,8 +19,10 @@ export function StadiumBackground() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const lite = lvl === "reduced";
+    const reduce = lvl === "off" || window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     let raf = 0;
+    let frame = 0;
     let w = 0;
     let h = 0;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -36,7 +40,7 @@ export function StadiumBackground() {
       canvas.width = w * dpr;
       canvas.height = h * dpr;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      const count = Math.min(120, Math.floor((w * h) / 14000));
+      const count = Math.min(lite ? 40 : 120, Math.floor((w * h) / (lite ? 26000 : 14000)));
       particles = Array.from({ length: count }, () => {
         const star = Math.random() > 0.55;
         return {
@@ -50,7 +54,7 @@ export function StadiumBackground() {
           star,
         };
       });
-      smoke = Array.from({ length: 5 }, () => ({
+      smoke = Array.from({ length: lite ? 0 : 5 }, () => ({
         x: Math.random() * w,
         y: h * (0.55 + Math.random() * 0.35),
         r: 120 + Math.random() * 180,
@@ -65,7 +69,7 @@ export function StadiumBackground() {
       ctx.clearRect(0, 0, w, h);
 
       // sweeping floodlight beams from the top, each with a lens-flare head
-      const beams = 3;
+      const beams = lite ? 2 : 3;
       for (let i = 0; i < beams; i++) {
         const cx = w * (0.2 + 0.3 * i) + Math.sin(t * 0.0004 + i) * w * 0.12;
         const hue = i % 2 === 0 ? "34, 224, 255" : "212, 175, 55";
@@ -128,7 +132,7 @@ export function StadiumBackground() {
       }
 
       // camera flashes popping in the lower "stands" band
-      if (Math.random() < 0.02 && flashes.length < 6) {
+      if (!lite && Math.random() < 0.02 && flashes.length < 6) {
         flashes.push({ x: Math.random() * w, y: h * (0.62 + Math.random() * 0.3), t: 0, life: 14 + Math.random() * 10 });
       }
       flashes = flashes.filter((f) => f.t < f.life);
@@ -146,7 +150,13 @@ export function StadiumBackground() {
       }
 
       t += 16;
-      if (!reduce) raf = requestAnimationFrame(draw);
+      if (!reduce) raf = requestAnimationFrame(loop);
+    };
+    // mobile performance mode paints every other frame — same look, half the work
+    const loop = () => {
+      frame++;
+      if (lite && frame % 2 === 0) { raf = requestAnimationFrame(loop); t += 16; return; }
+      draw();
     };
 
     resize();
@@ -154,13 +164,13 @@ export function StadiumBackground() {
     if (reduce) {
       draw();
     } else {
-      raf = requestAnimationFrame(draw);
+      raf = requestAnimationFrame(loop);
     }
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", resize);
     };
-  }, []);
+  }, [lvl]);
 
   return (
     <div className="fixed inset-0 z-0 pointer-events-none" aria-hidden>

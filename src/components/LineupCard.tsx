@@ -24,28 +24,24 @@ import type { PitchVariant } from "@/components/Pitch";
 
 export type BadgeKind = "crest" | "flag";
 
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/);
-  return ((parts[0]?.[0] ?? "") + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase();
-}
 function surname(name: string): string {
   return name.trim().split(/\s+/).pop() ?? name;
 }
 
 export function Silhouette({ color = "rgba(255,255,255,0.16)" }: { color?: string }) {
   return (
-    <svg viewBox="0 0 24 24" className="absolute bottom-0 left-1/2 h-[104%] w-auto -translate-x-1/2" aria-hidden>
+    <svg viewBox="0 0 24 24" className="absolute bottom-0 left-1/2 h-[112%] w-auto -translate-x-1/2" aria-hidden>
       <path d="M12 12.4c2.3 0 4.1-1.9 4.1-4.2S14.3 4 12 4 7.9 5.9 7.9 8.2 9.7 12.4 12 12.4zM12 14c-3.4 0-8 1.7-8 5.1V24h16v-4.9c0-3.4-4.6-5.1-8-5.1z" fill={color} />
     </svg>
   );
 }
 
 /** Tiny original club crest (split shield + star) or nation flag (diagonal bicolor). */
-export function MiniBadge({ colors, kind }: { colors: [string, string]; kind: BadgeKind }) {
+export function MiniBadge({ colors, kind, w }: { colors: [string, string]; kind: BadgeKind; w?: string }) {
   if (kind === "flag") {
     const id = `fclip-${colors[0].replace("#", "")}-${colors[1].replace("#", "")}`;
     return (
-      <svg viewBox="0 0 16 11" style={{ width: "24cqw", height: "auto" }} aria-hidden>
+      <svg viewBox="0 0 16 11" style={{ width: w ?? "24cqw", height: "auto" }} aria-hidden>
         <clipPath id={id}><rect x="0" y="0" width="16" height="11" rx="1.5" /></clipPath>
         <g clipPath={`url(#${id})`}>
           <path d="M0 0 H16 V11 Z" fill={colors[1]} />
@@ -56,7 +52,7 @@ export function MiniBadge({ colors, kind }: { colors: [string, string]; kind: Ba
     );
   }
   return (
-    <svg viewBox="0 0 14 15" style={{ width: "21cqw", height: "auto" }} aria-hidden>
+    <svg viewBox="0 0 14 15" style={{ width: w ?? "21cqw", height: "auto" }} aria-hidden>
       <path d="M7 0.6 12.7 2.4 V7.5 C12.7 11 10 13.4 7 14.4 4 13.4 1.3 11 1.3 7.5 V2.4 Z" fill={colors[0]} stroke="rgba(255,255,255,0.85)" strokeWidth="0.7" />
       <path d="M7 0.6 12.7 2.4 V7.5 C12.7 9 11.6 10.4 10.3 11.3 L7 6 Z" fill={colors[1]} opacity="0.85" />
       <circle cx="7" cy="6.4" r="1.5" fill="#f2d472" />
@@ -108,7 +104,7 @@ export const TILE: Record<PitchVariant, Ident> = {
 function Shell({ variant, ring, glow, children }: { variant: PitchVariant; ring?: string; glow?: string; children: React.ReactNode }) {
   const s = TILE[variant];
   return (
-    <div style={{ clipPath: SHAPE[variant], background: ring ?? s.frame, padding: "3cqw", filter: glow ? `drop-shadow(0 0 6px ${glow})` : "drop-shadow(0 4px 5px rgba(0,0,0,0.45))" }}>
+    <div style={{ clipPath: SHAPE[variant], background: ring ?? s.frame, padding: "1.8cqw", filter: glow ? `drop-shadow(0 0 6px ${glow})` : "drop-shadow(0 3px 4px rgba(0,0,0,0.38))" }}>
       <div className="relative" style={{ clipPath: SHAPE[variant], background: s.card }}>{children}</div>
     </div>
   );
@@ -159,23 +155,23 @@ export function LineupCard({
       {/* DESKTOP / TABLET — broadcast shield */}
       <div className={`hidden ${widthClass} sm:block`} style={{ containerType: "inline-size" }}>
         <Shell variant={variant} ring={ring} glow={selected ? slotGlow : undefined}>
-          {/* portrait */}
-          <div className="relative flex items-end justify-center overflow-hidden" style={{ aspectRatio: "1 / 1", background: s.portrait }}>
-            <div className="absolute inset-0" style={{ background: "radial-gradient(120% 70% at 50% -8%, rgba(255,255,255,0.16), transparent 55%)" }} />
+          {/* portrait — the player IS the card: a tall spotlight silhouette,
+              no oversized initials competing with it */}
+          <div className="relative flex items-end justify-center overflow-hidden" style={{ aspectRatio: "1 / 1.12", background: s.portrait }}>
+            <div className="absolute inset-0" style={{ background: "radial-gradient(120% 78% at 50% -6%, rgba(255,255,255,0.18), transparent 58%)" }} />
             <Silhouette color={s.sil} />
             {/* club-colour accent bar — the only club-colour pop */}
-            <span aria-hidden className="absolute inset-x-0 bottom-0" style={{ height: "3cqw", background: `linear-gradient(90deg, ${colors[0]}, ${colors[1]})` }} />
+            <span aria-hidden className="absolute inset-x-0 bottom-0" style={{ height: "2.5cqw", background: `linear-gradient(90deg, ${colors[0]}, ${colors[1]})` }} />
             {showRating && (
-              <span className="absolute z-[2] rounded font-display font-extrabold leading-none" style={{ left: "7cqw", top: "7cqw", padding: "2cqw 3.5cqw", background: s.ratingBg, color: s.ratingColor, fontSize: "23cqw", boxShadow: "0 1px 3px rgba(0,0,0,0.4)" }}>{overall}</span>
+              <span className="absolute z-[2] rounded font-display font-extrabold leading-none" style={{ left: "6cqw", top: "6cqw", padding: "2cqw 3cqw", background: s.ratingBg, color: s.ratingColor, fontSize: "18cqw", boxShadow: "0 1px 3px rgba(0,0,0,0.4)" }}>{overall}</span>
             )}
-            <span className="absolute z-[2]" style={{ right: "6cqw", top: "6cqw" }}><MiniBadge colors={colors} kind={badgeKind} /></span>
-            {secondaryColor && <span aria-hidden className="absolute left-0 top-0 h-full" style={{ width: "4cqw", background: secondaryColor }} />}
-            <span className="relative z-[1] font-display font-extrabold leading-none drop-shadow-[0_1px_3px_rgba(0,0,0,0.55)]" style={{ paddingBottom: "10cqw", fontSize: "30cqw", color: variant === "euro" ? "rgba(20,45,120,0.55)" : "rgba(255,255,255,0.72)" }}>{initials(name)}</span>
+            <span className="absolute z-[2]" style={{ right: "5.5cqw", top: "5.5cqw" }}><MiniBadge colors={colors} kind={badgeKind} w={badgeKind === "flag" ? "19cqw" : "16cqw"} /></span>
+            {secondaryColor && <span aria-hidden className="absolute left-0 top-0 h-full" style={{ width: "3cqw", background: secondaryColor }} />}
           </div>
-          {/* name plate */}
-          <div className="text-center" style={{ paddingBottom: "7cqw", paddingTop: "3.5cqw" }}>
-            <div className="truncate font-display font-extrabold uppercase leading-none" style={{ color: s.name, fontSize: "15cqw", letterSpacing: "0.02em", paddingInline: "5cqw" }}>{surname(name)}</div>
-            {seasonLabel && <div className="font-bold uppercase leading-none" style={{ color: s.season, fontSize: "10.5cqw", marginTop: "2.5cqw", opacity: 0.92 }}>{seasonLabel}</div>}
+          {/* name plate — surname carries the identity */}
+          <div className="text-center" style={{ paddingBottom: "6cqw", paddingTop: "3.5cqw" }}>
+            <div className="truncate font-display font-extrabold uppercase leading-none" style={{ color: s.name, fontSize: "16cqw", letterSpacing: "0.02em", paddingInline: "4cqw" }}>{surname(name)}</div>
+            {seasonLabel && <div className="font-bold uppercase leading-none" style={{ color: s.season, fontSize: "9.5cqw", marginTop: "2.5cqw", opacity: 0.75 }}>{seasonLabel}</div>}
           </div>
         </Shell>
       </div>
@@ -201,8 +197,8 @@ export function EmptyTile({
 
   return (
     <div className={`${widthClass} ${state === "draftable" ? "animate-pulse" : ""}`} style={{ containerType: "inline-size", animationDuration: "1.8s" }}>
-      <div style={{ clipPath: SHAPE[variant], background: `linear-gradient(150deg, ${edge}, ${edge}77)`, padding: "3cqw", filter: glow ? `drop-shadow(0 0 8px ${glow})` : "drop-shadow(0 4px 6px rgba(0,0,0,0.4))" }}>
-        <div className="relative flex flex-col items-center justify-center" style={{ clipPath: SHAPE[variant], aspectRatio: "1 / 1.28", background: blocked ? "rgba(40,8,12,0.72)" : "rgba(8,20,52,0.72)" }}>
+      <div style={{ clipPath: SHAPE[variant], background: `linear-gradient(150deg, ${edge}, ${edge}77)`, padding: "1.8cqw", filter: glow ? `drop-shadow(0 0 8px ${glow})` : "drop-shadow(0 3px 5px rgba(0,0,0,0.38))" }}>
+        <div className="relative flex flex-col items-center justify-center" style={{ clipPath: SHAPE[variant], aspectRatio: "1 / 1.36", background: blocked ? "rgba(40,8,12,0.72)" : "rgba(8,20,52,0.72)" }}>
           {blocked ? (
             <span style={{ fontSize: "32cqw", color: "#ff8b96" }}>⊘</span>
           ) : (

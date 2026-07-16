@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { motion } from "framer-motion";
+import { useFxLevel } from "@/lib/fx";
 
 /** Deterministic pseudo-random in [0,1), rounded so SSR output is stable. */
 function frac(n: number): number {
@@ -21,9 +22,11 @@ export function Fireworks({
   count?: number;
   palette?: string[];
 }) {
+  const lvl = useFxLevel();
+  const n = lvl === "off" ? 0 : lvl === "reduced" ? Math.ceil(count / 2) : count;
   const shells = useMemo(
     () =>
-      Array.from({ length: count }, (_, i) => ({
+      Array.from({ length: n }, (_, i) => ({
         id: i,
         x: 10 + frac(i * 3.7) * 80, // %
         y: 12 + frac(i * 5.3) * 38, // %
@@ -32,9 +35,10 @@ export function Fireworks({
         sparks: 12,
         size: 44 + frac(i * 9.7) * 60,
       })),
-    [count, palette],
+    [n, palette],
   );
 
+  if (n === 0) return null;
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
       {shells.map((s) => (

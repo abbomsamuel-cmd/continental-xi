@@ -1,13 +1,34 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { TeamBadge } from "@/components/TeamBadge";
+import { CameraFlashes, Sparks } from "@/components/fx/Atmosphere";
+import { play } from "@/lib/sound";
 
 /**
- * Cinematic between-round overlay: tunnel light bars converge, the round title
- * slides in over the fixture line, then control is handed back via `onDone`.
- * Group-stage rounds run quicker than knockout nights — pass `duration` (ms).
+ * Cinematic stage introduction — the moment between rounds is a broadcast
+ * ident, not a loading screen: competition mark → round title → the teams
+ * walking in from opposite sides → a premium "preparing" shimmer. Knockout
+ * nights escalate (more light, more flashes), and the Final gets the full
+ * treatment: trophy, countdown, kick-off whistle.
  */
+
+type Variant = "cl" | "euro" | "copa";
+type Stage = "ko" | "sf" | "final";
+
+interface IntroTeam {
+  name: string;
+  short: string;
+  colors: [string, string];
+}
+
+const PAL: Record<Variant, { emblem: string; glow: string; page: string }> = {
+  cl: { emblem: "★", glow: "rgba(41,98,255,0.45)", page: "radial-gradient(120% 90% at 50% 30%, #0a1440, #020714 75%)" },
+  euro: { emblem: "✦", glow: "rgba(27,79,255,0.5)", page: "radial-gradient(120% 90% at 50% 30%, #081b56, #030818 75%)" },
+  copa: { emblem: "◆", glow: "rgba(23,201,122,0.4)", page: "radial-gradient(120% 90% at 50% 30%, #0a3a24, #02120a 75%)" },
+};
+
 export function RoundTransition({
   show,
   title,
@@ -15,36 +36,57 @@ export function RoundTransition({
   detail,
   accent = "#d4af37",
   duration = 1900,
+  variant = "cl",
+  teams,
+  stage = "ko",
   onDone,
 }: {
   show: boolean;
   title: string;
   subtitle?: string;
-  /** the fixture being played, e.g. "Croatia 2008 vs Spain 2012" */
+  /** fallback fixture line when no team refs are passed */
   detail?: string;
   accent?: string;
   duration?: number;
+  variant?: Variant;
+  /** the user's fixture — teams animate in from opposite sides */
+  teams?: { a: IntroTeam; b: IntroTeam } | null;
+  /** escalation: ko < sf < final (trophy + countdown + whistle) */
+  stage?: Stage;
   onDone: () => void;
 }) {
+  const pal = PAL[variant];
+  const isFinal = stage === "final";
+  const isSf = stage === "sf";
+  const [count, setCount] = useState<number | null>(null);
+
   useEffect(() => {
     if (!show) return;
-    const id = setTimeout(onDone, duration);
-    return () => clearTimeout(id);
-  }, [show, duration, onDone]);
+    play("advance");
+    const timers: ReturnType<typeof setTimeout>[] = [setTimeout(onDone, duration)];
+    // the Final counts itself in: 3 · 2 · 1 · whistle
+    if (isFinal && duration >= 3200) {
+      [3, 2, 1].forEach((n, i) => {
+        timers.push(setTimeout(() => { setCount(n); play("tick"); }, duration - 1700 + i * 450));
+      });
+      timers.push(setTimeout(() => { setCount(null); play("whistle"); }, duration - 300));
+    }
+    return () => { timers.forEach(clearTimeout); setCount(null); };
+  }, [show, duration, onDone, isFinal]);
 
   const bars = useMemo(() => Array.from({ length: 7 }, (_, i) => i), []);
-  const progressSecs = Math.max(0.6, (duration - 350) / 1000);
+  const flashCount = isFinal ? 22 : isSf ? 14 : 8;
 
   return (
     <AnimatePresence>
       {show && (
         <motion.div
           className="fixed inset-0 z-[130] flex items-center justify-center overflow-hidden"
-          style={{ background: "radial-gradient(120% 90% at 50% 30%, #0a1440, #020714 75%)" }}
+          style={{ background: pal.page }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.3 }}
+          transition={{ duration: 0.25 }}
         >
           {/* converging tunnel light bars */}
           {bars.map((i) => (
@@ -54,7 +96,7 @@ export function RoundTransition({
               className="absolute top-0 h-full w-24"
               style={{
                 left: `${(i / (bars.length - 1)) * 100}%`,
-                background: `linear-gradient(to bottom, ${accent}22, transparent 70%)`,
+                background: `linear-gradient(to bottom, ${accent}${isFinal ? "33" : "22"}, transparent 70%)`,
                 transformOrigin: "top center",
               }}
               initial={{ scaleY: 0, opacity: 0 }}
@@ -62,7 +104,13 @@ export function RoundTransition({
               transition={{ duration: 0.7, delay: i * 0.05, ease: "easeOut" }}
             />
           ))}
-          {/* floor glow, like the mouth of the tunnel */}
+          {/* stadium glow + fog */}
+          <motion.div
+            aria-hidden
+            className="absolute left-1/2 top-[-16%] h-[60vh] w-[85vw] -translate-x-1/2 rounded-full"
+            style={{ background: `radial-gradient(circle, ${pal.glow}, transparent 65%)`, filter: "blur(46px)" }}
+            initial={{ opacity: 0 }} animate={{ opacity: isFinal ? 0.85 : 0.55 }} transition={{ duration: 0.8 }}
+          />
           <motion.div
             aria-hidden
             className="absolute inset-x-0 bottom-0 h-1/3"
@@ -71,27 +119,45 @@ export function RoundTransition({
             animate={{ opacity: 1 }}
             transition={{ delay: 0.3 }}
           />
+          <CameraFlashes count={flashCount} />
+          {isFinal && <Sparks count={14} color={accent} />}
 
-          <div className="relative z-10 px-6 text-center">
+          <div className="relative z-10 w-full max-w-2xl px-6 text-center">
+            {/* competition ident */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.7 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5 }}
+              className="text-4xl"
+              style={{ color: accent, textShadow: `0 0 34px ${accent}` }}
+            >
+              {isFinal ? "🏆" : pal.emblem}
+            </motion.div>
             {subtitle && (
               <motion.div
                 initial={{ opacity: 0, y: 14 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
-                className="cl-heading text-[0.65rem] tracking-[0.45em]"
+                className="cl-heading mt-2 text-[0.65rem] tracking-[0.45em]"
                 style={{ color: accent }}
               >
                 {subtitle}
               </motion.div>
             )}
             <motion.h2
-              initial={{ opacity: 0, scale: 0.85, y: 20 }}
+              initial={{ opacity: 0, scale: 0.85, y: 26 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               transition={{ delay: 0.3, type: "spring", stiffness: 160, damping: 16 }}
               className="mt-2 font-display text-4xl font-extrabold text-white sm:text-6xl"
             >
               {title}
             </motion.h2>
+            {isSf && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.55 }}
+                className="mt-2 text-[0.7rem] font-bold uppercase tracking-[0.35em] text-white/60">
+                Only four remain
+              </motion.div>
+            )}
             <motion.div
               initial={{ scaleX: 0 }}
               animate={{ scaleX: 1 }}
@@ -99,7 +165,35 @@ export function RoundTransition({
               className="mx-auto mt-4 h-px w-48"
               style={{ background: `linear-gradient(90deg, transparent, ${accent}, transparent)` }}
             />
-            {detail && (
+
+            {/* the fixture: teams walk in from opposite sides */}
+            {teams ? (
+              <div className="mx-auto mt-6 flex max-w-lg items-center justify-center gap-4 sm:gap-8">
+                <motion.div
+                  initial={{ x: -70, opacity: 0 }} animate={{ x: 0, opacity: 1 }}
+                  transition={{ delay: 0.55, type: "spring", stiffness: 130, damping: 15 }}
+                  className="flex flex-1 flex-col items-center gap-2"
+                >
+                  <TeamBadge colors={teams.a.colors} code={teams.a.short} size={56} />
+                  <div className="max-w-[10rem] font-display text-[0.8rem] font-extrabold leading-tight text-white">{teams.a.name}</div>
+                </motion.div>
+                <motion.div
+                  initial={{ scale: 0 }} animate={{ scale: 1 }}
+                  transition={{ delay: 0.75, type: "spring", stiffness: 240, damping: 14 }}
+                  className="font-display text-xl font-extrabold sm:text-2xl" style={{ color: accent }}
+                >
+                  VS
+                </motion.div>
+                <motion.div
+                  initial={{ x: 70, opacity: 0 }} animate={{ x: 0, opacity: 1 }}
+                  transition={{ delay: 0.55, type: "spring", stiffness: 130, damping: 15 }}
+                  className="flex flex-1 flex-col items-center gap-2"
+                >
+                  <TeamBadge colors={teams.b.colors} code={teams.b.short} size={56} />
+                  <div className="max-w-[10rem] font-display text-[0.8rem] font-extrabold leading-tight text-white">{teams.b.name}</div>
+                </motion.div>
+              </div>
+            ) : detail ? (
               <motion.p
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 0.8 }}
@@ -108,17 +202,39 @@ export function RoundTransition({
               >
                 {detail}
               </motion.p>
+            ) : null}
+
+            {/* the Final counts itself in */}
+            <AnimatePresence mode="popLayout">
+              {count !== null && (
+                <motion.div
+                  key={count}
+                  initial={{ scale: 2.2, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.6, opacity: 0 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                  className="mt-5 font-display text-5xl font-extrabold"
+                  style={{ color: accent, textShadow: `0 0 30px ${accent}` }}
+                >
+                  {count}
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* premium preparing shimmer — a travelling light, not a bar */}
+            {count === null && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.7 }} className="mx-auto mt-6 w-56">
+                <div className="relative h-px overflow-hidden" style={{ background: "rgba(255,255,255,0.12)" }}>
+                  <motion.span
+                    className="absolute top-0 h-px w-20"
+                    style={{ background: `linear-gradient(90deg, transparent, ${accent}, transparent)` }}
+                    animate={{ left: ["-30%", "110%"] }}
+                    transition={{ duration: 1.1, repeat: Infinity, ease: "easeInOut" }}
+                  />
+                </div>
+                <div className="mt-2 text-[0.56rem] uppercase tracking-[0.4em] text-white/40">
+                  {isFinal ? "The anthem fades…" : "Preparing match…"}
+                </div>
+              </motion.div>
             )}
-            {/* whistle-to-kickoff progress shimmer */}
-            <motion.div className="mx-auto mt-6 h-1 w-40 overflow-hidden rounded-full bg-white/10">
-              <motion.span
-                className="block h-full rounded-full"
-                style={{ background: accent }}
-                initial={{ width: "0%" }}
-                animate={{ width: "100%" }}
-                transition={{ duration: progressSecs, delay: 0.2, ease: "easeInOut" }}
-              />
-            </motion.div>
           </div>
         </motion.div>
       )}

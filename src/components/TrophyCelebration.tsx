@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { KOTie, MatchResult, TournamentState } from "@/lib/types";
 import { USER_TEAM_ID, teamLabel } from "@/lib/engine/tournament";
@@ -9,7 +9,108 @@ import { Fireworks } from "@/components/fx/Fireworks";
 import { Confetti, CameraFlashes, RainOverlay } from "@/components/fx/Atmosphere";
 import { useGame } from "@/lib/store";
 import { shareTrophyCard } from "@/lib/trophy-card";
+import { campaignStory } from "@/lib/broadcast";
 import { play } from "@/lib/sound";
+
+/* ------------------------------------------------------------------ */
+/*  Campaign digest — record, journey and story from the tournament    */
+/* ------------------------------------------------------------------ */
+
+function campaignDigest(tournament: TournamentState, teamName: string) {
+  const userMatches: MatchResult[] = [
+    ...tournament.fixtures.filter((f) => f.result && (f.home === USER_TEAM_ID || f.away === USER_TEAM_ID)).map((f) => f.result!),
+    ...tournament.ties
+      .filter((t) => t.teamA === USER_TEAM_ID || t.teamB === USER_TEAM_ID)
+      .flatMap((t) => [t.leg1, t.leg2].filter(Boolean) as MatchResult[]),
+  ];
+  const rec = userMatches.reduce(
+    (acc, r) => {
+      const uf = r.home === USER_TEAM_ID ? r.homeGoals : r.awayGoals;
+      const oa = r.home === USER_TEAM_ID ? r.awayGoals : r.homeGoals;
+      acc.gf += uf; acc.ga += oa;
+      if (uf > oa) acc.w++; else if (uf === oa) acc.d++; else acc.l++;
+      return acc;
+    },
+    { w: 0, d: 0, l: 0, gf: 0, ga: 0 },
+  );
+  const scorer = Object.entries(tournament.userGoals).sort((a, b) => b[1] - a[1])[0];
+  const won = tournament.champion === USER_TEAM_ID;
+  const outcome: "champion" | "runner" | "out" =
+    won ? "champion" : tournament.exit?.stage === "Final" ? "runner" : "out";
+  const story = campaignStory({
+    teamName,
+    outcome,
+    exitStage: tournament.exit?.stage,
+    ...rec,
+    cleanSheets: tournament.userCleanSheets,
+    topScorer: scorer ? { name: scorer[0], goals: scorer[1] } : undefined,
+    seed: rec.gf * 31 + rec.ga * 7 + rec.w * 13 + (tournament.userSeed ?? 3),
+  });
+  // the road travelled, in order
+  const ROUNDS = ["Play-off", "Round of 16", "Quarter-final", "Semi-final", "Final"];
+  const played = new Set(
+    tournament.ties.filter((t) => (t.teamA === USER_TEAM_ID || t.teamB === USER_TEAM_ID) && t.leg1).map((t) => t.round as string),
+  );
+  const journey = ["League Phase", ...ROUNDS.filter((r) => played.has(r))];
+  return { rec, scorer, story, journey, matches: userMatches.length };
+}
+
+/** The road through the tournament, ending in its outcome. */
+function JourneyChain({ journey, outcome, accent }: { journey: string[]; outcome: string; accent: string }) {
+  const steps = [...journey, outcome];
+  return (
+    <div className="flex flex-wrap items-center justify-center gap-y-1.5">
+      {steps.map((s, i) => (
+        <motion.span
+          key={s}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 + i * 0.12 }}
+          className="flex items-center"
+        >
+          <span
+            className={`rounded-full px-2.5 py-1 text-[0.55rem] font-extrabold uppercase tracking-wider ${i === steps.length - 1 ? "" : "bg-white/6 text-white/65"}`}
+            style={i === steps.length - 1 ? { background: `${accent}22`, color: accent, boxShadow: `inset 0 0 0 1px ${accent}55` } : undefined}
+          >
+            {s}
+          </span>
+          {i < steps.length - 1 && <span className="mx-1 text-[0.6rem] text-white/30">→</span>}
+        </motion.span>
+      ))}
+    </div>
+  );
+}
+
+/** The campaign at a glance — record, goals, sheets, leaders. */
+function CampaignSummary({
+  digest, formation, captain, overall, accent,
+}: {
+  digest: ReturnType<typeof campaignDigest>; formation?: string; captain?: string; overall?: number; accent: string;
+}) {
+  const cells: [string, string][] = [
+    ["Played", `${digest.matches}`],
+    ["Record", `${digest.rec.w}W · ${digest.rec.d}D · ${digest.rec.l}L`],
+    ["Goals", `${digest.rec.gf} – ${digest.rec.ga}`],
+    ...(digest.scorer ? [["Top Scorer", `${digest.scorer[0]} (${digest.scorer[1]})`] as [string, string]] : []),
+    ...(formation ? [["Formation", formation] as [string, string]] : []),
+    ...(overall ? [["Squad Overall", `${overall}`] as [string, string]] : []),
+    ...(captain ? [["Captain", captain] as [string, string]] : []),
+  ];
+  return (
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+      {cells.map(([k, val], i) => (
+        <motion.div
+          key={k}
+          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 + i * 0.07 }}
+          className="rounded-xl bg-black/25 px-2 py-2"
+        >
+          <div className="text-[0.5rem] font-bold uppercase tracking-widest" style={{ color: accent }}>{k}</div>
+          <div className="mt-0.5 truncate text-[0.72rem] font-bold text-white">{val}</div>
+        </motion.div>
+      ))}
+    </div>
+  );
+}
 
 interface Props {
   tournament: TournamentState;
@@ -32,6 +133,11 @@ export function TrophyCelebration({ tournament, teamName, tie, onViewStats, onCo
   const reachedFinal = tournament.exit?.stage === "Final";
   const exitText = tournament.exit?.text ?? "Your run has ended";
   const xi = useGame((s) => s.getXI)().filter(Boolean);
+  // the campaign digest: record, journey, unique story — shown for every outcome
+  const digest = useMemo(() => campaignDigest(tournament, teamName), [tournament, teamName]);
+  const formation = useGame.getState().setup?.formationName;
+  const captainName = xi.find((p) => p!.id === useGame.getState().captainId)?.name;
+  const squadOverall = useGame.getState().getAnalysis()?.overall;
 
   // celebration stages: summary → (Lift the Trophy) → lift → awards revealed
   const [stage, setStage] = useState<"summary" | "lift">("summary");
@@ -184,7 +290,11 @@ export function TrophyCelebration({ tournament, teamName, tie, onViewStats, onCo
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.8 }}
           className="mx-auto mt-2 max-w-sm text-sm text-muted"
         >
-          {won ? `${teamName} are the kings of Europe. Glory is yours.` : `${teamName} — ${exitText}.`}
+          {won
+            ? `${teamName} are the kings of Europe. Glory is yours.`
+            : kind === "runner"
+              ? `An incredible tournament, ${teamName}. You reached the Final — very few ever do.`
+              : `${teamName} — ${exitText}.`}
         </motion.p>
 
         {/* honours: MVP, Golden Boot, Golden Glove — revealed after the lift */}
@@ -211,6 +321,36 @@ export function TrophyCelebration({ tournament, teamName, tie, onViewStats, onCo
                 {a.sub && <div className="text-[0.6rem] text-gold">{a.sub}</div>}
               </motion.div>
             ))}
+          </motion.div>
+        )}
+
+        {/* tournament summary + journey + story — every outcome gets its recap.
+            Winners see it after the lift; everyone else right away. */}
+        {(won ? stage === "lift" && showAwards : stage === "summary") && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: won ? 0.9 : 1.1 }}
+            className="cl-panel mx-auto mt-5 rounded-2xl p-4"
+          >
+            <div className="cl-heading mb-2.5 text-[0.58rem] tracking-[0.3em]" style={{ color: theme.ring }}>
+              Tournament Journey
+            </div>
+            <JourneyChain
+              journey={digest.journey}
+              outcome={won ? "🏆 Champions" : kind === "runner" ? "Runners-up" : "Eliminated"}
+              accent={theme.ring}
+            />
+            <div className="mt-4">
+              <CampaignSummary
+                digest={digest}
+                formation={formation}
+                captain={captainName}
+                overall={squadOverall}
+                accent={theme.ring}
+              />
+            </div>
+            <p className="mx-auto mt-4 max-w-md text-[0.74rem] leading-relaxed text-white/65">
+              {digest.story}
+            </p>
           </motion.div>
         )}
 

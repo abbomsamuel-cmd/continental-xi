@@ -83,9 +83,11 @@ function TournamentInner() {
   // Live Match mode — semi-finals and the final can be watched minute by minute
   const [simChoice, setSimChoice] = useState<string | null>(null);
   const [live, setLive] = useState<{ legs: LiveLeg[]; title: string; prevPhase: string } | null>(null);
-  // Matchday broadcast — league nights play out as a live results show
+  // Matchday broadcast — league nights play out as a live results show.
+  // fixtures === null while the round simulates behind the opaque overlay,
+  // so the page can never flash a result early.
   const [matchdayShow, setMatchdayShow] = useState<{
-    fixtures: MDFixtureView[]; baseTable: MiniRow[]; title: string; prevPhase: string;
+    fixtures: MDFixtureView[] | null; baseTable: MiniRow[]; title: string; prevPhase: string;
   } | null>(null);
   const pendingFn = useRef<(() => void) | null>(null);
   // Synchronous double-click guard: React state alone lets two fast clicks both
@@ -136,8 +138,8 @@ function TournamentInner() {
     fireBurstIfQualified(prevPhase);
   };
 
-  // Matchday broadcast: snapshot the standings, simulate the round, then let
-  // the results show reveal every fixture live — scores, goals, table and all.
+  // Matchday broadcast: mount the opaque show FIRST (prep beat), then simulate
+  // behind it — the page can never flash the new results before the reveal.
   const startMatchdayShow = () => {
     if (busyRef.current) return;
     busyRef.current = true;
@@ -150,17 +152,21 @@ function TournamentInner() {
       const team = state.tournament!.teams[row.teamId];
       return { ...mdRef(team), points: row.points, gd: row.gf - row.ga };
     });
-    const played = state.advanceLeague();
-    const teams = useGame.getState().tournament?.teams;
-    if (!played.length || !teams) {
-      busyRef.current = false;
-      fireBurstIfQualified(prevPhase);
-      return;
-    }
-    const fixtures: MDFixtureView[] = played
-      .filter((f) => f.result)
-      .map((f) => ({ home: mdRef(teams[f.home]), away: mdRef(teams[f.away]), result: f.result! }));
-    setMatchdayShow({ fixtures, baseTable, title: `Matchday ${md}`, prevPhase });
+    setMatchdayShow({ fixtures: null, baseTable, title: `Matchday ${md}`, prevPhase });
+    setTimeout(() => {
+      const played = useGame.getState().advanceLeague();
+      const teams = useGame.getState().tournament?.teams;
+      if (!played.length || !teams) {
+        setMatchdayShow(null);
+        busyRef.current = false;
+        fireBurstIfQualified(prevPhase);
+        return;
+      }
+      const fixtures: MDFixtureView[] = played
+        .filter((f) => f.result)
+        .map((f) => ({ home: mdRef(teams[f.home]), away: mdRef(teams[f.away]), result: f.result! }));
+      setMatchdayShow((prev) => (prev ? { ...prev, fixtures } : prev));
+    }, 1000);
   };
 
   const onMatchdayDone = () => {
@@ -432,8 +438,11 @@ function TournamentInner() {
         <div className="mt-8 space-y-6">
           <div className="glass-strong relative overflow-hidden rounded-2xl p-6 text-center">
             <RainOverlay drops={30} opacity={0.35} />
-            <div className="text-4xl opacity-80">🚪</div>
-            <h2 className="mt-2 font-display text-2xl font-extrabold">Run Over</h2>
+            <div className="mx-auto w-fit opacity-70" style={{ filter: "grayscale(0.4)" }}>
+              <CrestLogo size={56} animated={false} />
+            </div>
+            <div className="mx-auto mt-3 h-px w-40" style={{ background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent)" }} />
+            <h2 className="mt-3 font-display text-2xl font-extrabold text-white/90">The Road Ends Here</h2>
             <p className="mt-1 text-muted">{tournament.exit?.text}</p>
             <p className="mt-1 text-sm text-cyan">Only the top 24 advance — you missed the knockouts.</p>
           </div>
@@ -483,29 +492,28 @@ function TournamentInner() {
         )}
       </AnimatePresence>
 
-      {/* tunnel transition between rounds — league nights run quicker */}
+      {/* cinematic stage intro between knockout rounds — escalates to the Final */}
       <RoundTransition
         show={!!transition}
         title={transition?.title ?? ""}
         subtitle={transition?.subtitle}
-        detail={(() => {
-          if (isLeague) {
-            const f = tournament.fixtures.find(
-              (x) => x.matchday === tournament.matchday && !x.result && (x.home === USER_TEAM_ID || x.away === USER_TEAM_ID),
-            );
-            if (!f) return undefined;
-            const opp = tournament.teams[f.home === USER_TEAM_ID ? f.away : f.home];
-            return `${tournament.teams[USER_TEAM_ID].name}  vs  ${teamLabel(opp)}${f.home === USER_TEAM_ID ? "  ·  Home" : "  ·  Away"}`;
-          }
+        variant="cl"
+        stage={tournament.phase === "sf" ? "sf" : tournament.phase === "final" ? "final" : "ko"}
+        teams={(() => {
           const tie = tournament.ties.find(
             (k) => !k.winner && (k.teamA === USER_TEAM_ID || k.teamB === USER_TEAM_ID),
           );
-          if (!tie) return "Simulating the round — you have a bye";
+          if (!tie) return null;
+          const user = tournament.teams[USER_TEAM_ID];
           const opp = tournament.teams[tie.teamA === USER_TEAM_ID ? tie.teamB : tie.teamA];
-          return `${tournament.teams[USER_TEAM_ID].name}  vs  ${teamLabel(opp)}`;
+          return {
+            a: { name: user.name, short: user.short, colors: user.colors },
+            b: { name: teamLabel(opp), short: opp.short, colors: opp.colors },
+          };
         })()}
+        detail="Simulating the round — you have a bye"
         accent="#d4af37"
-        duration={isLeague ? 1350 : 1900}
+        duration={tournament.phase === "final" ? 4600 : tournament.phase === "sf" ? 3200 : 2500}
         onDone={onTransitionDone}
       />
 

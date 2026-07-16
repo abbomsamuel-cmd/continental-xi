@@ -485,6 +485,80 @@ function ordinalSuffix(n: number): string {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Campaign story — a unique tournament-ending paragraph              */
+/* ------------------------------------------------------------------ */
+
+export interface CampaignFacts {
+  teamName: string;
+  outcome: "champion" | "runner" | "third" | "out";
+  /** round the run ended in, when eliminated — "Quarter-final" etc. */
+  exitStage?: string;
+  w: number; d: number; l: number; gf: number; ga: number;
+  cleanSheets?: number;
+  topScorer?: { name: string; goals: number };
+  /** any stable number so different campaigns phrase differently */
+  seed: number;
+}
+
+const OPEN_STRONG = [
+  "{team} swept through this tournament with real conviction",
+  "{team} played some of the most complete football of the competition",
+  "From the first whistle, {team} looked like they belonged at the very top",
+];
+const OPEN_GRIT = [
+  "{team} ground their way through this tournament the hard way",
+  "Nothing came easily for {team}, and that made every step matter more",
+  "{team} rode their luck at times, but never stopped fighting",
+];
+const CLOSE_BY_OUTCOME: Record<CampaignFacts["outcome"], string[]> = {
+  champion: [
+    "When the final whistle came, nobody could argue — champions, and worthy ones.",
+    "The trophy is the answer to every question asked along the way.",
+    "This is the campaign the highlight reels will replay for years.",
+  ],
+  runner: [
+    "Falling at the last hurdle stings, but reaching the final is a triumph very few ever taste.",
+    "Silver rarely feels like a prize on the night — history will judge this run more kindly.",
+    "One match from immortality: a campaign to be proud of, and unfinished business for next time.",
+  ],
+  third: [
+    "Bronze is still a medal — and this squad earned every ounce of it.",
+    "The podium finish caps a campaign with far more highs than lows.",
+    "Third place, won on merit, with performances worth remembering.",
+  ],
+  out: [
+    "The run ends here, but several performances made this a campaign worth remembering.",
+    "The margins at this level are brutal — this squad came closer than the exit suggests.",
+    "The journey stops short of the summit, yet the foundations laid here are real.",
+  ],
+};
+
+export function campaignStory(f: CampaignFacts): string {
+  const played = f.w + f.d + f.l;
+  const parts: string[] = [];
+  const strongRun = f.w >= Math.max(2, played * 0.6);
+  const openBank = strongRun ? OPEN_STRONG : OPEN_GRIT;
+  const fill = (s: string) => s.replace("{team}", f.teamName);
+  parts.push(fill(pick(openBank, f.seed, 3)) + `, winning ${f.w} of ${played} matches.`);
+
+  if (f.topScorer && f.topScorer.goals >= 3) {
+    parts.push(`${f.topScorer.name} carried the attack with ${f.topScorer.goals} goals across the campaign.`);
+  } else if (f.gf >= played * 2) {
+    parts.push(`The goals flowed freely — ${f.gf} scored along the way.`);
+  }
+  if ((f.cleanSheets ?? 0) >= 3) {
+    parts.push(`At the other end, ${f.cleanSheets} clean sheets told the story of a defence that rarely blinked.`);
+  } else if (f.ga >= played * 1.8) {
+    parts.push(`Defensively it was a rollercoaster, ${f.ga} goals conceded keeping every night nervous.`);
+  }
+  if (f.outcome === "out" && f.exitStage) {
+    parts.push(`The ${f.exitStage.toLowerCase()} proved one step too far.`);
+  }
+  parts.push(pick(CLOSE_BY_OUTCOME[f.outcome], f.seed, 11));
+  return parts.join(" ");
+}
+
+/* ------------------------------------------------------------------ */
 /*  Match facts — invented, but stable per result                      */
 /* ------------------------------------------------------------------ */
 

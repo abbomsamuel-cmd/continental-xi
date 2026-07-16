@@ -12,9 +12,10 @@ import { play, startAmbience, stopAmbience } from "@/lib/sound";
  * style live results show. Every fixture in the round appears WAITING, goes
  * LIVE, ticks its goals in with real minutes, then hits FULL TIME while a
  * mini table re-sorts itself and a news ticker rolls along the bottom.
- * The results are already simulated: this is pure presentation, and the
- * reveal here IS the reveal — nothing is spoiled early, it's simply shown
- * the way television would show it.
+ *
+ * The show mounts BEFORE the round is simulated (fixtures === null renders a
+ * cinematic "preparing" beat) so the page behind never flashes a result — no
+ * spoilers. Once fixtures arrive the reveal begins, with ×1/×2/×4 pacing.
  */
 
 type Comp = "cl" | "euro" | "copa";
@@ -66,8 +67,9 @@ function frac(n: number): number {
   return x - Math.floor(x);
 }
 
-const DURATION = 9000; // the broadcast window all goals reveal across
-const TICK = 200;
+// league/group nights run brisk — the knockout theatre lives elsewhere
+const DURATION = 7200;
+const TICK = 150;
 
 interface GoalBeat {
   fixture: number;
@@ -85,19 +87,19 @@ interface Schedule {
 }
 
 function buildSchedule(fixtures: MDFixtureView[]): Schedule {
-  const liveAt = fixtures.map((_, i) => 350 + frac(i * 3.7) * 900);
-  const ftAt = fixtures.map((_, i) => DURATION - 1100 + frac(i * 7.1) * 1000);
+  const liveAt = fixtures.map((_, i) => 300 + frac(i * 3.7) * 700);
+  const ftAt = fixtures.map((_, i) => DURATION - 900 + frac(i * 7.1) * 800);
   const goals: GoalBeat[] = [];
   fixtures.forEach((f, i) => {
     f.result.events
       .filter((e) => e.type === "goal")
       .forEach((e) => {
-        const t = liveAt[i] + 700 + (e.minute / 95) * (ftAt[i] - liveAt[i] - 1000);
+        const t = liveAt[i] + 500 + (e.minute / 95) * (ftAt[i] - liveAt[i] - 800);
         goals.push({ fixture: i, team: e.team as 0 | 1, minute: e.minute, player: e.player, at: t });
       });
   });
   goals.sort((a, b) => a.at - b.at);
-  return { liveAt, ftAt, goals, endAt: Math.max(...ftAt, 0) + 500 };
+  return { liveAt, ftAt, goals, endAt: Math.max(...ftAt, 0) + 400 };
 }
 
 /* ------------------------------------------------------------------ */
@@ -110,7 +112,10 @@ function statusOf(i: number, elapsed: number, s: Schedule): "waiting" | "live" |
   return "waiting";
 }
 
-function scoreOf(i: number, elapsed: number, s: Schedule): [number, number] {
+/** Score shown mid-show comes from revealed goal beats; at FT it snaps to the
+ *  engine's true final score so the two can never disagree. */
+function scoreOf(f: MDFixtureView, i: number, elapsed: number, s: Schedule): [number, number] {
+  if (elapsed >= s.ftAt[i]) return [f.result.homeGoals, f.result.awayGoals];
   let h = 0, a = 0;
   for (const g of s.goals) {
     if (g.fixture !== i || g.at > elapsed) continue;
@@ -119,14 +124,20 @@ function scoreOf(i: number, elapsed: number, s: Schedule): [number, number] {
   return [h, a];
 }
 
+/** The broadcast clock of one fixture, mapped onto real match minutes. */
+function minuteOf(i: number, elapsed: number, s: Schedule): number {
+  const t = (elapsed - s.liveAt[i]) / (s.ftAt[i] - s.liveAt[i]);
+  return Math.max(1, Math.min(90, Math.round(t * 90)));
+}
+
 function FixtureRowCard({
   f, i, elapsed, s, accent, soft,
 }: {
   f: MDFixtureView; i: number; elapsed: number; s: Schedule; accent: string; soft: string;
 }) {
   const status = statusOf(i, elapsed, s);
-  const [h, a] = scoreOf(i, elapsed, s);
-  const justScored = s.goals.find((g) => g.fixture === i && g.at <= elapsed && elapsed - g.at < 2000);
+  const [h, a] = scoreOf(f, i, elapsed, s);
+  const justScored = s.goals.find((g) => g.fixture === i && g.at <= elapsed && elapsed - g.at < 1800);
 
   return (
     <motion.div
@@ -161,7 +172,7 @@ function FixtureRowCard({
             : { background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.4)" }
         }
       >
-        {status === "ft" ? "FT" : status === "live" ? "● LIVE" : "SOON"}
+        {status === "ft" ? "FT" : status === "live" ? `${minuteOf(i, elapsed, s)}'` : "SOON"}
       </span>
     </motion.div>
   );
@@ -177,8 +188,10 @@ function HeroFixture({
   f: MDFixtureView; i: number; elapsed: number; s: Schedule; accent: string; soft: string;
 }) {
   const status = statusOf(i, elapsed, s);
-  const [h, a] = scoreOf(i, elapsed, s);
+  const [h, a] = scoreOf(f, i, elapsed, s);
   const revealed = s.goals.filter((g) => g.fixture === i && g.at <= elapsed);
+  const homeScorers = revealed.filter((g) => g.team === 0);
+  const awayScorers = revealed.filter((g) => g.team === 1);
 
   return (
     <motion.div
@@ -189,10 +202,14 @@ function HeroFixture({
       <div className="flex items-center justify-between">
         <span className="text-[0.52rem] font-extrabold uppercase tracking-[0.3em]" style={{ color: accent }}>Your Match</span>
         <span
-          className="rounded px-1.5 py-0.5 text-[0.52rem] font-extrabold uppercase tracking-wider"
+          className="flex items-center gap-1.5 rounded px-1.5 py-0.5 font-display text-[0.58rem] font-extrabold uppercase tracking-wider"
           style={status === "ft" ? { background: soft, color: accent } : { background: "rgba(255,60,80,0.18)", color: "#ff8896" }}
         >
-          {status === "ft" ? "FULL TIME" : "● LIVE"}
+          {status !== "ft" && (
+            <motion.span className="inline-block h-1.5 w-1.5 rounded-full bg-red-500"
+              animate={{ opacity: [1, 0.25, 1] }} transition={{ duration: 1.2, repeat: Infinity }} />
+          )}
+          {status === "ft" ? "FULL TIME" : `${minuteOf(i, elapsed, s)}'`}
         </span>
       </div>
       <div className="mt-2 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
@@ -216,13 +233,23 @@ function HeroFixture({
           <TeamBadge colors={f.away.colors} code={f.away.short} size={34} />
         </div>
       </div>
+      {/* scorers, each under their own side — never a jumbled centre line */}
       {revealed.length > 0 && (
-        <div className="mt-2 flex flex-wrap justify-center gap-x-3 gap-y-0.5 text-[0.6rem] text-white/60">
-          {revealed.map((g, k) => (
-            <motion.span key={k} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
-              ⚽ {g.player} {g.minute}&apos;
-            </motion.span>
-          ))}
+        <div className="mt-2 grid grid-cols-2 gap-x-4 text-[0.6rem] text-white/60">
+          <div className="space-y-0.5">
+            {homeScorers.map((g, k) => (
+              <motion.div key={k} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
+                ⚽ {g.player} {g.minute}&apos;
+              </motion.div>
+            ))}
+          </div>
+          <div className="space-y-0.5 text-right">
+            {awayScorers.map((g, k) => (
+              <motion.div key={k} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
+                {g.player} {g.minute}&apos; ⚽
+              </motion.div>
+            ))}
+          </div>
         </div>
       )}
     </motion.div>
@@ -297,14 +324,82 @@ export function MatchdayLive({
   compName: string;
   /** e.g. "Matchday 3" */
   title: string;
-  fixtures: MDFixtureView[];
+  /** null while the round is still being prepared — shows the cinematic beat */
+  fixtures: MDFixtureView[] | null;
   /** standings BEFORE this round — points animate in as results land */
   baseTable: MiniRow[];
   onDone: () => void;
 }) {
   const pal = PAL[comp];
+  return (
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      transition={{ duration: 0.16 }}
+      className="fixed inset-0 z-[130] overflow-y-auto"
+      style={{ background: pal.page }}
+    >
+      {/* stadium night backdrop */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden>
+        <div className="absolute left-1/2 top-[-18%] h-[60vh] w-[85vw] -translate-x-1/2 rounded-full opacity-50"
+          style={{ background: `radial-gradient(circle, ${pal.glow}, transparent 65%)`, filter: "blur(46px)" }} />
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 select-none font-display text-[38vw] font-extrabold leading-none opacity-[0.04]"
+          style={{ color: pal.accent }}>
+          {pal.emblem}
+        </div>
+        <CameraFlashes count={10} />
+        <div className="absolute inset-x-0 bottom-0 h-[20vh]" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.8), transparent)" }} />
+      </div>
+
+      {fixtures === null ? (
+        <MatchdayPrep pal={pal} compName={compName} title={title} />
+      ) : (
+        <MatchdayShow pal={pal} compName={compName} title={title} fixtures={fixtures} baseTable={baseTable} onDone={onDone} />
+      )}
+    </motion.div>
+  );
+}
+
+/** The cinematic beat while the round simulates — never a bare loading bar. */
+function MatchdayPrep({ pal, compName, title }: { pal: (typeof PAL)["cl"]; compName: string; title: string }) {
+  return (
+    <div className="relative flex min-h-full flex-col items-center justify-center px-6 text-center">
+      <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5 }}
+        className="text-5xl" style={{ color: pal.accent, textShadow: `0 0 40px ${pal.accent}` }}>
+        {pal.emblem}
+      </motion.div>
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
+        className="cl-heading mt-3 text-[0.65rem] tracking-[0.5em]" style={{ color: pal.accent }}>
+        {compName.toUpperCase()}
+      </motion.div>
+      <motion.h2 initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25, type: "spring", stiffness: 160, damping: 15 }}
+        className="mt-1 font-display text-4xl font-extrabold text-white sm:text-6xl">
+        {title.toUpperCase()}
+      </motion.h2>
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
+        className="mt-3 text-[0.7rem] uppercase tracking-[0.3em] text-white/50">
+        Preparing the fixtures…
+      </motion.div>
+      {/* premium loader: three pulsing lights, not a bar */}
+      <div className="mt-5 flex gap-2">
+        {[0, 1, 2].map((i) => (
+          <motion.span key={i} className="h-2 w-2 rounded-full" style={{ background: pal.accent }}
+            animate={{ opacity: [0.25, 1, 0.25], scale: [0.85, 1.15, 0.85] }}
+            transition={{ duration: 1.1, repeat: Infinity, delay: i * 0.18 }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function MatchdayShow({
+  pal, compName, title, fixtures, baseTable, onDone,
+}: {
+  pal: (typeof PAL)["cl"]; compName: string; title: string;
+  fixtures: MDFixtureView[]; baseTable: MiniRow[]; onDone: () => void;
+}) {
   const s = useMemo(() => buildSchedule(fixtures), [fixtures]);
   const [elapsed, setElapsed] = useState(0);
+  const [speed, setSpeed] = useState(1);
   const doneRef = useRef(false);
 
   const userIdx = fixtures.findIndex((f) => f.home.isUser || f.away.isUser);
@@ -312,11 +407,11 @@ export function MatchdayLive({
   const completed = fixtures.filter((_, i) => statusOf(i, elapsed, s) === "ft").length;
   const allDone = completed >= fixtures.length && elapsed > s.endAt;
 
-  // the broadcast clock
+  // the broadcast clock — speed scales how much show-time each tick advances
   useEffect(() => {
-    const id = setInterval(() => setElapsed((e) => Math.min(e + TICK, s.endAt + 600)), TICK);
+    const id = setInterval(() => setElapsed((e) => Math.min(e + TICK * speed, s.endAt + 500)), TICK);
     return () => clearInterval(id);
-  }, [s.endAt]);
+  }, [s.endAt, speed]);
 
   // ambience + kick-off whistle
   useEffect(() => {
@@ -342,7 +437,7 @@ export function MatchdayLive({
   // hand back automatically once the show wraps
   useEffect(() => {
     if (!allDone || doneRef.current) return;
-    const id = setTimeout(() => { doneRef.current = true; onDone(); }, 2800);
+    const id = setTimeout(() => { doneRef.current = true; onDone(); }, 2600);
     return () => clearTimeout(id);
   }, [allDone, onDone]);
 
@@ -351,7 +446,7 @@ export function MatchdayLive({
     doneRef.current = true;
     onDone();
   };
-  const skipToEnd = () => { setElapsed(s.endAt + 600); play("click"); };
+  const skipToEnd = () => { setElapsed(s.endAt + 500); play("click"); };
 
   // ticker: goal flashes take priority, otherwise rotating facts
   const facts = useMemo(() => {
@@ -368,29 +463,14 @@ export function MatchdayLive({
     return out;
   }, [baseTable, fixtures.length, compName, title]);
 
-  const flash = [...s.goals].reverse().find((g) => g.at <= elapsed && elapsed - g.at < 2300);
-  const tickerText = flash
-    ? `⚽ GOAL! ${fixtures[flash.fixture].home.short} ${scoreOf(flash.fixture, elapsed, s)[0]}–${scoreOf(flash.fixture, elapsed, s)[1]} ${fixtures[flash.fixture].away.short} — ${flash.player} ${flash.minute}'`
+  const flash = [...s.goals].reverse().find((g) => g.at <= elapsed && elapsed - g.at < 2100);
+  const flashFx = flash ? fixtures[flash.fixture] : null;
+  const tickerText = flash && flashFx
+    ? `⚽ GOAL! ${flashFx.home.short} ${scoreOf(flashFx, flash.fixture, elapsed, s)[0]}–${scoreOf(flashFx, flash.fixture, elapsed, s)[1]} ${flashFx.away.short} — ${flash.player} ${flash.minute}'`
     : facts[Math.floor(elapsed / 2600) % facts.length];
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[130] overflow-y-auto"
-      style={{ background: pal.page }}
-    >
-      {/* stadium night backdrop */}
-      <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden>
-        <div className="absolute left-1/2 top-[-18%] h-[60vh] w-[85vw] -translate-x-1/2 rounded-full opacity-50"
-          style={{ background: `radial-gradient(circle, ${pal.glow}, transparent 65%)`, filter: "blur(46px)" }} />
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 select-none font-display text-[38vw] font-extrabold leading-none opacity-[0.04]"
-          style={{ color: pal.accent }}>
-          {pal.emblem}
-        </div>
-        <CameraFlashes count={10} />
-        <div className="absolute inset-x-0 bottom-0 h-[20vh]" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.8), transparent)" }} />
-      </div>
-
+    <>
       <div className="relative mx-auto w-full max-w-3xl px-3 pb-16 pt-6 sm:px-6 sm:pt-9">
         {/* header */}
         <div className="text-center">
@@ -407,11 +487,22 @@ export function MatchdayLive({
           </motion.div>
         </div>
 
-        {/* progress tracker */}
+        {/* progress tracker + pacing controls */}
         <div className="mx-auto mt-4 max-w-sm">
           <div className="flex items-center justify-between text-[0.58rem] font-bold uppercase tracking-widest text-white/45">
             <span>{completed} / {fixtures.length} completed</span>
-            {!allDone && <button onClick={skipToEnd} className="text-white/50 transition-colors hover:text-white">Skip ⏭</button>}
+            {!allDone && (
+              <span className="flex items-center gap-2">
+                {[1, 2, 4].map((x) => (
+                  <button key={x} onClick={() => { setSpeed(x); play("click"); }}
+                    className="rounded-full px-2 py-0.5 font-extrabold transition-colors"
+                    style={speed === x ? { background: pal.accent, color: "#06101f" } : { background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.55)" }}>
+                    ×{x}
+                  </button>
+                ))}
+                <button onClick={skipToEnd} className="text-white/50 transition-colors hover:text-white">Skip ⏭</button>
+              </span>
+            )}
           </div>
           <div className="mt-1 h-1 overflow-hidden rounded-full bg-white/8">
             <motion.div className="h-full rounded-full" animate={{ width: `${(completed / fixtures.length) * 100}%` }}
@@ -466,7 +557,7 @@ export function MatchdayLive({
           </AnimatePresence>
         </div>
       </div>
-    </motion.div>
+    </>
   );
 }
 

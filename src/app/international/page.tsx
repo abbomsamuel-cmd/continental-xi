@@ -8,6 +8,7 @@ import {
   COMP_SQUADS, groupTable, squadKey, INTL_USER, type IntlComp, type IntlState,
 } from "@/lib/engine/international";
 import { shareTrophyCard, type CardPlayer } from "@/lib/trophy-card";
+import { campaignStory } from "@/lib/broadcast";
 import type { KOTie, KORoundName, MatchResult, Player, RawSquad, TableRow } from "@/lib/types";
 import { MatchModal } from "@/components/MatchModal";
 import { PremiumBracket, type BracketTeam } from "@/components/PremiumBracket";
@@ -121,6 +122,51 @@ export default function InternationalPage() {
   return <InternationalBoundary />;
 }
 
+/** Campaign digest for the end overlay — record, journey, unique story. */
+function intlCampaignDigest(intl: IntlState, teamName: string) {
+  const uk = intl.userKey;
+  const matches: MatchResult[] = [
+    ...intl.fixtures.filter((f) => f.result && (f.home === uk || f.away === uk)).map((f) => f.result!),
+    ...intl.ties
+      .filter((t) => t.teamA === uk || t.teamB === uk)
+      .flatMap((t) => [t.leg1, t.leg2].filter(Boolean) as MatchResult[]),
+  ];
+  const rec = matches.reduce(
+    (acc, r) => {
+      const uf = r.home === uk ? r.homeGoals : r.awayGoals;
+      const oa = r.home === uk ? r.awayGoals : r.homeGoals;
+      acc.gf += uf; acc.ga += oa;
+      if (uf > oa) acc.w++; else if (uf === oa) acc.d++; else acc.l++;
+      return acc;
+    },
+    { w: 0, d: 0, l: 0, gf: 0, ga: 0 },
+  );
+  // top scorer: goals credited to the user's side of each match
+  const tally = new Map<string, number>();
+  for (const m of matches) {
+    const side = m.home === uk ? 0 : 1;
+    for (const e of m.events) {
+      if (e.type === "goal" && e.team === side) tally.set(e.player, (tally.get(e.player) ?? 0) + 1);
+    }
+  }
+  const scorer = [...tally.entries()].sort((a, b) => b[1] - a[1])[0];
+  const outcome: "champion" | "runner" | "third" | "out" =
+    intl.champion === uk ? "champion"
+      : intl.exit?.stage === "Final" ? "runner"
+      : intl.exit?.text.startsWith("Bronze") ? "third" : "out";
+  const story = campaignStory({
+    teamName, outcome, exitStage: intl.exit?.stage, ...rec,
+    topScorer: scorer ? { name: scorer[0], goals: scorer[1] } : undefined,
+    seed: rec.gf * 31 + rec.ga * 7 + rec.w * 13,
+  });
+  const ROUNDS = ["Round of 16", "Quarter-final", "Semi-final", "Third Place", "Final"];
+  const played = new Set(
+    intl.ties.filter((t) => (t.teamA === uk || t.teamB === uk) && t.leg1).map((t) => t.round as string),
+  );
+  const journey = ["Group Stage", ...ROUNDS.filter((r) => played.has(r))];
+  return { rec, scorer, story, journey, matches: matches.length, outcome };
+}
+
 /** Localised bits that overlay the visual THEMES constant. */
 const COMP_TEXT: Record<IntlComp, { titleKey: string; subKey: string; blurbKey: string }> = {
   euro: { titleKey: "mode.euro.title", subKey: "intl.euroSub", blurbKey: "intl.euroBlurb" },
@@ -147,9 +193,10 @@ function International() {
   // Live Match mode — the big nights can be watched minute by minute
   const [simChoice, setSimChoice] = useState<string | null>(null);
   const [live, setLive] = useState<{ legs: LiveLeg[]; title: string; prevPhase: string } | null>(null);
-  // Matchday broadcast — group-stage nights play out as a live results show
+  // Matchday broadcast — group-stage nights play out as a live results show.
+  // fixtures === null while the round simulates behind the opaque overlay.
   const [matchdayShow, setMatchdayShow] = useState<{
-    fixtures: MDFixtureView[]; baseTable: MiniRow[]; title: string; prevPhase: string;
+    fixtures: MDFixtureView[] | null; baseTable: MiniRow[]; title: string; prevPhase: string;
   } | null>(null);
   const pendingFn = useRef<(() => void) | null>(null);
   // synchronous double-click guard — React state alone races (two fast clicks
@@ -260,19 +307,24 @@ function International() {
     const baseTable: MiniRow[] = groupTable(cur, Math.max(0, gi)).map((row) => ({
       ...mdTeam(row.teamId), points: row.points, gd: row.gf - row.ga,
     }));
-    state.advanceIntlGroups();
-    const next = useGame.getState().intl;
-    if (!next) { busyRef.current = false; return; }
-    // user's group first so the show feels local, then the rest of the field
-    const played = next.fixtures.filter((f) => f.matchday === md && f.result);
-    const inUserGroup = (f: (typeof played)[number]) =>
-      gi >= 0 && (next.groups[gi].includes(f.home) || next.groups[gi].includes(f.away));
-    played.sort((a, b) => Number(inUserGroup(b)) - Number(inUserGroup(a)));
-    const fixtures: MDFixtureView[] = played.map((f) => ({
-      home: mdTeam(f.home), away: mdTeam(f.away), result: f.result!,
-    }));
-    if (!fixtures.length) { busyRef.current = false; fireBurstIfQualified(prevPhase); return; }
-    setMatchdayShow({ fixtures, baseTable, title: tr("intl.matchday", { n: md }), prevPhase });
+    // mount the opaque show FIRST (prep beat), then simulate behind it — the
+    // page can never flash a result before the reveal
+    setMatchdayShow({ fixtures: null, baseTable, title: tr("intl.matchday", { n: md }), prevPhase });
+    setTimeout(() => {
+      useGame.getState().advanceIntlGroups();
+      const next = useGame.getState().intl;
+      if (!next) { setMatchdayShow(null); busyRef.current = false; return; }
+      // user's group first so the show feels local, then the rest of the field
+      const played = next.fixtures.filter((f) => f.matchday === md && f.result);
+      const inUserGroup = (f: (typeof played)[number]) =>
+        gi >= 0 && (next.groups[gi].includes(f.home) || next.groups[gi].includes(f.away));
+      played.sort((a, b) => Number(inUserGroup(b)) - Number(inUserGroup(a)));
+      const fixtures: MDFixtureView[] = played.map((f) => ({
+        home: mdTeam(f.home), away: mdTeam(f.away), result: f.result!,
+      }));
+      if (!fixtures.length) { setMatchdayShow(null); busyRef.current = false; fireBurstIfQualified(prevPhase); return; }
+      setMatchdayShow((prev) => (prev ? { ...prev, fixtures } : prev));
+    }, 1000);
   };
 
   const onMatchdayDone = () => {
@@ -684,14 +736,29 @@ function International() {
           )}
         </AnimatePresence>
 
-        {/* tunnel transition between rounds — group nights run quicker */}
+        {/* cinematic stage intro between knockout rounds — escalates to medal night */}
         <RoundTransition
           show={!!transition}
           title={transition?.title ?? ""}
           subtitle={transition?.subtitle}
+          variant={intl.comp}
+          stage={intl.phase === "sf" ? "sf" : intl.phase === "final" ? "final" : "ko"}
+          teams={(() => {
+            const tie = intl.ties.find(
+              (k) => !k.winner && (k.teamA === intl.userKey || k.teamB === intl.userKey),
+            );
+            if (!tie) return null;
+            const user = intl.teams[intl.userKey];
+            const opp = intl.teams[tie.teamA === intl.userKey ? tie.teamB : tie.teamA];
+            const nm = (x: typeof user) => `${x.name}${x.season && !x.isUser ? ` ${x.season}` : ""}`;
+            return {
+              a: { name: nm(user), short: user.short, colors: user.colors },
+              b: { name: nm(opp), short: opp.short, colors: opp.colors },
+            };
+          })()}
           detail={nextOpponentDetail}
           accent={t.accent}
-          duration={intl.phase === "groups" ? 1350 : 1900}
+          duration={intl.phase === "final" ? 4600 : intl.phase === "sf" ? 3200 : 2500}
           onDone={onTransitionDone}
         />
 
@@ -772,33 +839,56 @@ function International() {
               className="fixed inset-0 z-[120] flex items-center justify-center overflow-y-auto p-4"
               style={{ background: `radial-gradient(130% 90% at 50% 25%, ${won ? "#3d2f05" : "#0a1330"}, #030b22 72%)` }}
             >
-              {won ? (
-                <>
-                  <Fireworks count={9} palette={[...t.fireworks, "#f2d472"]} />
-                  <Confetti count={130} colors={[...t.confetti]} />
-                  <CameraFlashes count={20} />
-                </>
-              ) : (
-                <>
-                  <RainOverlay drops={56} opacity={0.55} />
-                  <div className="pointer-events-none absolute inset-0 bg-black/35" />
-                </>
-              )}
+              {(() => {
+                const digest = intlCampaignDigest(intl, userLabel);
+                return (
+                  <>
+                    {digest.outcome === "champion" && (
+                      <>
+                        <Fireworks count={9} palette={[...t.fireworks, "#f2d472"]} />
+                        <Confetti count={130} colors={[...t.confetti]} />
+                        <CameraFlashes count={20} />
+                      </>
+                    )}
+                    {digest.outcome === "runner" && (
+                      <>
+                        <Confetti count={70} colors={["#c0c8d4", "#e8edf5", "#9fb3d1"]} />
+                        <CameraFlashes count={12} />
+                      </>
+                    )}
+                    {digest.outcome === "third" && (
+                      <>
+                        <Sparks count={14} color="#cd7f32" />
+                        <CameraFlashes count={10} />
+                      </>
+                    )}
+                    {digest.outcome === "out" && (
+                      <>
+                        <RainOverlay drops={56} opacity={0.55} />
+                        <div className="pointer-events-none absolute inset-0 bg-black/35" />
+                      </>
+                    )}
+                  </>
+                );
+              })()}
 
-              <div className="relative z-10 w-full max-w-md text-center">
+              <div className="relative z-10 w-full max-w-md py-6 text-center">
                 {!won && (
                   <motion.div
                     initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ delay: 0.3, duration: 0.5 }}
                     className={`mx-auto mb-5 w-fit rounded-md border px-4 py-1 text-[0.65rem] font-extrabold uppercase tracking-[0.35em] ${
                       intl.exit?.text.startsWith("Bronze")
-                        ? "border-amber-400/60 bg-amber-400/15 text-amber-300"
-                        : "border-danger/60 bg-danger/15 text-danger"
+                        ? "border-amber-500/60 bg-amber-500/15 text-amber-300"
+                        : intl.exit?.stage === "Final"
+                          ? "border-white/40 bg-white/10 text-white/90"
+                          : "border-danger/60 bg-danger/15 text-danger"
                     }`}
                   >
-                    {intl.exit?.stage === "Final" ? "So Close"
+                    {intl.exit?.stage === "Final" ? "Runners-up"
                       : intl.exit?.text.startsWith("Bronze") ? "Bronze Medal" : "Eliminated"}
                   </motion.div>
                 )}
+                {/* emblem — medals for the podium, a dimmed crest for a rain-soaked exit */}
                 <motion.div
                   initial={{ scale: 0, rotate: -25, y: 30 }} animate={{ scale: 1, rotate: 0, y: 0 }}
                   transition={{ type: "spring", stiffness: 110, damping: 11, delay: 0.15 }}
@@ -807,7 +897,9 @@ function International() {
                 >
                   {won ? "🏆"
                     : intl.exit?.stage === "Final" ? "🥈"
-                    : intl.exit?.text.startsWith("Bronze") ? "🥉" : "🌧️"}
+                    : intl.exit?.text.startsWith("Bronze") ? "🥉" : (
+                      <span className="inline-block opacity-80"><CrestLogo size={110} animated={false} /></span>
+                    )}
                 </motion.div>
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.45 }}
                   className="cl-heading mt-2 text-[0.65rem] tracking-[0.4em]" style={{ color: t.accent }}>
@@ -839,6 +931,49 @@ function International() {
                     </span>
                   </motion.div>
                 )}
+
+                {/* tournament journey + record + a story unique to this campaign */}
+                {(() => {
+                  const digest = intlCampaignDigest(intl, userLabel);
+                  const medal = digest.outcome === "champion" ? "🏆 Champions"
+                    : digest.outcome === "runner" ? "Runners-up"
+                    : digest.outcome === "third" ? "🥉 Third Place" : "Eliminated";
+                  const steps = [...digest.journey, medal];
+                  return (
+                    <motion.div
+                      initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1 }}
+                      className={`mx-auto mt-5 rounded-2xl p-4 ${t.panel}`}
+                    >
+                      <div className="flex flex-wrap items-center justify-center gap-y-1.5">
+                        {steps.map((sname, i) => (
+                          <span key={sname} className="flex items-center">
+                            <span
+                              className={`rounded-full px-2.5 py-1 text-[0.55rem] font-extrabold uppercase tracking-wider ${i === steps.length - 1 ? "" : "bg-white/6 text-white/65"}`}
+                              style={i === steps.length - 1 ? { background: t.soft, color: t.accent, boxShadow: `inset 0 0 0 1px ${t.accent}55` } : undefined}
+                            >
+                              {sname}
+                            </span>
+                            {i < steps.length - 1 && <span className="mx-1 text-[0.6rem] text-white/30">→</span>}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="mt-3.5 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                        {([
+                          ["Played", `${digest.matches}`],
+                          ["Record", `${digest.rec.w}W · ${digest.rec.d}D · ${digest.rec.l}L`],
+                          ["Goals", `${digest.rec.gf} – ${digest.rec.ga}`],
+                          ...(digest.scorer ? [["Top Scorer", `${digest.scorer[0]} (${digest.scorer[1]})`]] : []),
+                        ] as [string, string][]).map(([k, val]) => (
+                          <div key={k} className="rounded-xl bg-black/25 px-2 py-2">
+                            <div className="text-[0.5rem] font-bold uppercase tracking-widest" style={{ color: t.accent }}>{k}</div>
+                            <div className="mt-0.5 truncate text-[0.7rem] font-bold text-white">{val}</div>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="mx-auto mt-3.5 max-w-md text-[0.72rem] leading-relaxed text-white/65">{digest.story}</p>
+                    </motion.div>
+                  );
+                })()}
 
                 {lastUserMatch && (
                   <motion.button

@@ -546,6 +546,15 @@ const DICT: Record<string, Entry> = {
   "stats.fav.player": { en: "Most-drafted player", es: "Jugador más elegido" },
   "stats.fav.goals": { en: "Total tournament goals", es: "Goles totales en torneos" },
   "stats.noDrafts": { en: "No drafts yet. Go build an XI!", es: "Aún sin sorteos. ¡Ve a construir un once!" },
+  /* ---- hidden emblems (easter eggs) ---- */
+  "egg.discovered": { en: "Emblem Discovered", es: "Emblema Descubierto" },
+  "egg.title": { en: "Hidden Emblems", es: "Emblemas Ocultos" },
+  "egg.subtitle": {
+    en: "Secret badges unlocked by fielding legendary XIs. Discover them your own way.",
+    es: "Insignias secretas que se desbloquean alineando onces legendarios. Descúbrelas a tu manera.",
+  },
+  "egg.progress": { en: "{n} of {total} discovered", es: "{n} de {total} descubiertos" },
+  "egg.locked": { en: "Undiscovered", es: "Sin descubrir" },
 };
 
 /* ================================================================== */

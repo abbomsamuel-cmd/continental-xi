@@ -45,8 +45,9 @@ export function PenaltyShootout({
     const k = shootout.kicks[shown];
     const step = mode === "live" ? (k.suddenDeath ? 1500 : 1350) : 620;
     timer.current = setTimeout(() => {
-      // sound only once the kick is on screen — never a spoiler
-      play(k.outcome === "goal" ? "goal" : "error");
+      // sound only once the kick is on screen — never a spoiler.
+      // goal → roar, saved → keeper denial, missed/post → sting.
+      play(k.outcome === "goal" ? "goal" : k.outcome === "saved" ? "save" : "error");
       setShown((s) => s + 1);
     }, step);
     return () => { if (timer.current) clearTimeout(timer.current); };

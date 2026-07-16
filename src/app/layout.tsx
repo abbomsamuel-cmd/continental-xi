@@ -2,8 +2,10 @@ import type { Metadata, Viewport } from "next";
 import { Sora, Manrope } from "next/font/google";
 import "./globals.css";
 import { StadiumBackground } from "@/components/StadiumBackground";
+import { Ambience } from "@/components/fx/Ambience";
 import { NavBar } from "@/components/NavBar";
 import { SiteCredit } from "@/components/SiteCredit";
+import { EggToast } from "@/components/EggToast";
 import { LangProvider } from "@/lib/i18n";
 
 const display = Sora({
@@ -46,9 +48,11 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body className="min-h-full">
         <LangProvider>
           <StadiumBackground />
+          <Ambience />
           <NavBar />
           <main className="relative z-10">{children}</main>
           <SiteCredit />
+          <EggToast />
         </LangProvider>
       </body>
     </html>

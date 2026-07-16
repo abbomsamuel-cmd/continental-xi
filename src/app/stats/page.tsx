@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { useGame } from "@/lib/store";
 import { ACHIEVEMENTS } from "@/lib/achievements";
+import { EASTER_EGGS } from "@/lib/easter-eggs";
 import type { DraftRecord } from "@/lib/types";
 import { useT } from "@/lib/i18n";
 import { LanguageToggle } from "@/components/LanguageToggle";
@@ -70,6 +71,7 @@ function StatsInner() {
 
   const agg = useMemo(() => aggregate(profile.drafts), [profile.drafts]);
   const unlocked = new Set(profile.achievements);
+  const foundEggs = new Set(profile.eggs ?? []);
   const isNew = profile.drafts.length === 0 && (profile.intlResults?.length ?? 0) === 0;
 
   const resultCounts = useMemo(() => {
@@ -134,7 +136,7 @@ function StatsInner() {
       <div className="mt-6 flex flex-wrap gap-2">
         {(["stats", "achievements", "history", "settings"] as const).map((tb) => (
           <button key={tb} onClick={() => { setTab(tb); play("click"); }}
-            className={`chip ${tab === tb ? "bg-gold/20 text-gold" : "bg-white/6 text-muted"}`}>{t(`stats.tab.${tb === "settings" ? "settings" : tb}`)}</button>
+            className={`chip press ${tab === tb ? "bg-gold/20 text-gold" : "bg-white/6 text-muted"}`}>{t(`stats.tab.${tb === "settings" ? "settings" : tb}`)}</button>
         ))}
       </div>
 
@@ -145,7 +147,7 @@ function StatsInner() {
               [t("stats.draftsPlayed"), agg.played], [t("stats.clTitles"), agg.champions], [t("stats.finals"), agg.finals], [t("stats.semis"), agg.semis],
               [t("stats.winPct"), `${agg.winPct}%`], [t("stats.avgOverall"), agg.avgOverall], [t("stats.bestOverall"), agg.bestOverall], [t("stats.totalGoals"), agg.totalGoals],
             ].map(([label, value]) => (
-              <div key={label} className="glass rounded-2xl px-3 py-4 text-center">
+              <div key={label} className="glass lift rounded-2xl px-3 py-4 text-center">
                 <div className="font-display text-2xl font-extrabold text-gradient-gold">{value}</div>
                 <div className="mt-1 text-[0.6rem] font-semibold uppercase tracking-widest text-muted">{label}</div>
               </div>
@@ -194,7 +196,7 @@ function StatsInner() {
             const have = unlocked.has(a.id);
             return (
               <div key={a.id}
-                className={`glass rounded-2xl p-4 ${have ? "" : "opacity-45 grayscale"}`}
+                className={`glass lift rounded-2xl p-4 ${have ? "" : "opacity-45 grayscale"}`}
                 style={have ? { borderColor: TIER_COLORS[a.tier] } : undefined}>
                 <div className="flex items-center gap-3">
                   <span className="text-3xl">{a.icon}</span>
@@ -207,6 +209,43 @@ function StatsInner() {
                   {have && <span className="ml-auto text-green">✓</span>}
                 </div>
                 <p className="mt-2 text-xs text-muted">{a.description}</p>
+              </div>
+            );
+          })}
+
+          {/* ---- Hidden emblems (easter eggs) ---- */}
+          <div className="col-span-full mt-4">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h3 className="font-display text-lg font-extrabold text-gradient-gold">✦ {t("egg.title")}</h3>
+              <span className="text-[0.62rem] font-bold uppercase tracking-widest text-muted">
+                {t("egg.progress", { n: foundEggs.size, total: EASTER_EGGS.length })}
+              </span>
+            </div>
+            <p className="mt-1 max-w-xl text-xs text-muted">{t("egg.subtitle")}</p>
+          </div>
+          {EASTER_EGGS.map((e) => {
+            const have = foundEggs.has(e.id);
+            return (
+              <div key={e.id}
+                className={`glass lift rounded-2xl p-4 ${have ? "shine" : ""}`}
+                style={have ? { borderColor: "rgba(212,175,55,0.45)" } : undefined}>
+                <div className="flex items-center gap-3">
+                  <span className={`text-3xl ${have ? "" : "opacity-40 blur-[3px] grayscale"}`}>
+                    {have ? e.icon : "❓"}
+                  </span>
+                  <div className="min-w-0">
+                    <div className={`font-display font-bold ${have ? "text-white" : "text-muted"}`}>
+                      {have ? e.name : t("egg.locked")}
+                    </div>
+                    {have && (
+                      <span className="text-[0.55rem] font-bold uppercase tracking-widest text-gold">{e.tier}</span>
+                    )}
+                  </div>
+                  {have && <span className="ml-auto text-gold">✦</span>}
+                </div>
+                <p className={`mt-2 text-xs ${have ? "text-muted" : "italic text-white/45"}`}>
+                  {have ? e.description : e.hint}
+                </p>
               </div>
             );
           })}

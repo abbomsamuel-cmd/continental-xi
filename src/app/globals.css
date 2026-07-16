@@ -401,6 +401,28 @@ button:focus-visible {
   left: 140%;
 }
 
+/* ---------- Micro-polish: tactile cards & controls (opt-in) ---------- */
+/* a card that lifts and warms on hover, and presses in on click */
+.lift {
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.22s ease, border-color 0.22s ease;
+  will-change: transform;
+}
+.lift:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.42), 0 0 0 1px rgba(212, 175, 55, 0.18);
+}
+.lift:active {
+  transform: translateY(-1px) scale(0.995);
+  transition-duration: 0.09s;
+}
+/* quick tactile press for small interactive chips/tiles */
+.press {
+  transition: transform 0.12s ease;
+}
+.press:active {
+  transform: scale(0.94);
+}
+
 /* ---------- 3D mode cards ---------- */
 .tilt-wrap {
   perspective: 1100px;
@@ -610,6 +632,13 @@ button:focus-visible {
   animation: auroraShift 16s ease-in-out infinite;
   will-change: transform;
   filter: blur(50px);
+}
+/* per-screen ambient light motes — a slow vertical drift that fades in and out */
+@keyframes moteFloat {
+  0% { transform: translate3d(0, 8vh, 0); opacity: 0; }
+  15% { opacity: var(--mote-o, 0.3); }
+  85% { opacity: var(--mote-o, 0.3); }
+  100% { transform: translate3d(var(--mote-x, 0), -18vh, 0); opacity: 0; }
 }
 
 .shimmer {

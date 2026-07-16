@@ -20,6 +20,7 @@ import {
   type IntlComp, type IntlState,
 } from "./engine/international";
 import { checkAchievements } from "./achievements";
+import { detectEggs } from "./easter-eggs";
 import { play, setSoundEnabled } from "./sound";
 
 export type Difficulty = "easy" | "medium" | "hard";
@@ -65,6 +66,8 @@ interface StoreState {
   captainId: string | null;
   draftComplete: boolean;
   lastUnlocked: string[];
+  /** cosmetic emblems discovered on the last finished run — drives the egg toast */
+  lastEggs: string[];
   rngSeed: string | null;
   rerolls: number;
 
@@ -109,6 +112,7 @@ interface StoreState {
   recordResult: () => void;
   resetDraft: () => void;
   clearUnlocked: () => void;
+  clearEggs: () => void;
 
   // international actions
   startIntl: (comp: IntlComp, squadKey: string) => void;
@@ -124,6 +128,7 @@ const emptyProfile = (): Profile => ({
   achievements: [],
   drafts: [],
   soundOn: true,
+  eggs: [],
 });
 
 /** Draw a squad that offers eligible players for `slotPos`, avoiding recent repeats. */
@@ -155,6 +160,7 @@ export const useGame = create<StoreState>()(
       captainId: null,
       draftComplete: false,
       lastUnlocked: [],
+      lastEggs: [],
       rngSeed: null,
       rerolls: 0,
       tournament: null,
@@ -193,6 +199,7 @@ export const useGame = create<StoreState>()(
           tournament: null,
           rngSeed: seed,
           lastUnlocked: [],
+          lastEggs: [],
           rerolls: REROLLS_FOR[difficulty],
         });
       },
@@ -494,10 +501,20 @@ export const useGame = create<StoreState>()(
           lostAKnockout,
           isDaily: !!setup.daily,
         });
+        // hidden cosmetic emblems — derived purely from the XI + outcome
+        const startedXI = xi.filter(Boolean) as Player[];
+        const captainName = startedXI.find((p) => p.id === get().captainId)?.name ?? null;
+        const eggs = detectEggs({ xi: startedXI, captainName, champion }, provisional.eggs ?? []);
         if (unlocked.length) play("win");
+        if (eggs.length) play("unlock");
         set({
-          profile: { ...provisional, achievements: [...provisional.achievements, ...unlocked] },
+          profile: {
+            ...provisional,
+            achievements: [...provisional.achievements, ...unlocked],
+            eggs: [...(provisional.eggs ?? []), ...eggs],
+          },
           lastUnlocked: unlocked,
+          lastEggs: eggs,
         });
       },
 
@@ -510,6 +527,7 @@ export const useGame = create<StoreState>()(
       }),
 
       clearUnlocked: () => set({ lastUnlocked: [] }),
+      clearEggs: () => set({ lastEggs: [] }),
 
       // ---- International mode (EURO / Copa América) ----
 
@@ -569,8 +587,22 @@ export const useGame = create<StoreState>()(
           result: result as IntlRecord["result"],
           date: new Date().toISOString(),
         };
+        // hidden emblems: only a drafted XI has a lineup to inspect (AI nations
+        // don't). Detect before resetDraft clears the picks.
+        let eggs: string[] = [];
+        if (drafted) {
+          const startedXI = get().getXI().filter(Boolean) as Player[];
+          const captainName = startedXI.find((p) => p.id === get().captainId)?.name ?? null;
+          eggs = detectEggs({ xi: startedXI, captainName, champion: intl.champion === intl.userKey }, profile.eggs ?? []);
+        }
+        if (eggs.length) play("unlock");
         set({
-          profile: { ...profile, intlResults: [record, ...(profile.intlResults ?? [])].slice(0, 100) },
+          profile: {
+            ...profile,
+            intlResults: [record, ...(profile.intlResults ?? [])].slice(0, 100),
+            eggs: [...(profile.eggs ?? []), ...eggs],
+          },
+          lastEggs: eggs,
           intl: null,
         });
         // a drafted XI is single-use — lock it like the club mode

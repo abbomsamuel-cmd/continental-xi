@@ -289,4 +289,6 @@ export interface Profile {
   drafts: DraftRecord[];
   soundOn: boolean;
   intlResults?: IntlRecord[];
+  /** cosmetic hidden emblems the manager has discovered (easter eggs) */
+  eggs?: string[];
 }

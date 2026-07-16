@@ -206,7 +206,7 @@ function GroupButton({
   return (
     <div className="relative">
       <button
-        onClick={() => { onToggle(); play("hover"); }}
+        onClick={() => { const wasOpen = open; onToggle(); play(wasOpen ? "hover" : "menu"); }}
         aria-expanded={open}
         className={`flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors ${active || open ? "text-gold" : "text-muted hover:text-white"}`}
       >

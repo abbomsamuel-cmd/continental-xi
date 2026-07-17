@@ -17,6 +17,8 @@ import { Fireworks } from "@/components/fx/Fireworks";
 import { CameraFlashes, Sparks, RainOverlay } from "@/components/fx/Atmosphere";
 import { LiveMatch, SimStyleChoice, type LiveLeg } from "@/components/LiveMatch";
 import { MatchdayLive, type MDFixtureView, type MiniRow } from "@/components/MatchdayLive";
+import { MatchPreview, GoldenBootRace, HeadlinesPanel, type PreviewTeam } from "@/components/TournamentCentre";
+import { goldenBootRace, tournamentHeadlines } from "@/lib/broadcast";
 import { PageBoundary } from "@/components/PageBoundary";
 import { USER_TEAM_ID, teamLabel } from "@/lib/engine/tournament";
 import type { Fixture, KOTie, MatchResult, SimTeam } from "@/lib/types";
@@ -245,6 +247,63 @@ function TournamentInner() {
     { w: 0, d: 0, l: 0, gf: 0, ga: 0 },
   );
   const lastResult = campaignMatches[campaignMatches.length - 1];
+
+  // ---- tournament centre: every played match across the WHOLE field ----
+  const allMatches: MatchResult[] = [
+    ...tournament.fixtures.filter((f) => f.result).map((f) => f.result!),
+    ...tournament.ties.flatMap((t) => [t.leg1, t.leg2].filter(Boolean) as MatchResult[]),
+  ];
+  const bootRace = goldenBootRace(allMatches, (id) => tournament.teams[id]);
+  const REMAINING: Record<string, number> = { playoffs: 24, r16: 16, qf: 8, sf: 4, final: 2 };
+  const headlines = tournamentHeadlines({
+    rows: table.slice(0, 4).map((r) => ({
+      name: tournament.teams[r.teamId].isUser ? tournament.teams[r.teamId].name : teamLabel(tournament.teams[r.teamId]),
+      points: r.points,
+      isUser: tournament.teams[r.teamId].isUser,
+      unbeaten: r.played > 0 && r.lost === 0,
+    })),
+    topScorer: bootRace[0] ? { player: bootRace[0].player, goals: bootRace[0].goals, teamShort: bootRace[0].teamShort } : undefined,
+    stageLabel: PHASE_LABEL[tournament.phase] ?? "",
+    userName: tournament.teams[USER_TEAM_ID].name,
+    userAlive: tournament.userAlive,
+    remaining: REMAINING[tournament.phase],
+    seed: allMatches.length * 13 + (tournament.userSeed ?? 1),
+  });
+  // pre-match show data for one side of the user's next tie
+  const previewSide = (id: string): PreviewTeam => {
+    const team = tournament.teams[id];
+    const ms = allMatches.filter((m) => m.home === id || m.away === id);
+    const rec = ms.reduce(
+      (acc, m) => {
+        const uf = m.home === id ? m.homeGoals : m.awayGoals;
+        const oa = m.home === id ? m.awayGoals : m.homeGoals;
+        acc.gf += uf; acc.ga += oa;
+        if (uf > oa) acc.w++; else if (uf === oa) acc.d++; else acc.l++;
+        return acc;
+      },
+      { w: 0, d: 0, l: 0, gf: 0, ga: 0 },
+    );
+    const form = ms.slice(-5).map((m) => {
+      const uf = m.home === id ? m.homeGoals : m.awayGoals;
+      const oa = m.home === id ? m.awayGoals : m.homeGoals;
+      return uf > oa ? "W" : uf === oa ? "D" : "L";
+    }) as ("W" | "D" | "L")[];
+    const tally = new Map<string, number>();
+    for (const m of ms) {
+      const side = m.home === id ? 0 : 1;
+      for (const e of m.events) if (e.type === "goal" && e.team === side) tally.set(e.player, (tally.get(e.player) ?? 0) + 1);
+    }
+    const scorer = [...tally.entries()].sort((a, b) => b[1] - a[1])[0];
+    const keyPlayers = team.isUser
+      ? (useGame.getState().getXI().filter(Boolean).sort((a, b) => b!.overall - a!.overall).slice(0, 3).map((p) => p!.name))
+      : undefined;
+    return {
+      name: team.isUser ? team.name : teamLabel(team),
+      short: team.short, colors: team.colors, strength: team.strength,
+      record: rec, form, keyPlayers, isUser: team.isUser,
+      topScorer: scorer ? { name: scorer[0], goals: scorer[1] } : undefined,
+    };
+  };
   const nextOpp = (() => {
     if (isLeague) {
       const f = tournament.fixtures.find(
@@ -422,7 +481,7 @@ function TournamentInner() {
           <div>
             <LeagueTable rows={table} tournament={tournament} />
           </div>
-          <div className="lg:sticky lg:top-24 lg:self-start">
+          <div className="space-y-4 lg:sticky lg:top-24 lg:self-start">
             <div className="glass rounded-2xl p-4">
               <h3 className="mb-3 text-sm font-bold uppercase tracking-widest text-muted">Your Fixtures</h3>
               <div className="space-y-2">
@@ -432,6 +491,8 @@ function TournamentInner() {
                 {userFixtures.length === 0 && <p className="text-sm text-muted">Schedule loading…</p>}
               </div>
             </div>
+            <GoldenBootRace entries={bootRace.slice(0, 5)} accent="#d4af37" soft="rgba(212,175,55,0.15)" />
+            <HeadlinesPanel lines={headlines} accent="#d4af37" />
           </div>
         </div>
       ) : eliminatedInLeague ? (
@@ -450,6 +511,16 @@ function TournamentInner() {
         </div>
       ) : (
         <div className="mt-8 space-y-6">
+          {nextTie && !isDone && tournament.phase !== "final" && (
+            <MatchPreview
+              roundLabel={PHASE_LABEL[tournament.phase] ?? tournament.phase}
+              compLabel="Champions Draft"
+              a={previewSide(nextTie.teamA === USER_TEAM_ID ? USER_TEAM_ID : nextTie.teamB === USER_TEAM_ID ? USER_TEAM_ID : nextTie.teamA)}
+              b={previewSide(nextTie.teamA === USER_TEAM_ID ? nextTie.teamB : nextTie.teamA)}
+              accent="#d4af37"
+              soft="rgba(212,175,55,0.15)"
+            />
+          )}
           <KnockoutBracket
             tournament={tournament}
             onTieClick={(tie: KOTie) => {
@@ -467,6 +538,10 @@ function TournamentInner() {
               Next: <span className="text-gold">{PHASE_LABEL[tournament.phase]}</span> — win or your run ends here.
             </p>
           )}
+          <div className="grid gap-4 md:grid-cols-2">
+            <GoldenBootRace entries={bootRace} accent="#d4af37" soft="rgba(212,175,55,0.15)" />
+            <HeadlinesPanel lines={headlines} accent="#d4af37" />
+          </div>
           <details className="glass rounded-2xl p-4">
             <summary className="cursor-pointer text-sm font-bold uppercase tracking-widest text-muted">
               Final League Table
@@ -564,6 +639,7 @@ function TournamentInner() {
             title={matchdayShow.title}
             fixtures={matchdayShow.fixtures}
             baseTable={matchdayShow.baseTable}
+            zones={{ direct: 8, secondary: 24 }}
             onDone={onMatchdayDone}
           />
         )}

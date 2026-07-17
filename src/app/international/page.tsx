@@ -8,7 +8,8 @@ import {
   COMP_SQUADS, groupTable, squadKey, INTL_USER, type IntlComp, type IntlState,
 } from "@/lib/engine/international";
 import { shareTrophyCard, type CardPlayer } from "@/lib/trophy-card";
-import { campaignStory } from "@/lib/broadcast";
+import { campaignStory, goldenBootRace, tournamentHeadlines } from "@/lib/broadcast";
+import { MatchPreview, GoldenBootRace, HeadlinesPanel, type PreviewTeam } from "@/components/TournamentCentre";
 import type { KOTie, KORoundName, MatchResult, Player, RawSquad, TableRow } from "@/lib/types";
 import { MatchModal } from "@/components/MatchModal";
 import { PremiumBracket, type BracketTeam } from "@/components/PremiumBracket";
@@ -562,6 +563,65 @@ function International() {
       : inBronze ? tr("intl.round.bronze")
       : tr("intl.round.final");
 
+  // ---- tournament centre: every played match across the WHOLE field ----
+  const allIntlMatches: MatchResult[] = [
+    ...intl.fixtures.filter((f) => f.result).map((f) => f.result!),
+    ...intl.ties.flatMap((k) => [k.leg1, k.leg2].filter(Boolean) as MatchResult[]),
+  ];
+  const bootRace = goldenBootRace(allIntlMatches, (id) => intl.teams[id]);
+  const gi0 = intl.groups.findIndex((g) => g.includes(intl.userKey));
+  const groupRows = gi0 >= 0 ? groupTable(intl, gi0) : [];
+  const REMAINING_INTL: Record<string, number> = { r16: 16, qf: 8, sf: 4, final: 2 };
+  const headlines = tournamentHeadlines({
+    rows: groupRows.slice(0, 4).map((r) => ({
+      name: `${intl.teams[r.teamId].name}${intl.teams[r.teamId].season && r.teamId !== intl.userKey ? ` ${intl.teams[r.teamId].season}` : ""}`,
+      points: r.points,
+      isUser: r.teamId === intl.userKey,
+      unbeaten: r.played > 0 && r.lost === 0,
+    })),
+    topScorer: bootRace[0] ? { player: bootRace[0].player, goals: bootRace[0].goals, teamShort: bootRace[0].teamShort } : undefined,
+    stageLabel: roundTitle,
+    userName: userLabel,
+    userAlive: intl.userAlive,
+    remaining: REMAINING_INTL[intl.phase],
+    seed: allIntlMatches.length * 13 + intl.userKey.length,
+  });
+  const previewSide = (id: string): PreviewTeam => {
+    const team = intl.teams[id];
+    const ms = allIntlMatches.filter((m) => m.home === id || m.away === id);
+    const rec = ms.reduce(
+      (acc, m) => {
+        const uf = m.home === id ? m.homeGoals : m.awayGoals;
+        const oa = m.home === id ? m.awayGoals : m.homeGoals;
+        acc.gf += uf; acc.ga += oa;
+        if (uf > oa) acc.w++; else if (uf === oa) acc.d++; else acc.l++;
+        return acc;
+      },
+      { w: 0, d: 0, l: 0, gf: 0, ga: 0 },
+    );
+    const form = ms.slice(-5).map((m) => {
+      const uf = m.home === id ? m.homeGoals : m.awayGoals;
+      const oa = m.home === id ? m.awayGoals : m.homeGoals;
+      return uf > oa ? "W" : uf === oa ? "D" : "L";
+    }) as ("W" | "D" | "L")[];
+    const tally = new Map<string, number>();
+    for (const m of ms) {
+      const side = m.home === id ? 0 : 1;
+      for (const e of m.events) if (e.type === "goal" && e.team === side) tally.set(e.player, (tally.get(e.player) ?? 0) + 1);
+    }
+    const scorer = [...tally.entries()].sort((a, b) => b[1] - a[1])[0];
+    const keyPlayers = id === intl.userKey && intl.userKey === INTL_USER
+      ? (useGame.getState().getXI().filter(Boolean).sort((a, b) => b!.overall - a!.overall).slice(0, 3).map((pl) => pl!.name))
+      : undefined;
+    return {
+      name: `${team.name}${team.season && id !== intl.userKey ? ` ${team.season}` : ""}`,
+      short: team.short, colors: team.colors, strength: team.strength,
+      record: rec, form, keyPlayers, isUser: id === intl.userKey,
+      topScorer: scorer ? { name: scorer[0], goals: scorer[1] } : undefined,
+    };
+  };
+  const nextUserTie = intl.ties.find((k) => !k.winner && (k.teamA === intl.userKey || k.teamB === intl.userKey));
+
   // fixture line shown inside the tunnel transition
   const nextOpponentDetail = (() => {
     if (intl.phase === "groups") {
@@ -725,10 +785,32 @@ function International() {
           </div>
         )}
 
+        {/* PRE-MATCH SHOW — the user's next knockout tie (medal night has its own showdown) */}
+        {nextUserTie && ["r16", "qf", "sf"].includes(intl.phase) && (
+          <div className="mt-6">
+            <MatchPreview
+              roundLabel={roundTitle}
+              compLabel={t.title}
+              a={previewSide(nextUserTie.teamA === intl.userKey ? intl.userKey : nextUserTie.teamB === intl.userKey ? intl.userKey : nextUserTie.teamA)}
+              b={previewSide(nextUserTie.teamA === intl.userKey ? nextUserTie.teamB : nextUserTie.teamA)}
+              accent={t.accent}
+              soft={t.soft}
+            />
+          </div>
+        )}
+
         {/* KNOCKOUT BRACKET */}
         {intl.ties.length > 0 && (
           <IntlBracket intl={intl}
             onTieClick={(tie) => tie.leg1 && setModal({ result: tie.leg1, title: tie.round })} />
+        )}
+
+        {/* TOURNAMENT CENTRE — golden boot race + evolving storylines */}
+        {allIntlMatches.length > 0 && (
+          <div className="mt-6 grid gap-4 md:grid-cols-2">
+            <GoldenBootRace entries={bootRace} accent={t.accent} soft={t.soft} />
+            <HeadlinesPanel lines={headlines} accent={t.accent} />
+          </div>
         )}
 
         <div className="mt-8 flex justify-center">
@@ -818,6 +900,7 @@ function International() {
               title={matchdayShow.title}
               fixtures={matchdayShow.fixtures}
               baseTable={matchdayShow.baseTable}
+              zones={{ direct: 2, secondary: 3 }}
               onDone={onMatchdayDone}
             />
           )}

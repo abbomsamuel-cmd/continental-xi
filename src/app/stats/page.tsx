@@ -12,7 +12,11 @@ import { useT } from "@/lib/i18n";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { ReportBug } from "@/components/ReportBug";
 import { getFxSetting, setFxSetting, type FxSetting } from "@/lib/fx";
-import { play } from "@/lib/sound";
+import {
+  play, getVoiceMode, setVoiceMode, getVoiceStyle, setVoiceStyle,
+  getMasterVolume, setMasterVolume, speakEvent,
+  type VoiceMode, type VoiceStyle,
+} from "@/lib/sound";
 
 const TIER_COLORS: Record<string, string> = {
   bronze: "#cd7f32", silver: "#c0c8d4", gold: "#d4af37", legendary: "#22e0ff",
@@ -70,6 +74,9 @@ function StatsInner() {
   const [editing, setEditing] = useState(false);
   const [nameInput, setNameInput] = useState(profile.name);
   const [motionPref, setMotionPref] = useState<FxSetting>(() => getFxSetting());
+  const [voicePref, setVoicePref] = useState<VoiceMode>(() => getVoiceMode());
+  const [stylePref, setStylePref] = useState<VoiceStyle>(() => getVoiceStyle());
+  const [volume, setVolume] = useState(() => Math.round(getMasterVolume() * 100));
 
   const agg = useMemo(() => aggregate(profile.drafts), [profile.drafts]);
   const unlocked = new Set(profile.achievements);
@@ -339,6 +346,66 @@ function StatsInner() {
                     {t(`settings.motion.${opt}`)}
                   </button>
                 ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="glass rounded-2xl p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="max-w-sm">
+                <h3 className="font-display text-base font-bold">🎙️ {t("settings.voice")}</h3>
+                <p className="mt-0.5 text-xs text-muted">{t("settings.voiceHint")}</p>
+              </div>
+              <div className="flex flex-col items-end gap-2">
+                <div className="flex flex-wrap gap-1.5">
+                  {(["off", "key", "full"] as VoiceMode[]).map((opt) => (
+                    <button
+                      key={opt}
+                      onClick={() => {
+                        setVoicePref(opt); setVoiceMode(opt); play("click");
+                        if (opt !== "off") speakEvent("kickoff", {}, `preview-${opt}-${Date.now() % 7}`);
+                      }}
+                      className={`chip press ${voicePref === opt ? "bg-gold/20 text-gold ring-1 ring-gold/40" : "bg-white/6 text-muted"}`}
+                    >
+                      {t(`settings.voice.${opt}`)}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-[0.58rem] font-bold uppercase tracking-widest text-muted">{t("settings.voiceStyle")}</span>
+                  {(["broadcast", "energetic", "calm"] as VoiceStyle[]).map((opt) => (
+                    <button
+                      key={opt}
+                      onClick={() => { setStylePref(opt); setVoiceStyle(opt); play("click"); }}
+                      className={`chip press ${stylePref === opt ? "bg-gold/20 text-gold ring-1 ring-gold/40" : "bg-white/6 text-muted"}`}
+                    >
+                      {t(`settings.voiceStyle.${opt}`)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="glass rounded-2xl p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 className="font-display text-base font-bold">🎚️ {t("settings.volume")}</h3>
+              </div>
+              <div className="flex items-center gap-3">
+                <input
+                  type="range" min={0} max={100} value={volume}
+                  onChange={(e) => {
+                    const v = Number(e.target.value);
+                    setVolume(v);
+                    setMasterVolume(v / 100);
+                  }}
+                  onMouseUp={() => play("click")}
+                  onTouchEnd={() => play("click")}
+                  className="h-1.5 w-40 cursor-pointer accent-[#d4af37]"
+                  aria-label={t("settings.volume")}
+                />
+                <span className="w-9 text-right font-display text-sm font-extrabold text-gold">{volume}%</span>
               </div>
             </div>
           </div>

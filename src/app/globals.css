@@ -422,6 +422,19 @@ button:focus-visible {
 .press:active {
   transform: scale(0.94);
 }
+/* Player Card 4.0 — desktop hover lift (transform-only, GPU-friendly) */
+.lineup-card-40 {
+  transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+@media (hover: hover) {
+  .lineup-card-40:hover {
+    transform: translateY(-3px) scale(1.03);
+  }
+}
+[data-fx="off"] .lineup-card-40:hover {
+  transform: none;
+}
 
 /* ---------- 3D mode cards ---------- */
 .tilt-wrap {

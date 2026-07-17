@@ -10,7 +10,7 @@ import { Confetti, CameraFlashes, RainOverlay } from "@/components/fx/Atmosphere
 import { useGame } from "@/lib/store";
 import { shareTrophyCard } from "@/lib/trophy-card";
 import { campaignStory } from "@/lib/broadcast";
-import { play } from "@/lib/sound";
+import { play, speakEvent } from "@/lib/sound";
 
 /* ------------------------------------------------------------------ */
 /*  Campaign digest — record, journey and story from the tournament    */
@@ -158,7 +158,12 @@ export function TrophyCelebration({ tournament, teamName, tie, onViewStats, onCo
     out: { glow: "rgba(120,150,255,0.3)", ring: "#4a6bd6", bg: "#0a1330", title: "The Road Ends", emoji: "" },
   }[kind];
 
-  useEffect(() => { play(won ? "win" : "lose"); }, [won]);
+  useEffect(() => {
+    play(won ? "win" : "lose");
+    if (won) speakEvent("champion", { team: teamName }, `champ-${teamName}`);
+    else speakEvent("eliminated", { team: teamName }, `elim-${teamName}-${tournament.exit?.stage ?? ""}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [won]);
 
   const liftTrophy = () => {
     if (liftGuard.current || stage === "lift") return; // ignore double-taps

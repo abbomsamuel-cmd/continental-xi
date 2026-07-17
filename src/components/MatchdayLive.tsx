@@ -274,9 +274,10 @@ function liveTable(base: MiniRow[], fixtures: MDFixtureView[], elapsed: number, 
 }
 
 function MiniTable({
-  base, fixtures, elapsed, s, accent, soft,
+  base, fixtures, elapsed, s, accent, soft, zones,
 }: {
   base: MiniRow[]; fixtures: MDFixtureView[]; elapsed: number; s: Schedule; accent: string; soft: string;
+  zones?: { direct: number; secondary?: number };
 }) {
   const sorted = liveTable(base, fixtures, elapsed, s);
   // small groups show whole; big league shows a window around the user
@@ -286,6 +287,13 @@ function MiniTable({
     const lo = Math.max(0, Math.min(ui - 3, view.length - 7));
     view = view.slice(lo, lo + 7);
   }
+  // qualification outlook: green = through, amber = the second chance
+  const zoneColor = (pos: number): string | null => {
+    if (!zones) return null;
+    if (pos <= zones.direct) return "#2ee6a6";
+    if (zones.secondary && pos <= zones.secondary) return "#ffcf5c";
+    return "#ff5a6a";
+  };
   return (
     <div className="rounded-2xl border border-white/8 bg-black/35 p-3 backdrop-blur-sm">
       <div className="mb-2 flex items-center justify-between">
@@ -300,7 +308,8 @@ function MiniTable({
             className="flex items-center gap-2 rounded-lg px-1.5 py-1"
             style={r.isUser ? { background: soft, boxShadow: `inset 0 0 0 1px ${accent}44` } : undefined}
           >
-            <span className="w-4 text-right font-display text-[0.62rem] font-extrabold text-white/50">{r.pos}</span>
+            <span className="w-4 text-right font-display text-[0.62rem] font-extrabold"
+              style={{ color: zoneColor(r.pos) ?? "rgba(255,255,255,0.5)" }}>{r.pos}</span>
             <TeamBadge colors={r.colors} code={r.short} size={16} />
             <span className={`min-w-0 flex-1 truncate text-[0.65rem] font-semibold ${r.isUser ? "text-white" : "text-white/75"}`}>{r.name}</span>
             <span className="w-7 text-right text-[0.6rem] text-white/45">{r.gd > 0 ? `+${r.gd}` : r.gd}</span>
@@ -318,7 +327,7 @@ function MiniTable({
 /* ------------------------------------------------------------------ */
 
 export function MatchdayLive({
-  comp, compName, title, fixtures, baseTable, onDone,
+  comp, compName, title, fixtures, baseTable, zones, onDone,
 }: {
   comp: Comp;
   compName: string;
@@ -328,6 +337,8 @@ export function MatchdayLive({
   fixtures: MDFixtureView[] | null;
   /** standings BEFORE this round — points animate in as results land */
   baseTable: MiniRow[];
+  /** qualification outlook: positions <= direct are through, <= secondary get a second chance */
+  zones?: { direct: number; secondary?: number };
   onDone: () => void;
 }) {
   const pal = PAL[comp];
@@ -353,7 +364,7 @@ export function MatchdayLive({
       {fixtures === null ? (
         <MatchdayPrep pal={pal} compName={compName} title={title} />
       ) : (
-        <MatchdayShow pal={pal} compName={compName} title={title} fixtures={fixtures} baseTable={baseTable} onDone={onDone} />
+        <MatchdayShow pal={pal} compName={compName} title={title} fixtures={fixtures} baseTable={baseTable} zones={zones} onDone={onDone} />
       )}
     </motion.div>
   );
@@ -392,10 +403,11 @@ function MatchdayPrep({ pal, compName, title }: { pal: (typeof PAL)["cl"]; compN
 }
 
 function MatchdayShow({
-  pal, compName, title, fixtures, baseTable, onDone,
+  pal, compName, title, fixtures, baseTable, zones, onDone,
 }: {
   pal: (typeof PAL)["cl"]; compName: string; title: string;
-  fixtures: MDFixtureView[]; baseTable: MiniRow[]; onDone: () => void;
+  fixtures: MDFixtureView[]; baseTable: MiniRow[];
+  zones?: { direct: number; secondary?: number }; onDone: () => void;
 }) {
   const s = useMemo(() => buildSchedule(fixtures), [fixtures]);
   const [elapsed, setElapsed] = useState(0);
@@ -526,7 +538,7 @@ function MatchdayShow({
           </div>
           {/* standings live */}
           <div className="md:sticky md:top-4 md:self-start">
-            <MiniTable base={baseTable} fixtures={fixtures} elapsed={elapsed} s={s} accent={pal.accent} soft={pal.soft} />
+            <MiniTable base={baseTable} fixtures={fixtures} elapsed={elapsed} s={s} accent={pal.accent} soft={pal.soft} zones={zones} />
             <AnimatePresence>
               {allDone && (
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-3 text-center">

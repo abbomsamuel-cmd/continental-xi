@@ -182,6 +182,8 @@ export function LineupPresentation({ compLabel, teamName, formation, players, ca
                       overall={pl.overall}
                       colors={pl.colors}
                       seasonLabel={pl.seasonLabel}
+                      slotPos={pl.position}
+                      clubLabel={pl.club}
                       variant={variant}
                       captain={isCap}
                       slotGlow="rgba(242,212,114,0.85)"

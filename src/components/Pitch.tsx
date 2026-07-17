@@ -207,6 +207,8 @@ export function Pitch({
                       overall={player.overall}
                       colors={player.colors}
                       seasonLabel={compact ? undefined : player.seasonLabel}
+                      slotPos={slot.pos}
+                      clubLabel={compact ? undefined : player.club}
                       variant={variant}
                       showRating={showRatings}
                       secondaryColor={secondary ? ownSuit!.color : undefined}

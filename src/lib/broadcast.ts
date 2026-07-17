@@ -559,6 +559,103 @@ export function campaignStory(f: CampaignFacts): string {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Tournament Centre — golden boot, headlines, pre-match prediction   */
+/* ------------------------------------------------------------------ */
+
+export interface BootEntry {
+  player: string;
+  teamShort: string;
+  teamColors: [string, string];
+  goals: number;
+}
+
+/** Live Golden Boot race across every played match in a tournament. */
+export function goldenBootRace(
+  matches: MatchResult[],
+  teamOf: (teamId: string) => { short: string; colors: [string, string] } | undefined,
+  top = 6,
+): BootEntry[] {
+  const tally = new Map<string, { goals: number; teamId: string }>();
+  for (const m of matches) {
+    for (const e of m.events) {
+      if (e.type !== "goal") continue;
+      const teamId = e.team === 0 ? m.home : m.away;
+      const cur = tally.get(e.player);
+      tally.set(e.player, { goals: (cur?.goals ?? 0) + 1, teamId });
+    }
+  }
+  return [...tally.entries()]
+    .sort((a, b) => b[1].goals - a[1].goals)
+    .slice(0, top)
+    .map(([player, { goals, teamId }]) => {
+      const t = teamOf(teamId);
+      return { player, goals, teamShort: t?.short ?? "—", teamColors: t?.colors ?? ["#666", "#333"] };
+    });
+}
+
+export interface HeadlineFacts {
+  /** current standings, best first (any subset is fine) */
+  rows: { name: string; points: number; isUser?: boolean; unbeaten?: boolean }[];
+  topScorer?: { player: string; goals: number; teamShort: string };
+  stageLabel: string;
+  userName: string;
+  userAlive: boolean;
+  /** teams left, when in the knockouts */
+  remaining?: number;
+  seed: number;
+}
+
+const USER_LINES = [
+  "{u} continue to write their own story",
+  "All eyes on {u} tonight",
+  "{u} know exactly what's at stake",
+];
+
+/** Evolving tournament storylines, derived purely from the standings. */
+export function tournamentHeadlines(f: HeadlineFacts): string[] {
+  const out: string[] = [];
+  const leader = f.rows[0];
+  if (leader) out.push(`${leader.name} ${leader.isUser ? "set the pace" : "top the table"} on ${leader.points} points`);
+  const unbeaten = f.rows.filter((r) => r.unbeaten).slice(0, 2);
+  for (const u of unbeaten) out.push(`${u.name} remain unbeaten in the competition`);
+  if (f.topScorer && f.topScorer.goals >= 2) {
+    out.push(`${f.topScorer.player} leads the Golden Boot race with ${f.topScorer.goals} goals`);
+  }
+  if (f.remaining) out.push(`Only ${f.remaining} teams remain — ${f.stageLabel.toLowerCase()} up next`);
+  if (f.userAlive) out.push(pick(USER_LINES, f.seed, 5).replace("{u}", f.userName));
+  return out.slice(0, 5);
+}
+
+export interface PreviewSide {
+  name: string;
+  strength: number;
+}
+
+const FAVOURITE_LINES = [
+  "{f} start as clear favourites — but {o} have already torn up one script this tournament.",
+  "Everything points to {f}. Football rarely reads the memo.",
+  "{f} should win on paper. {o} will make sure it isn't played on paper.",
+];
+const COINFLIP_LINES = [
+  "Impossible to call — two sides in step, separated by almost nothing.",
+  "A genuine fifty-fifty. One moment of quality decides it.",
+  "The numbers say even. The night will pick a side.",
+];
+
+/** Display-only pre-match prediction — never consulted by the simulation. */
+export function previewPrediction(a: PreviewSide, b: PreviewSide, seed: number): { aPct: number; bPct: number; line: string } {
+  const diff = a.strength - b.strength;
+  const aPct = Math.max(18, Math.min(82, Math.round(50 + diff * 1.4)));
+  const bPct = 100 - aPct;
+  const line = Math.abs(diff) < 4
+    ? pick(COINFLIP_LINES, seed, 7)
+    : pick(FAVOURITE_LINES, seed, 9)
+        .replace("{f}", diff > 0 ? a.name : b.name)
+        .replace("{o}", diff > 0 ? b.name : a.name);
+  return { aPct, bPct, line };
+}
+
+/* ------------------------------------------------------------------ */
 /*  Match facts — invented, but stable per result                      */
 /* ------------------------------------------------------------------ */
 

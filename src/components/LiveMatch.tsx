@@ -12,7 +12,10 @@ import {
 } from "@/lib/broadcast";
 import { useGame } from "@/lib/store";
 import { useFxLevel } from "@/lib/fx";
-import { play, speak, isVoiceEnabled, setVoiceEnabled, stopSpeaking, startAmbience, stopAmbience } from "@/lib/sound";
+import {
+  play, speakEvent, stopSpeaking, startAmbience, stopAmbience, swellAmbience,
+  getVoiceMode, setVoiceMode, type VoiceMode,
+} from "@/lib/sound";
 
 /**
  * Live Match 2.0 — a broadcast, not a dashboard. Replays an already-simulated
@@ -740,7 +743,7 @@ export function LiveMatch({
   }, [r]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [introDone, setIntroDone] = useState(false);
-  const [voiceOn, setVoiceOn] = useState(() => isVoiceEnabled());
+  const [voice, setVoice] = useState<VoiceMode>(() => getVoiceMode());
   const [minute, setMinute] = useState(0);
   const [paused, setPaused] = useState(false);
   const [speed, setSpeed] = useState(1);
@@ -785,17 +788,33 @@ export function LiveMatch({
       if (line) {
         const cue = EVENT_SOUND[kind];
         if (cue) play(cue);
-        // the commentary voice calls only the biggest moments
-        if (voiceOn && (kind === "goal" || kind === "red" || kind === "crossbar")) speak(line.text);
         break;
       }
     }
-  }, [minute, feed, introDone, finished, voiceOn]);
+    // the commentary caller — structured lines in the player's language,
+    // energy-matched to the moment, each event announced exactly once
+    const goal = r.events.find((e) => e.type === "goal" && e.minute === minute);
+    if (goal) {
+      swellAmbience();
+      speakEvent(goal.minute >= 85 ? "lategoal" : "goal",
+        { player: goal.player, team: goal.team === 0 ? home.name : away.name, minute },
+        `g-${legIdx}-${minute}-${goal.player}`);
+    } else {
+      const red = r.events.find((e) => e.type === "red" && e.minute === minute);
+      const beat = here[0];
+      if (red) speakEvent("red", { player: red.player, minute }, `r-${legIdx}-${minute}`);
+      else if (minute === 1) speakEvent("kickoff", { minute }, `ko-${legIdx}`);
+      else if (beat?.kind === "ht") speakEvent("ht", { score: `${home.short} ${goalsAt(0, 45)}, ${away.short} ${goalsAt(1, 45)}`, minute }, `ht-${legIdx}`);
+      else if (beat?.kind === "save") { speakEvent("save", { minute }, `s-${legIdx}-${minute}`); swellAmbience(0.035, 0.9); }
+      else if (beat?.kind === "var") speakEvent("var", { minute }, `v-${legIdx}-${minute}`);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [minute, feed, introDone, finished]);
 
   // full-time call + silence on unmount
   useEffect(() => {
-    if (finished && voiceOn) {
-      speak(`Full time. ${home.name} ${r.homeGoals}, ${away.name} ${r.awayGoals}.`);
+    if (finished) {
+      speakEvent("ft", { score: `${home.name} ${r.homeGoals}, ${away.name} ${r.awayGoals}` }, `ft-${legIdx}`);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [finished]);
@@ -892,11 +911,14 @@ export function LiveMatch({
             <button className="btn btn-ghost px-4 py-1.5 text-[0.68rem]" onClick={skip}>⏭ Skip to Result</button>
             <button
               className="rounded-full px-3 py-1.5 text-[0.68rem] font-extrabold uppercase tracking-wider transition-colors"
-              style={voiceOn ? { background: v.soft, color: v.accent, boxShadow: `inset 0 0 0 1px ${v.accent}55` } : { background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.6)" }}
-              onClick={() => { const next = !voiceOn; setVoiceOn(next); setVoiceEnabled(next); play("click"); }}
-              title="AI commentary voice"
+              style={voice !== "off" ? { background: v.soft, color: v.accent, boxShadow: `inset 0 0 0 1px ${v.accent}55` } : { background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.6)" }}
+              onClick={() => {
+                const next: VoiceMode = voice === "off" ? "key" : voice === "key" ? "full" : "off";
+                setVoice(next); setVoiceMode(next); play("click");
+              }}
+              title="AI commentary: off → key moments → full"
             >
-              🎙️ {voiceOn ? "Voice on" : "Voice off"}
+              🎙️ {voice === "off" ? "Voice off" : voice === "key" ? "Key moments" : "Full comms"}
             </button>
           </div>
         )}

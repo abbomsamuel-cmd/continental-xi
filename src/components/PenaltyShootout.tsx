@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { ShootoutData } from "@/lib/types";
 import { TeamBadge } from "@/components/TeamBadge";
-import { play } from "@/lib/sound";
+import { play, speakEvent } from "@/lib/sound";
 
 interface SideRef {
   name: string;
@@ -58,6 +58,15 @@ export function PenaltyShootout({
 
   const start = (m: "live" | "quick") => { setShown(0); setMode(m); play("whistle"); };
   const skip = () => { setShown(total); setMode((m) => (m === "choose" ? "quick" : m)); };
+
+  // winning-penalty call — only after the deciding kick is on screen
+  useEffect(() => {
+    if (finished) {
+      const w = shootout.winner === 0 ? home.name : away.name;
+      speakEvent("shootoutwin", { team: w }, `so-${w}-${shootout.home}-${shootout.away}`);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [finished]);
 
   const revealed = shootout.kicks.slice(0, shown);
   const homeScore = revealed.filter((k) => k.team === 0 && k.outcome === "goal").length;

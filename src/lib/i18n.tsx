@@ -224,8 +224,8 @@ const DICT: Record<string, Entry> = {
     es: "Cada sorteo empieza con un giro que cae en clubes o selecciones reales de temporadas icónicas. Elige un jugador de esa plantilla, arma tu alineación posición por posición y crea un equipo único. Mezcla generaciones, combina leyendas con superestrellas modernas y responde a la gran pregunta: ¿y si estos jugadores jugaran juntos?",
   },
   "about.p3": {
-    en: "Once your squad is complete, your journey is just beginning. Compete in realistic tournament simulations featuring authentic competition formats, league tables, knockout rounds, live match commentary, and dramatic trophy celebrations. Every tournament is different, every decision matters, and every match creates a new football story.",
-    es: "Cuando tu plantilla está completa, tu viaje apenas empieza. Compite en simulaciones realistas con formatos auténticos, tablas de liga, eliminatorias, narración en vivo y celebraciones de trofeo espectaculares. Cada torneo es distinto, cada decisión cuenta y cada partido crea una nueva historia.",
+    en: "Once your squad is complete, your journey is just beginning. Compete in realistic tournament simulations featuring authentic competition formats, league tables, knockout rounds, live match broadcasts with cinematic overlays, and dramatic trophy celebrations. Every tournament is different, every decision matters, and every match creates a new football story.",
+    es: "Cuando tu plantilla está completa, tu viaje apenas empieza. Compite en simulaciones realistas con formatos auténticos, tablas de liga, eliminatorias, retransmisiones en vivo con gráficos cinematográficos y celebraciones de trofeo espectaculares. Cada torneo es distinto, cada decisión cuenta y cada partido crea una nueva historia.",
   },
   "about.p4": {
     en: "Created by football fans, Continental XI is built for anyone who loves football history, legendary players, and debating the greatest teams of all time. Unlike fantasy football, it isn't tied to current seasons — every player represents a real club or national team from a specific season, with carefully balanced ratings based on that campaign.",
@@ -238,8 +238,8 @@ const DICT: Record<string, Entry> = {
   },
   "faq.q2": { en: "How do you play?", es: "¿Cómo se juega?" },
   "faq.a2": {
-    en: "Every draft begins with a spin, landing on a real club or national team from an iconic season. Select one player from that squad, build your lineup position by position, then take your XI into a realistic tournament simulation — league tables, knockout rounds, live commentary and trophy celebrations.",
-    es: "Cada sorteo empieza con un giro que cae en un club o selección real de una temporada icónica. Elige un jugador de esa plantilla, arma tu alineación posición por posición y lleva tu once a una simulación realista — tablas de liga, eliminatorias, narración en vivo y celebraciones de trofeo.",
+    en: "Every draft begins with a spin, landing on a real club or national team from an iconic season. Select one player from that squad, build your lineup position by position, then take your XI into a realistic tournament simulation — league tables, knockout rounds, live match broadcasts and trophy celebrations.",
+    es: "Cada sorteo empieza con un giro que cae en un club o selección real de una temporada icónica. Elige un jugador de esa plantilla, arma tu alineación posición por posición y lleva tu once a una simulación realista — tablas de liga, eliminatorias, retransmisiones en vivo y celebraciones de trofeo.",
   },
   "faq.q3": { en: "Which competitions can I play?", es: "¿Qué competiciones puedo jugar?" },
   "faq.q4": { en: "Which players and clubs are included?", es: "¿Qué jugadores y clubes se incluyen?" },
@@ -558,19 +558,11 @@ const DICT: Record<string, Entry> = {
   "settings.motion.full": { en: "Full", es: "Completo" },
   "settings.motion.reduced": { en: "Reduced", es: "Reducido" },
   "settings.motion.off": { en: "Off", es: "Sin efectos" },
-  "settings.voice": { en: "Commentary voice", es: "Voz del comentarista" },
-  "settings.voiceHint": {
-    en: "An AI caller for the big moments — goals, red cards, full time. Speaks your language.",
-    es: "Un narrador de IA para los grandes momentos: goles, rojas, final del partido. Habla tu idioma.",
-  },
-  "settings.voice.off": { en: "Off", es: "Apagado" },
-  "settings.voice.key": { en: "Key moments", es: "Momentos clave" },
-  "settings.voice.full": { en: "Full", es: "Completo" },
-  "settings.voiceStyle": { en: "Delivery", es: "Estilo" },
-  "settings.voiceStyle.broadcast": { en: "Broadcast", es: "Transmisión" },
-  "settings.voiceStyle.energetic": { en: "Energetic", es: "Enérgico" },
-  "settings.voiceStyle.calm": { en: "Calm", es: "Tranquilo" },
   "settings.volume": { en: "Master volume", es: "Volumen general" },
+  "settings.volumeHint": {
+    en: "Stadium crowd, ball, whistles and celebrations — the atmosphere that carries the match.",
+    es: "Público del estadio, balón, silbatos y celebraciones — la atmósfera que lleva el partido.",
+  },
   /* ---- hidden emblems (easter eggs) ---- */
   "egg.discovered": { en: "Emblem Discovered", es: "Emblema Descubierto" },
   "egg.title": { en: "Hidden Emblems", es: "Emblemas Ocultos" },

@@ -181,6 +181,7 @@ export function LineupPresentation({ compLabel, teamName, formation, players, ca
                       name={pl.name}
                       overall={pl.overall}
                       colors={pl.colors}
+                      nationality={pl.nationality}
                       seasonLabel={pl.seasonLabel}
                       slotPos={pl.position}
                       clubLabel={pl.club}

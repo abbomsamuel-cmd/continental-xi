@@ -1,6 +1,7 @@
 "use client";
 
 import type { Formation, Player } from "./types";
+import { flagFor } from "./flags";
 
 /**
  * Share XI — renders the finished lineup as a social image in three formats.
@@ -40,98 +41,112 @@ const GRASS: Record<string, [string, string]> = {
   copa: ["#126a3d", "#073a20"],
 };
 
-/** cohesive card identity — mirrors the on-screen TILE map */
+/** cohesive card identity — mirrors the on-screen V5 broadcast tile */
 const CARD: Record<string, {
-  frame: string; card: string; portrait: string; sil: string;
-  ratingBg: string; ratingInk: string; name: string; season: string; monogram: string;
+  radius: number; card0: string; card1: string; border: string;
+  rating0: string; rating1: string; ratingInk: string;
+  pos: string; name: string; season: string; hairline: string; accent0: string; accent1: string;
 }> = {
-  cl: { frame: "#8a63ff", card: "#091a44", portrait: "#132a63", sil: "rgba(180,205,255,0.22)", ratingBg: "#e7c257", ratingInk: "#08131f", name: "#eef4ff", season: "#7fb0ff", monogram: "rgba(255,255,255,0.72)" },
-  euro: { frame: "#5f92ff", card: "#f4f8ff", portrait: "#d0dfff", sil: "rgba(20,45,120,0.36)", ratingBg: "#2454e6", ratingInk: "#ffffff", name: "#0a1f5e", season: "#2f6bff", monogram: "rgba(20,45,120,0.5)" },
-  copa: { frame: "#e7c257", card: "#0c4a2b", portrait: "#12603a", sil: "rgba(255,235,180,0.24)", ratingBg: "#ffce4d", ratingInk: "#3a2600", name: "#fff3d8", season: "#ffdf8a", monogram: "rgba(255,255,255,0.72)" },
+  cl: {
+    radius: 0.045, card0: "#101f4e", card1: "#070f2c", border: "rgba(96,150,255,0.75)",
+    rating0: "#f7e39a", rating1: "#d4af37", ratingInk: "#231a04",
+    pos: "#8fc1ff", name: "#f4f7ff", season: "#9db9f5", hairline: "rgba(215,228,255,0.55)", accent0: "#2f6bff", accent1: "#37e0ff",
+  },
+  euro: {
+    radius: 0.13, card0: "#ffffff", card1: "#e9eefb", border: "rgba(148,162,192,0.9)",
+    rating0: "#3a6cf0", rating1: "#1b3fd0", ratingInk: "#ffffff",
+    pos: "#1b3fd0", name: "#0c1f60", season: "#41569e", hairline: "rgba(140,155,185,0.55)", accent0: "#1b3fd0", accent1: "#4f7dff",
+  },
+  copa: {
+    radius: 0.08, card0: "#0f5a33", card1: "#062d18", border: "rgba(224,186,88,0.8)",
+    rating0: "#f7e39a", rating1: "#d9a92f", ratingInk: "#2a1d03",
+    pos: "#ffd98f", name: "#fff8e8", season: "#f0cf8f", hairline: "rgba(240,207,143,0.5)", accent0: "#d4af37", accent1: "#17c97a",
+  },
 };
 
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/);
-  return ((parts[0]?.[0] ?? "") + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase();
-}
-
-/** shield outline: rounded top, straight sides, tapering to a bottom point. */
-function shieldPath(ctx: CanvasRenderingContext2D, l: number, t: number, w: number, h: number) {
-  const r = Math.min(w * 0.13, h * 0.1);
-  const notch = t + h * 0.84;
-  ctx.beginPath();
-  ctx.moveTo(l + r, t);
-  ctx.lineTo(l + w - r, t);
-  ctx.quadraticCurveTo(l + w, t, l + w, t + r);
-  ctx.lineTo(l + w, notch);
-  ctx.lineTo(l + w / 2, t + h);
-  ctx.lineTo(l, notch);
-  ctx.lineTo(l, t + r);
-  ctx.quadraticCurveTo(l, t, l + r, t);
-  ctx.closePath();
-}
-
-/** One broadcast shield, centred at (x,y) — mirrors the on-screen tile. */
-function drawCard(ctx: CanvasRenderingContext2D, o: ShareXIOpts, p: Player, _pos: string, x: number, y: number, scale: number) {
+/** One V5 broadcast tile, centred at (x,y) — mirrors the on-screen card. */
+function drawCard(ctx: CanvasRenderingContext2D, o: ShareXIOpts, p: Player, pos: string, x: number, y: number, scale: number) {
   const variant = o.variant ?? "cl";
   const s = CARD[variant] ?? CARD.cl;
-  const w = 70 * scale, h = w * 1.34;
+  const w = 74 * scale, h = w * 1.28;
   const left = x - w / 2, top = y - h / 2;
+  const r = w * s.radius * (variant === "euro" ? 1 : 1.6); // px radius from the cqw-ish ratio
   const isCap = !!o.captainId && p.id === o.captainId;
-  const ph = w * 0.92; // portrait height
 
   ctx.save();
   ctx.textAlign = "center";
 
-  // frame (border)
-  shieldPath(ctx, left - 1.5 * scale, top - 1.5 * scale, w + 3 * scale, h + 3 * scale);
-  ctx.fillStyle = isCap ? "#e7c257" : s.frame; ctx.fill();
-  // card fill
-  shieldPath(ctx, left, top, w, h);
-  ctx.fillStyle = s.card; ctx.fill();
-
-  // portrait region (clipped to card)
+  // soft realistic shadow under the tile
   ctx.save();
-  shieldPath(ctx, left, top, w, h); ctx.clip();
-  const grad = ctx.createLinearGradient(0, top, 0, top + ph);
-  grad.addColorStop(0, s.portrait); grad.addColorStop(1, s.card);
-  ctx.fillStyle = grad; ctx.fillRect(left, top, w, ph);
-  // monogram
-  ctx.fillStyle = s.monogram; ctx.font = `900 ${Math.round(26 * scale)}px ${FONT}`;
-  ctx.fillText(initials(p.name), x, top + ph * 0.66);
-  // club-colour accent bar
-  const bar = ctx.createLinearGradient(left, 0, left + w, 0);
-  bar.addColorStop(0, p.colors[0]); bar.addColorStop(1, p.colors[1]);
-  ctx.fillStyle = bar; ctx.fillRect(left, top + ph - 2.5 * scale, w, 2.5 * scale);
+  ctx.shadowColor = "rgba(0,0,0,0.45)"; ctx.shadowBlur = 10 * scale; ctx.shadowOffsetY = 4 * scale;
+  const bgGrad = ctx.createLinearGradient(0, top, 0, top + h);
+  bgGrad.addColorStop(0, s.card0); bgGrad.addColorStop(1, s.card1);
+  ctx.fillStyle = bgGrad;
+  ctx.beginPath(); ctx.roundRect(left, top, w, h, r); ctx.fill();
   ctx.restore();
 
-  // rating chip
-  ctx.fillStyle = s.ratingBg;
-  ctx.beginPath(); ctx.roundRect(left + 5 * scale, top + 5 * scale, 21 * scale, 14 * scale, 2.5 * scale); ctx.fill();
-  ctx.fillStyle = s.ratingInk; ctx.font = `900 ${Math.round(12 * scale)}px ${FONT}`;
-  ctx.fillText(String(p.overall), left + 15.5 * scale, top + 15 * scale);
+  // thin premium border (gold for the captain)
+  ctx.strokeStyle = isCap ? "rgba(228,190,90,0.95)" : s.border; ctx.lineWidth = 1.2 * scale;
+  ctx.beginPath(); ctx.roundRect(left, top, w, h, r); ctx.stroke();
 
-  // badge (crest / flag) top-right
-  const bx = left + w - 18 * scale, by = top + 5 * scale;
+  // everything else clips to the tile
+  ctx.save();
+  ctx.beginPath(); ctx.roundRect(left, top, w, h, r); ctx.clip();
+
+  // docked rating tab, chamfered bottom-right — the V5 mark
+  const tw = 23 * scale, th = 17 * scale;
+  const tab = ctx.createLinearGradient(left, top, left, top + th);
+  tab.addColorStop(0, s.rating0); tab.addColorStop(1, s.rating1);
+  ctx.fillStyle = tab;
+  ctx.beginPath();
+  ctx.moveTo(left, top); ctx.lineTo(left + tw, top); ctx.lineTo(left + tw, top + th * 0.6);
+  ctx.lineTo(left + tw * 0.78, top + th); ctx.lineTo(left, top + th); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = s.ratingInk; ctx.font = `900 ${Math.round(12.5 * scale)}px ${FONT}`;
+  ctx.fillText(String(p.overall), left + tw / 2 - 1 * scale, top + th * 0.72);
+
+  // position top centre
+  ctx.fillStyle = s.pos; ctx.font = `900 ${Math.round(8.5 * scale)}px ${FONT}`;
+  ctx.fillText(pos.toUpperCase(), x, top + 9.5 * scale);
+
+  // nation flag + crest top right
+  const flag = flagFor(p.nationality);
+  const fx = left + w - 10 * scale;
+  if (flag) {
+    ctx.font = `${Math.round(8.5 * scale)}px ${FONT}`;
+    ctx.fillText(flag, fx, top + 9.5 * scale);
+  }
   if (variant === "cl") {
+    const bx = fx - 5 * scale, by = top + (flag ? 13 : 5) * scale;
     ctx.fillStyle = p.colors[0];
-    ctx.beginPath(); ctx.roundRect(bx, by, 12 * scale, 12 * scale, 2 * scale); ctx.fill();
-    ctx.fillStyle = "#f2d472"; ctx.beginPath(); ctx.arc(bx + 6 * scale, by + 6 * scale, 2.2 * scale, 0, Math.PI * 2); ctx.fill();
-  } else {
-    ctx.fillStyle = p.colors[1]; ctx.fillRect(bx, by, 15 * scale, 10 * scale);
+    ctx.beginPath(); ctx.roundRect(bx, by, 10 * scale, 10 * scale, 2 * scale); ctx.fill();
+    ctx.fillStyle = p.colors[1];
+    ctx.beginPath(); ctx.moveTo(bx + 10 * scale, by); ctx.lineTo(bx + 10 * scale, by + 10 * scale); ctx.lineTo(bx, by + 10 * scale); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#f2d472"; ctx.beginPath(); ctx.arc(bx + 5 * scale, by + 5 * scale, 1.8 * scale, 0, Math.PI * 2); ctx.fill();
+  } else if (!flag) {
+    const bx = fx - 7 * scale, by = top + 5 * scale;
+    ctx.fillStyle = p.colors[1]; ctx.fillRect(bx, by, 14 * scale, 9.5 * scale);
     ctx.fillStyle = p.colors[0]; ctx.beginPath();
-    ctx.moveTo(bx, by); ctx.lineTo(bx + 15 * scale, by); ctx.lineTo(bx, by + 10 * scale); ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = "rgba(255,255,255,0.9)"; ctx.lineWidth = 1 * scale; ctx.strokeRect(bx, by, 15 * scale, 10 * scale);
+    ctx.moveTo(bx, by); ctx.lineTo(bx + 14 * scale, by); ctx.lineTo(bx, by + 9.5 * scale); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,0.9)"; ctx.lineWidth = 1 * scale; ctx.strokeRect(bx, by, 14 * scale, 9.5 * scale);
   }
 
-  // surname (no position — the player stands in it)
-  const last = p.name.trim().split(/\s+/).pop() ?? p.name;
-  ctx.fillStyle = s.name; ctx.font = `900 ${Math.round(11 * scale)}px ${FONT}`;
-  ctx.fillText((last.length > 11 ? last.slice(0, 10) + "…" : last).toUpperCase(), x, top + ph + 13 * scale);
+  // surname — the largest element, auto-shrinking
+  const last = (p.name.trim().split(/\s+/).pop() ?? p.name).toUpperCase();
+  const nameSize = last.length > 13 ? 9 : last.length > 10 ? 10.5 : last.length > 7 ? 12 : 14;
+  ctx.fillStyle = s.name; ctx.font = `900 ${Math.round(nameSize * scale)}px ${FONT}`;
+  ctx.fillText(last, x, top + h * 0.58, w - 6 * scale);
+
+  // hairline divider + season + competition baseline
+  ctx.strokeStyle = s.hairline; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(x - w * 0.28, top + h * 0.74); ctx.lineTo(x + w * 0.28, top + h * 0.74); ctx.stroke();
   if (p.seasonLabel) {
-    ctx.fillStyle = s.season; ctx.font = `700 ${Math.round(8 * scale)}px ${FONT}`;
-    ctx.fillText(p.seasonLabel, x, top + ph + 24 * scale);
+    ctx.fillStyle = s.season; ctx.font = `700 ${Math.round(6.8 * scale)}px ${FONT}`;
+    ctx.fillText(p.seasonLabel, x, top + h * 0.87);
   }
+  const bar = ctx.createLinearGradient(left, 0, left + w, 0);
+  bar.addColorStop(0, s.accent0); bar.addColorStop(1, s.accent1);
+  ctx.fillStyle = bar; ctx.fillRect(left, top + h - 2.2 * scale, w, 2.2 * scale);
+  ctx.restore();
 
   // captain badge
   if (isCap) {

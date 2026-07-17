@@ -10,7 +10,7 @@ import { Confetti, CameraFlashes, RainOverlay } from "@/components/fx/Atmosphere
 import { useGame } from "@/lib/store";
 import { shareTrophyCard } from "@/lib/trophy-card";
 import { campaignStory } from "@/lib/broadcast";
-import { play, speakEvent } from "@/lib/sound";
+import { play } from "@/lib/sound";
 
 /* ------------------------------------------------------------------ */
 /*  Campaign digest — record, journey and story from the tournament    */
@@ -160,9 +160,6 @@ export function TrophyCelebration({ tournament, teamName, tie, onViewStats, onCo
 
   useEffect(() => {
     play(won ? "win" : "lose");
-    if (won) speakEvent("champion", { team: teamName }, `champ-${teamName}`);
-    else speakEvent("eliminated", { team: teamName }, `elim-${teamName}-${tournament.exit?.stage ?? ""}`);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [won]);
 
   const liftTrophy = () => {

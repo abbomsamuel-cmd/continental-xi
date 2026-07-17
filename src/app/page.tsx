@@ -93,7 +93,7 @@ const COMP_META = {
 
 /** Mini broadcast-XI samples shown on each competition card, so a visitor
  *  immediately sees how the three lineup skins differ. */
-type PreviewCard = { name: string; overall: number; colors: [string, string]; pos: string; season: string };
+type PreviewCard = { name: string; overall: number; colors: [string, string]; pos: string; season: string; nation: string };
 const MODES = [
   {
     key: "cl", emoji: "🏆", kickerKey: "mode.cl.kicker", titleKey: "mode.cl.title", bodyKey: "mode.cl.body",
@@ -101,9 +101,9 @@ const MODES = [
     href: "/draft", accent: "#22e0ff", panel: "cl-panel cl-streaks", glow: "rgba(34,224,255,0.35)",
     badge: "crest" as BadgeKind, nameAccent: "#1546c8", strip: "linear-gradient(160deg, #071a52, #0b2464)",
     preview: [
-      { name: "A. Rossi", overall: 91, colors: ["#0b1b52", "#c9a24a"], pos: "ST", season: "94" },
-      { name: "M. König", overall: 89, colors: ["#7a0d16", "#f2d472"], pos: "CM", season: "07" },
-      { name: "L. Ferrand", overall: 88, colors: ["#0e2a6b", "#3aa0ff"], pos: "GK", season: "99" },
+      { name: "A. Rossi", overall: 91, colors: ["#0b1b52", "#c9a24a"], pos: "ST", season: "94", nation: "Italy" },
+      { name: "M. König", overall: 89, colors: ["#7a0d16", "#f2d472"], pos: "CM", season: "07", nation: "Germany" },
+      { name: "L. Ferrand", overall: 88, colors: ["#0e2a6b", "#3aa0ff"], pos: "GK", season: "99", nation: "France" },
     ] as PreviewCard[],
   },
   {
@@ -112,9 +112,9 @@ const MODES = [
     href: "/international?comp=euro", accent: "#37e0ff", panel: "euro-panel euro-grid", glow: "rgba(55,224,255,0.4)",
     badge: "flag" as BadgeKind, nameAccent: "#1b3fd0", strip: "linear-gradient(160deg, #0e7a3f, #128a48)",
     preview: [
-      { name: "J. Novak", overall: 90, colors: ["#c8102e", "#ffffff"], pos: "CAM", season: "04" },
-      { name: "P. Andersen", overall: 88, colors: ["#0033a0", "#ffffff"], pos: "CB", season: "92" },
-      { name: "R. De Vries", overall: 89, colors: ["#ff6b1a", "#0b2a6b"], pos: "RW", season: "88" },
+      { name: "J. Novak", overall: 90, colors: ["#c8102e", "#ffffff"], pos: "CAM", season: "04", nation: "Czechia" },
+      { name: "P. Andersen", overall: 88, colors: ["#0033a0", "#ffffff"], pos: "CB", season: "92", nation: "Denmark" },
+      { name: "R. De Vries", overall: 89, colors: ["#ff6b1a", "#0b2a6b"], pos: "RW", season: "88", nation: "Netherlands" },
     ] as PreviewCard[],
   },
   {
@@ -123,9 +123,9 @@ const MODES = [
     href: "/international?comp=copa", accent: "#ffc93c", panel: "copa-panel copa-heat copa-gold-border", glow: "rgba(255,201,60,0.4)",
     badge: "flag" as BadgeKind, nameAccent: "#9a6b00", strip: "linear-gradient(160deg, #0a5a34, #0c6a3d)",
     preview: [
-      { name: "D. Rey", overall: 92, colors: ["#75aadb", "#ffffff"], pos: "ST", season: "86" },
-      { name: "C. Nunes", overall: 90, colors: ["#f7c948", "#0a7d3b"], pos: "CM", season: "70" },
-      { name: "S. Ortega", overall: 87, colors: ["#c8102e", "#0b3aa0"], pos: "LB", season: "95" },
+      { name: "D. Rey", overall: 92, colors: ["#75aadb", "#ffffff"], pos: "ST", season: "86", nation: "Argentina" },
+      { name: "C. Nunes", overall: 90, colors: ["#f7c948", "#0a7d3b"], pos: "CM", season: "70", nation: "Brazil" },
+      { name: "S. Ortega", overall: 87, colors: ["#c8102e", "#0b3aa0"], pos: "LB", season: "95", nation: "Chile" },
     ] as PreviewCard[],
   },
 ] as const;
@@ -211,7 +211,9 @@ function ModeCard({ mode, index }: { mode: (typeof MODES)[number]; index: number
                   name={p.name}
                   overall={p.overall}
                   colors={p.colors as [string, string]}
+                  nationality={p.nation}
                   seasonLabel={p.season}
+                  slotPos={p.pos}
                   variant={mode.key}
                   widthClass="w-[clamp(38px,20%,52px)]"
                 />

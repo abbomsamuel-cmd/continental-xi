@@ -13,16 +13,17 @@ import {
 import { useGame } from "@/lib/store";
 import { useFxLevel } from "@/lib/fx";
 import {
-  play, speakEvent, stopSpeaking, startAmbience, stopAmbience, swellAmbience,
-  getVoiceMode, setVoiceMode, type VoiceMode,
+  play, startAmbience, stopAmbience, swellAmbience, hushAmbience,
 } from "@/lib/sound";
 
 /**
  * Live Match 2.0 — a broadcast, not a dashboard. Replays an already-simulated
  * MatchResult like a TV production: cinematic intro, premium scoreboard,
- * typed commentary cards, live momentum, live player ratings, expanded
- * statistics and a full-time studio recap. The simulation engine is never
- * touched — everything here is presentation over the finished result.
+ * full-screen broadcast overlays on the big moments (GOAL / VAR / cards /
+ * subs), a living crowd that swells and hushes with the play, live momentum,
+ * live ratings, expanded stats and a full-time studio recap. There is no
+ * narrator — the picture and the stadium tell the story. The simulation
+ * engine is never touched: everything here is presentation over the result.
  */
 
 interface LiveTeamRef {
@@ -83,7 +84,7 @@ const EVENT_STYLE: Record<FeedKind, { icon: string; color: string; big?: boolean
   save: { icon: "🧤", color: "#2ee6a6" },
   corner: { icon: "🚩", color: "#9fb3d1" },
   sub: { icon: "🔁", color: "#b58cff" },
-  midfield: { icon: "🎙️", color: "#9fb3d1" },
+  midfield: { icon: "▪", color: "#9fb3d1" },
   crossbar: { icon: "💥", color: "#ff8a3d", big: true },
   atmo: { icon: "📣", color: "#9fb3d1" },
   ht: { icon: "⏸", color: "#7fb0ff", big: true },
@@ -94,8 +95,8 @@ const EVENT_STYLE: Record<FeedKind, { icon: string; color: string; big?: boolean
 /** The one sound each beat is allowed to make, ranked so a busy minute plays
  *  only its most important cue — never a pile-up. */
 const EVENT_SOUND: Partial<Record<FeedKind, Parameters<typeof play>[0]>> = {
-  goal: "goal", red: "error", crossbar: "crossbar", save: "save",
-  var: "draw", chance: "kick", sub: "sub", yellow: "flip",
+  goal: "goal", red: "card", crossbar: "crossbar", save: "save",
+  var: "var", chance: "kick", sub: "sub", yellow: "card",
   ht: "whistle", secondhalf: "whistle",
 };
 const SOUND_PRIORITY: FeedKind[] = ["goal", "red", "crossbar", "save", "var", "ht", "secondhalf", "chance", "sub", "yellow"];
@@ -113,6 +114,157 @@ function liveStat(finalVal: number, minute: number, endMinute: number, wobbleSee
   const eased = t * t * (3 - 2 * t);
   const wobble = minute >= endMinute ? 0 : (frac(wobbleSeed + minute * 3.7) - 0.5) * 0.12;
   return Math.max(0, finalVal * Math.min(1, eased + wobble));
+}
+
+/* ================================================================== */
+/*  Cinematic broadcast overlays — the big moments, told with graphics */
+/*  and crowd instead of a narrator. GOAL / VAR / card / substitution.  */
+/* ================================================================== */
+
+type BroadcastCue =
+  | { kind: "goal"; team: 0 | 1; player: string; assist?: string; minute: number; h: number; a: number }
+  | { kind: "card"; team: 0 | 1; player: string; minute: number; red: boolean }
+  | { kind: "var"; minute: number }
+  | { kind: "sub"; team: 0 | 1; player: string; off?: string; minute: number };
+
+type BVariant = (typeof VARIANTS)[BroadcastVariant];
+
+/** Full-screen TV insert that animates in on a key moment and clears itself. */
+function BroadcastOverlay({
+  cue, home, away, v,
+}: {
+  cue: BroadcastCue; home: LiveTeamRef; away: LiveTeamRef; v: BVariant;
+}) {
+  const lvl = useFxLevel();
+  const rich = lvl === "full";
+  const side = ("team" in cue ? cue.team : 0) === 0 ? home : away;
+  const teamCol = side.colors[0];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      transition={{ duration: 0.25 }}
+      className="pointer-events-none fixed inset-0 z-[148] flex items-center justify-center overflow-hidden"
+    >
+      {/* dim + moment glow behind the insert */}
+      <div className="absolute inset-0" style={{ background: "radial-gradient(120% 90% at 50% 50%, rgba(2,6,16,0.55), rgba(2,6,16,0.82))" }} />
+      {rich && (
+        <div className="absolute inset-0" aria-hidden
+          style={{ background: `radial-gradient(60% 40% at 50% 46%, ${cue.kind === "goal" ? `${teamCol}55` : `${v.accent}33`}, transparent 70%)` }} />
+      )}
+
+      {cue.kind === "goal" && (
+        <div className="relative w-full max-w-2xl px-5 text-center">
+          {/* sweeping colour banner */}
+          <motion.div
+            initial={{ x: rich ? "-120%" : 0, opacity: rich ? 1 : 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ type: "spring", stiffness: 130, damping: 18 }}
+            className="relative mx-auto flex items-center justify-center"
+            style={{
+              background: `linear-gradient(100deg, ${side.colors[0]}, ${side.colors[1] ?? side.colors[0]})`,
+              clipPath: "polygon(4% 0, 100% 0, 96% 100%, 0 100%)",
+              padding: "0.5rem 2.5rem", boxShadow: `0 12px 40px ${teamCol}66`,
+            }}
+          >
+            <span className="font-display font-black uppercase tracking-tight text-white drop-shadow-[0_3px_10px_rgba(0,0,0,0.6)]"
+              style={{ fontSize: "clamp(2.8rem, 12vw, 6rem)", lineHeight: 0.95 }}>
+              Goal
+            </span>
+            {rich && (
+              <motion.span aria-hidden className="absolute inset-0"
+                initial={{ x: "-140%" }} animate={{ x: "140%" }} transition={{ delay: 0.35, duration: 0.8, ease: "easeOut" }}
+                style={{ background: "linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.55) 50%, transparent 60%)" }} />
+            )}
+          </motion.div>
+
+          <motion.div
+            initial={{ y: 22, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.18, duration: 0.4 }}
+            className="mt-5"
+          >
+            <div className="font-display font-extrabold uppercase text-white" style={{ fontSize: "clamp(1.4rem, 6vw, 2.6rem)", letterSpacing: "0.01em" }}>
+              {cue.player}
+            </div>
+            <div className="mt-1 flex flex-wrap items-center justify-center gap-2 text-sm font-bold uppercase tracking-wider text-white/70">
+              <span>{side.name}</span>
+              <span className="rounded-full px-2 py-0.5 text-[0.7rem]" style={{ background: `${v.accent}22`, color: v.accent }}>{cue.minute}&apos;</span>
+              {cue.assist && <span className="text-white/55">assist · {cue.assist}</span>}
+            </div>
+            {/* updated score */}
+            <div className="mt-4 inline-flex items-center gap-3 rounded-2xl border border-white/12 bg-black/45 px-5 py-2">
+              <span className="text-xs font-extrabold uppercase tracking-widest text-white/70">{home.short}</span>
+              <span className="font-display text-3xl font-black text-white">{cue.h}<span className="mx-1.5 text-white/35">–</span>{cue.a}</span>
+              <span className="text-xs font-extrabold uppercase tracking-widest text-white/70">{away.short}</span>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {cue.kind === "var" && (
+        <motion.div
+          initial={{ scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+          transition={{ type: "spring", stiffness: 200, damping: 18 }}
+          className="relative flex flex-col items-center rounded-2xl border border-white/15 bg-black/60 px-8 py-6"
+        >
+          <div className="flex items-center gap-3">
+            <span className="grid h-11 w-11 place-items-center rounded-lg text-2xl" style={{ background: `${v.accent}22`, border: `1px solid ${v.accent}66` }}>📺</span>
+            <span className="font-display text-4xl font-black tracking-[0.2em] text-white">VAR</span>
+          </div>
+          <div className="mt-3 flex items-center gap-1.5 text-sm font-bold uppercase tracking-[0.35em]" style={{ color: v.accent }}>
+            Checking
+            {rich && [0, 1, 2].map((i) => (
+              <motion.span key={i} animate={{ opacity: [0.25, 1, 0.25] }} transition={{ duration: 1.1, repeat: Infinity, delay: i * 0.18 }}>·</motion.span>
+            ))}
+          </div>
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.6 }}
+            className="mt-3 rounded-full px-4 py-1 text-[0.7rem] font-extrabold uppercase tracking-[0.25em]"
+            style={{ background: "rgba(46,230,166,0.16)", color: "#2ee6a6", border: "1px solid rgba(46,230,166,0.4)" }}
+          >
+            Decision Confirmed
+          </motion.div>
+        </motion.div>
+      )}
+
+      {cue.kind === "card" && (
+        <motion.div
+          initial={{ rotate: rich ? -14 : 0, y: -30, opacity: 0 }} animate={{ rotate: 0, y: 0, opacity: 1 }} exit={{ opacity: 0, y: 20 }}
+          transition={{ type: "spring", stiffness: 180, damping: 15 }}
+          className="relative flex items-center gap-5 px-4"
+        >
+          <div className="h-24 w-16 rounded-md shadow-2xl sm:h-28 sm:w-20"
+            style={{ background: cue.red ? "linear-gradient(160deg,#ff5a6a,#c81e2c)" : "linear-gradient(160deg,#ffd93d,#e0a800)", boxShadow: `0 14px 40px ${cue.red ? "rgba(255,90,106,0.5)" : "rgba(255,207,60,0.45)"}` }} />
+          <div className="text-left">
+            <div className="font-display text-2xl font-black uppercase text-white sm:text-3xl">{cue.red ? "Red Card" : "Yellow Card"}</div>
+            <div className="mt-1 font-display text-lg font-extrabold text-white/90">{cue.player}</div>
+            <div className="mt-1 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-white/55">
+              <span>{side.name}</span>
+              <span className="rounded-full px-2 py-0.5" style={{ background: `${v.accent}22`, color: v.accent }}>{cue.minute}&apos;</span>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {cue.kind === "sub" && (
+        <motion.div
+          initial={{ y: -28, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ opacity: 0, y: 18 }}
+          transition={{ type: "spring", stiffness: 180, damping: 16 }}
+          className="relative flex flex-col items-center rounded-2xl border border-white/15 bg-black/60 px-7 py-5"
+        >
+          <div className="flex items-center gap-2">
+            <span className="h-2 w-8 rounded-full" style={{ background: side.colors[0] }} />
+            <span className="font-display text-xl font-black uppercase tracking-[0.15em] text-white sm:text-2xl">Substitution</span>
+            <span className="rounded-full px-2 py-0.5 text-[0.7rem] font-extrabold" style={{ background: `${v.accent}22`, color: v.accent }}>{cue.minute}&apos;</span>
+          </div>
+          <div className="mt-3 grid gap-1.5 text-sm">
+            <div className="flex items-center gap-2 font-bold text-[#2ee6a6]"><span className="text-base">▲</span>{cue.player}</div>
+            {cue.off && <div className="flex items-center gap-2 font-bold text-[#ff8a8a]"><span className="text-base">▼</span>{cue.off}</div>}
+          </div>
+          <div className="mt-1.5 text-[0.62rem] font-bold uppercase tracking-widest text-white/45">{side.name}</div>
+        </motion.div>
+      )}
+    </motion.div>
+  );
 }
 
 /* ================================================================== */
@@ -743,8 +895,10 @@ export function LiveMatch({
   }, [r]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [introDone, setIntroDone] = useState(false);
-  const [voice, setVoice] = useState<VoiceMode>(() => getVoiceMode());
   const [minute, setMinute] = useState(0);
+  // the current full-screen broadcast overlay (GOAL / VAR / card / sub)
+  const [cue, setCue] = useState<BroadcastCue | null>(null);
+  const cueTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const [paused, setPaused] = useState(false);
   const [speed, setSpeed] = useState(1);
   const [finished, setFinished] = useState(false);
@@ -791,34 +945,60 @@ export function LiveMatch({
         break;
       }
     }
-    // the commentary caller — structured lines in the player's language,
-    // energy-matched to the moment, each event announced exactly once
+    // the atmosphere carries the story — the crowd swells and hushes with the
+    // play, and the big moments get a full-screen broadcast overlay. No voice.
     const goal = r.events.find((e) => e.type === "goal" && e.minute === minute);
+    const red = r.events.find((e) => e.type === "red" && e.minute === minute);
+    const yellow = r.events.find((e) => e.type === "yellow" && e.minute === minute);
+    const sub = r.events.find((e) => e.type === "sub" && e.minute === minute);
+    const beat = here[0];
+
+    // build the overlay for this beat (goal outranks red > var > yellow > sub)
+    let next: BroadcastCue | null = null;
     if (goal) {
-      swellAmbience();
-      speakEvent(goal.minute >= 85 ? "lategoal" : "goal",
-        { player: goal.player, team: goal.team === 0 ? home.name : away.name, minute },
-        `g-${legIdx}-${minute}-${goal.player}`);
-    } else {
-      const red = r.events.find((e) => e.type === "red" && e.minute === minute);
-      const beat = here[0];
-      if (red) speakEvent("red", { player: red.player, minute }, `r-${legIdx}-${minute}`);
-      else if (minute === 1) speakEvent("kickoff", { minute }, `ko-${legIdx}`);
-      else if (beat?.kind === "ht") speakEvent("ht", { score: `${home.short} ${goalsAt(0, 45)}, ${away.short} ${goalsAt(1, 45)}`, minute }, `ht-${legIdx}`);
-      else if (beat?.kind === "save") { speakEvent("save", { minute }, `s-${legIdx}-${minute}`); swellAmbience(0.035, 0.9); }
-      else if (beat?.kind === "var") speakEvent("var", { minute }, `v-${legIdx}-${minute}`);
+      next = {
+        kind: "goal", team: goal.team as 0 | 1, player: goal.player, assist: goal.assist,
+        minute, h: goalsAt(0, minute), a: goalsAt(1, minute),
+      };
+    } else if (red) {
+      next = { kind: "card", team: red.team as 0 | 1, player: red.player, minute, red: true };
+    } else if (beat?.kind === "var") {
+      next = { kind: "var", minute };
+    } else if (yellow) {
+      next = { kind: "card", team: yellow.team as 0 | 1, player: yellow.player, minute, red: false };
+    } else if (sub) {
+      next = { kind: "sub", team: sub.team as 0 | 1, player: sub.player, off: sub.assist, minute };
+    }
+
+    // dynamic crowd: eruptions for goals, a rise for chances/saves, a hush
+    // when the officials go to the monitor
+    if (goal) swellAmbience(0.08, 2.4);
+    else if (beat?.kind === "var") hushAmbience(2.2);
+    else if (beat?.kind === "save" || beat?.kind === "crossbar") swellAmbience(0.045, 1.0);
+    else if (beat?.kind === "chance") swellAmbience(0.03, 0.7);
+
+    // show the overlay (deferred into a timer so it lands just after the net
+    // ripple + scoreboard tick — never before the viewer sees it) and auto-clear
+    if (next) {
+      const c = next;
+      cueTimers.current.forEach(clearTimeout);
+      const show = c.kind === "goal" ? 420 : 120;
+      const hold = c.kind === "goal" ? 3600 : c.kind === "var" ? 3000 : 2400;
+      cueTimers.current = [
+        setTimeout(() => setCue(c), show),
+        setTimeout(() => setCue((cur) => (cur === c ? null : cur)), show + hold),
+      ];
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [minute, feed, introDone, finished]);
 
-  // full-time call + silence on unmount
+  // clear any pending overlay timers on unmount / leg change
+  useEffect(() => () => { cueTimers.current.forEach(clearTimeout); }, [legIdx]);
+
+  // stop scheduling overlays once we reach full time (render gates on !finished)
   useEffect(() => {
-    if (finished) {
-      speakEvent("ft", { score: `${home.name} ${r.homeGoals}, ${away.name} ${r.awayGoals}` }, `ft-${legIdx}`);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (finished) cueTimers.current.forEach(clearTimeout);
   }, [finished]);
-  useEffect(() => () => stopSpeaking(), []);
 
   // crowd bed: rises after the intro, falls at the whistle
   useEffect(() => {
@@ -909,17 +1089,6 @@ export function LiveMatch({
               </button>
             ))}
             <button className="btn btn-ghost px-4 py-1.5 text-[0.68rem]" onClick={skip}>⏭ Skip to Result</button>
-            <button
-              className="rounded-full px-3 py-1.5 text-[0.68rem] font-extrabold uppercase tracking-wider transition-colors"
-              style={voice !== "off" ? { background: v.soft, color: v.accent, boxShadow: `inset 0 0 0 1px ${v.accent}55` } : { background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.6)" }}
-              onClick={() => {
-                const next: VoiceMode = voice === "off" ? "key" : voice === "key" ? "full" : "off";
-                setVoice(next); setVoiceMode(next); play("click");
-              }}
-              title="AI commentary: off → key moments → full"
-            >
-              🎙️ {voice === "off" ? "Voice off" : voice === "key" ? "Key moments" : "Full comms"}
-            </button>
           </div>
         )}
 
@@ -1006,6 +1175,13 @@ export function LiveMatch({
             stadium={stadium} legLabel={leg.label}
             onDone={() => setIntroDone(true)}
           />
+        )}
+      </AnimatePresence>
+
+      {/* cinematic broadcast overlay — GOAL / VAR / card / substitution */}
+      <AnimatePresence>
+        {introDone && !finished && cue && (
+          <BroadcastOverlay cue={cue} home={home} away={away} v={v} />
         )}
       </AnimatePresence>
 

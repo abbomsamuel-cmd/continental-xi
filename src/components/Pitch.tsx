@@ -98,7 +98,7 @@ export function Pitch({
 
   // width is a % of the PITCH (container-query), so tiles scale with the pitch
   // and never overlap regardless of where the pitch is rendered.
-  const cardW = "w-[11cqw]";
+  const cardW = "w-[12.5cqw]";
 
   return (
     <div
@@ -206,6 +206,7 @@ export function Pitch({
                       name={player.name}
                       overall={player.overall}
                       colors={player.colors}
+                      nationality={player.nationality}
                       seasonLabel={compact ? undefined : player.seasonLabel}
                       slotPos={slot.pos}
                       clubLabel={compact ? undefined : player.club}

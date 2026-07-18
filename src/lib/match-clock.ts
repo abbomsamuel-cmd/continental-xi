@@ -16,14 +16,14 @@ import { useEffect, useRef, useState } from "react";
  * a hold is active the clock freezes, so a critical moment (goal, card, VAR)
  * always gets its full readable animation and the next event can never overlap
  * it. Holds are supplied already scaled for the current speed (1× full
- * broadcast, 2× fast but still readable), so the big moments stay understandable.
+ * broadcast, 3× fast but still readable), so the big moments stay understandable.
  *
  * dt is clamped per frame, so returning from a background tab (where rAF is
  * throttled/paused) never jumps the match clock. Cleanup cancels the loop on
  * unmount or when the clock goes inactive — no leaks, no stray timers.
  */
 
-export type SimSpeed = 1 | 2;
+export type SimSpeed = 1 | 3;
 
 interface MatchClockOpts {
   endMinute: number;
@@ -92,17 +92,19 @@ export function useMatchClock(opts: MatchClockOpts): number {
 }
 
 /** Readable beat durations (ms) per event, per speed. 1× is the full broadcast;
- *  2× shortens dead time but keeps every big moment clearly readable. 0 = no
+ *  3× shortens dead time but keeps every big moment clearly readable. 0 = no
  *  full-screen hold (the event stays a timeline update only). */
 const HOLD: Record<string, Record<SimSpeed, number>> = {
-  goal: { 1: 3200, 2: 1900 },
-  red: { 1: 2800, 2: 1750 },
-  var: { 1: 2800, 2: 1750 },
-  ht: { 1: 2200, 2: 1450 },
-  yellow: { 1: 1600, 2: 1100 },
-  sub: { 1: 1500, 2: 1050 },
-  save: { 1: 1100, 2: 850 },
-  chance: { 1: 650, 2: 500 },
+  // 3× is a compact highlights mode — dead time removed, but every critical
+  // moment stays above its readable minimum (goal ≥1.2s, red ≥1.1s, VAR ≥1.5s).
+  goal: { 1: 3200, 3: 1400 },
+  red: { 1: 2800, 3: 1300 },
+  var: { 1: 2800, 3: 1700 },
+  ht: { 1: 2200, 3: 1300 },
+  yellow: { 1: 1600, 3: 950 },
+  sub: { 1: 1500, 3: 700 },
+  save: { 1: 1100, 3: 650 },
+  chance: { 1: 650, 3: 380 },
 };
 
 export function beatHold(kind: string, speed: SimSpeed): number {

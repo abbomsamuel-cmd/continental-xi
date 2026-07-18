@@ -178,8 +178,11 @@ export function TrophyCelebration({ tournament, teamName, tie, onViewStats, onCo
     out: { glow: "rgba(120,150,255,0.3)", ring: "#4a6bd6", bg: "#0a1330", title: "The Road Ends", emoji: "" },
   }[kind];
 
+  // outcome audio lands a beat AFTER the screen paints — never before the
+  // result is visually on screen (short suspense, then the reaction)
   useEffect(() => {
-    play(won ? "win" : "lose");
+    const id = setTimeout(() => play(won ? "win" : "lose"), 450);
+    return () => clearTimeout(id);
   }, [won]);
 
   const liftTrophy = () => {

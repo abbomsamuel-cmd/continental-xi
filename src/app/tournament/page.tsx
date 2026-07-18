@@ -17,12 +17,13 @@ import { Fireworks } from "@/components/fx/Fireworks";
 import { CameraFlashes, Sparks, RainOverlay } from "@/components/fx/Atmosphere";
 import { LiveMatch, SimStyleChoice, type LiveLeg } from "@/components/LiveMatch";
 import { MatchdayLive, type MDFixtureView, type MiniRow } from "@/components/MatchdayLive";
+import { QuickSim, scorersOf, type QuickSimData, type QuickMatch } from "@/components/QuickSim";
 import { MatchPreview, GoldenBootRace, HeadlinesPanel, type PreviewTeam } from "@/components/TournamentCentre";
 import { goldenBootRace, tournamentHeadlines, knockoutVenue } from "@/lib/broadcast";
 import { hashString } from "@/lib/rng";
 import { PageBoundary } from "@/components/PageBoundary";
 import { USER_TEAM_ID, teamLabel } from "@/lib/engine/tournament";
-import type { Fixture, KOTie, MatchResult, SimTeam } from "@/lib/types";
+import type { Fixture, KOTie, MatchResult, SimTeam, TournamentState } from "@/lib/types";
 import { useT } from "@/lib/i18n";
 import { play } from "@/lib/sound";
 
@@ -43,6 +44,19 @@ const PHASE_BURST: Record<string, string> = {
 /** Broadcast-ready team ref for the matchday results show. */
 function mdRef(t: SimTeam) {
   return { id: t.id, name: t.isUser ? t.name : teamLabel(t), short: t.short, colors: t.colors, isUser: t.isUser };
+}
+
+/** Plain-language qualification outcome once the league phase has resolved. */
+function phaseQualLine(t: TournamentState | null): string {
+  if (!t) return "";
+  const pos = t.userSeed ?? 0;
+  if (!t.userAlive || t.phase === "done") return t.exit?.text ?? "Eliminated in the league phase";
+  if (pos >= 1 && pos <= 8) return "Qualified directly for the Round of 16";
+  return `Into the play-off round · finished ${pos}${pos ? nth(pos) : ""}`;
+}
+function nth(n: number): string {
+  const s = ["th", "st", "nd", "rd"], v = n % 100;
+  return s[(v - 20) % 10] ?? s[v] ?? s[0];
 }
 
 /** Skeleton shown while the persisted save rehydrates and in the static HTML —
@@ -92,6 +106,11 @@ function TournamentInner() {
   const [matchdayShow, setMatchdayShow] = useState<{
     fixtures: MDFixtureView[] | null; baseTable: MiniRow[]; title: string; prevPhase: string;
   } | null>(null);
+  // Quick Sim — a fast compact result instead of the full broadcast show.
+  // data === null while it simulates behind the opaque overlay (no early flash).
+  const [quickShow, setQuickShow] = useState<{ data: QuickSimData | null; title: string } | null>(null);
+  const [quickConfirm, setQuickConfirm] = useState(false);
+  const [quickStopEarly, setQuickStopEarly] = useState(true);
   const pendingFn = useRef<(() => void) | null>(null);
   // Synchronous double-click guard: React state alone lets two fast clicks both
   // see idle state and advance TWO rounds at once — you'd watch one opponent
@@ -177,6 +196,78 @@ function TournamentInner() {
     setMatchdayShow(null);
     busyRef.current = false;
     fireBurstIfQualified(prevPhase);
+  };
+
+  // Quick Sim: same engine as the live show, just a compact result. Mounts the
+  // opaque overlay FIRST, then simulates behind it — never a spoiler flash.
+  const quickSimSingle = () => {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    play("whistle");
+    const md = useGame.getState().tournament?.matchday ?? 1;
+    setQuickShow({ data: null, title: `Matchday ${md}` });
+    setTimeout(() => {
+      const before = useGame.getState().getTable().findIndex((x) => x.teamId === USER_TEAM_ID) + 1;
+      const played = useGame.getState().advanceLeague();
+      const st = useGame.getState();
+      const teams = st.tournament?.teams;
+      const userFix = played.find((f) => f.result && (f.home === USER_TEAM_ID || f.away === USER_TEAM_ID));
+      if (!userFix?.result || !teams) { setQuickShow(null); busyRef.current = false; return; }
+      const r = userFix.result;
+      const posAfter = st.getTable().findIndex((x) => x.teamId === USER_TEAM_ID) + 1;
+      const data: QuickSimData = {
+        kind: "single",
+        home: mdRef(teams[r.home]), away: mdRef(teams[r.away]),
+        hg: r.homeGoals, ag: r.awayGoals, userSide: r.home === USER_TEAM_ID ? 0 : 1,
+        scorers: scorersOf(r), result: r,
+        posBefore: before, posAfter,
+        qualLine: st.tournament?.phase !== "league" ? phaseQualLine(st.tournament) : undefined,
+      };
+      setQuickShow((prev) => (prev ? { ...prev, data } : prev));
+    }, 900);
+  };
+
+  const quickSimPhase = () => {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setQuickConfirm(false);
+    play("whistle");
+    const stopEarly = quickStopEarly;
+    setQuickShow({ data: null, title: "League Phase" });
+    setTimeout(() => {
+      const matches: QuickMatch[] = [];
+      let w = 0, d = 0, l = 0, gf = 0, ga = 0;
+      // each advanceLeague plays one matchday; after MD8 it resolves the phase
+      // and the phase flips, ending the loop naturally.
+      while (useGame.getState().tournament?.phase === "league") {
+        const played = useGame.getState().advanceLeague();
+        if (!played.length) break;
+        const st = useGame.getState();
+        const teams = st.tournament!.teams;
+        const uf = played.find((f) => f.result && (f.home === USER_TEAM_ID || f.away === USER_TEAM_ID));
+        if (uf?.result) {
+          const r = uf.result;
+          const side: 0 | 1 = r.home === USER_TEAM_ID ? 0 : 1;
+          const us = side === 0 ? r.homeGoals : r.awayGoals;
+          const them = side === 0 ? r.awayGoals : r.homeGoals;
+          gf += us; ga += them; if (us > them) w++; else if (us === them) d++; else l++;
+          matches.push({ home: mdRef(teams[r.home]), away: mdRef(teams[r.away]), hg: r.homeGoals, ag: r.awayGoals, userSide: side, scorers: scorersOf(r), result: r, md: uf.matchday });
+        }
+        if (stopEarly && !st.tournament?.userAlive) break;
+      }
+      const t = useGame.getState().tournament!;
+      const pos = t.userSeed ?? (useGame.getState().getTable().findIndex((x) => x.teamId === USER_TEAM_ID) + 1);
+      setQuickShow((prev) => (prev ? {
+        ...prev,
+        data: { kind: "phase", simmed: matches.length, w, d, l, gf, ga, pos, qualified: t.userAlive, qualification: phaseQualLine(t), matches },
+      } : prev));
+    }, 900);
+  };
+
+  const onQuickDone = () => {
+    setQuickShow(null);
+    busyRef.current = false;
+    fireBurstIfQualified("league");
   };
 
   // Live Match: simulate the round now, then broadcast the user's tie minute
@@ -337,12 +428,26 @@ function TournamentInner() {
             </div>
           </div>
           <div className="flex gap-2">
-            {isLeague && (
-              <button className="btn btn-gold btn-pulse" disabled={!!matchdayShow || tournament.matchday > 8}
-                onClick={startMatchdayShow}>
-                {matchdayShow ? "Playing…" : tournament.matchday > 8 ? "Phase Done" : `Play Matchday ${tournament.matchday}`}
-              </button>
-            )}
+            {isLeague && (() => {
+              const busy = !!matchdayShow || !!quickShow || tournament.matchday > 8;
+              return (
+                <div className="flex flex-wrap items-center gap-2">
+                  <button className="btn btn-gold btn-pulse" disabled={busy} onClick={startMatchdayShow}>
+                    {matchdayShow ? "Playing…" : tournament.matchday > 8 ? "Phase Done" : `▶ Play Matchday ${tournament.matchday}`}
+                  </button>
+                  <button className="btn btn-secondary" disabled={busy} onClick={quickSimSingle}
+                    title="Instantly simulate this matchday and view the result.">
+                    ⏩ Quick Sim
+                  </button>
+                  {tournament.matchday <= 8 && (
+                    <button className="btn btn-ghost text-xs" disabled={busy} onClick={() => { setQuickConfirm(true); play("click"); }}
+                      title="Instantly simulate every remaining league-phase match.">
+                      ⏩ Sim League Phase
+                    </button>
+                  )}
+                </div>
+              );
+            })()}
             {!isLeague && !isDone && !["final", "sf"].includes(tournament.phase) && (
               <button className="btn btn-gold btn-pulse" disabled={!!transition}
                 onClick={() => runCinematic(PHASE_LABEL[tournament.phase], advanceKnockout)}>
@@ -644,6 +749,54 @@ function TournamentInner() {
             zones={{ direct: 8, secondary: 24 }}
             onDone={onMatchdayDone}
           />
+        )}
+      </AnimatePresence>
+
+      {/* QUICK SIM — compact result / phase recap */}
+      <AnimatePresence>
+        {quickShow && (
+          <QuickSim
+            title={`Champions Draft · ${quickShow.title}`}
+            accent="#22e0ff" emblem="🏆"
+            data={quickShow.data}
+            onDone={onQuickDone}
+            onViewMatch={(r) => setModal({ result: r, title: "Match statistics" })}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* QUICK SIM LEAGUE PHASE — confirmation */}
+      <AnimatePresence>
+        {quickConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[140] flex items-end justify-center p-4 sm:items-center"
+            style={{ background: "rgba(2,7,20,0.82)" }}
+            onClick={() => setQuickConfirm(false)} role="dialog" aria-modal="true" aria-label="Quick Sim league phase"
+          >
+            <motion.div initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 20, opacity: 0 }}
+              className="glass w-full max-w-md rounded-2xl p-5" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center gap-2">
+                <span aria-hidden className="text-xl">⏩</span>
+                <h3 className="font-display text-lg font-extrabold text-white">Quick Sim the remaining league phase?</h3>
+              </div>
+              <p className="mt-1.5 text-[0.78rem] leading-relaxed text-white/65">
+                This instantly simulates your remaining matches and updates the table. You&apos;ll still be able to review every result afterward.
+              </p>
+              <button onClick={() => { setQuickStopEarly((v) => !v); play("click"); }} aria-pressed={quickStopEarly}
+                className="mt-3 flex w-full items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition-colors"
+                style={{ borderColor: quickStopEarly ? "#22e0ff" : "rgba(255,255,255,0.12)", background: quickStopEarly ? "rgba(34,224,255,0.12)" : "transparent" }}>
+                <span className="grid h-5 w-5 shrink-0 place-items-center rounded-md border" style={{ borderColor: "#22e0ff", background: quickStopEarly ? "#22e0ff" : "transparent" }}>
+                  {quickStopEarly && <span className="text-[0.6rem] font-black text-[#04101f]">✓</span>}
+                </span>
+                <span className="text-[0.74rem] font-semibold text-white/85">Stop if qualification or elimination is confirmed</span>
+              </button>
+              <div className="mt-5 flex gap-2.5">
+                <button className="btn btn-ghost flex-1" onClick={() => { setQuickConfirm(false); play("click"); }}>Cancel</button>
+                <button className="btn btn-gold flex-1" onClick={quickSimPhase}>⏩ Quick Sim Remaining</button>
+              </div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
 

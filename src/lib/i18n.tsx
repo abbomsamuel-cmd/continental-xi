@@ -473,6 +473,8 @@ const DICT: Record<string, Entry> = {
   "intl.viewBracket": { en: "View bracket", es: "Ver cuadro" },
   "intl.playAgain": { en: "Play Again", es: "Jugar de Nuevo" },
   "intl.returnHome": { en: "Return Home", es: "Volver al Inicio" },
+  "intl.quickSim": { en: "Quick Sim", es: "Sim Rápida" },
+  "intl.quickSimGroup": { en: "Sim Group Stage", es: "Sim Fase de Grupos" },
   "intl.viewFinalStats": { en: "View final match stats", es: "Ver estadísticas de la final" },
   "intl.topQualify": { en: "Top {n} + best thirds qualify", es: "Clasifican los {n} primeros + mejores terceros" },
   "intl.qualification": { en: "qualification", es: "clasificación" },

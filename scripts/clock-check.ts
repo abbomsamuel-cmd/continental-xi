@@ -3,7 +3,7 @@ import { beatHold, type SimSpeed } from "../src/lib/match-clock";
 /**
  * Headless replica of useMatchClock's stepping logic (must mirror the loop in
  * src/lib/match-clock.ts). Drives synthetic frames and asserts the invariants
- * the live-sim spec demands at 1× / 2× / 4× and across speed changes, pauses
+ * the live-sim spec demands at 1× / 3× and across speed changes, pauses
  * and background-tab gaps.
  */
 const MAX_FRAME_MS = 90;
@@ -51,7 +51,7 @@ const END = 94;
 const HOLDS = { 30: "goal", 45: "ht", 60: "yellow", 78: "var" } as Record<number, string>;
 
 // 1× — full run. Budget: ~94 min × 340ms + holds(goal3.2+ht2.2+yellow1.6+var2.8=9.8s) ≈ 42s. Give 70s.
-for (const sp of [1, 2] as SimSpeed[]) {
+for (const sp of [1, 3] as SimSpeed[]) {
   const budget = 70 / sp + 12; // seconds of real time, generous
   const { fires, finishCount, maxJump } = run(framesFor(budget, sp), END, HOLDS);
   const uniq = new Set(fires);
@@ -63,9 +63,9 @@ for (const sp of [1, 2] as SimSpeed[]) {
   ok(maxJump <= 1, `${sp}×: no minute skipped in a single frame (maxJump ${maxJump})`);
 }
 
-// speed change 1×→2× mid-run: still monotonic, one finish, no skips
+// speed change 1×→3× mid-run: still monotonic, one finish, no skips
 {
-  const frames = [...framesFor(8, 1), ...framesFor(40, 2)];
+  const frames = [...framesFor(8, 1), ...framesFor(40, 3)];
   const { fires, finishCount, maxJump } = run(frames, END, HOLDS);
   ok(new Set(fires).size === fires.length, "speed-change: no duplicate minutes");
   ok(finishCount === 1, "speed-change: finish once");
@@ -93,10 +93,10 @@ for (const sp of [1, 2] as SimSpeed[]) {
   ok(finishCount === 1, "pause then resume: finishes once");
 }
 
-// hold correctness: 2× stays clearly readable
-ok(beatHold("goal", 2) === 1900, "2× goal hold 1900ms");
+// hold correctness: 3× stays clearly readable (goal above its 1.2s minimum)
+ok(beatHold("goal", 3) === 1400, "3× goal hold 1400ms (≥1.2s minimum)");
 ok(beatHold("goal", 1) === 3200, "1× goal hold 3200ms");
-ok(beatHold("chance", 2) === 500, "2× routine chance kept short");
+ok(beatHold("var", 3) === 1700, "3× VAR hold 1700ms (≥1.5s minimum)");
 
 console.log(fail === 0 ? `\n✅ match clock: ${pass} invariants hold` : `\n❌ ${fail} failed, ${pass} passed`);
 process.exit(fail === 0 ? 0 : 1);

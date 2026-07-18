@@ -24,8 +24,10 @@ import { detectEggs } from "./easter-eggs";
 import { play, setSoundEnabled } from "./sound";
 
 export type Difficulty = "easy" | "medium" | "hard";
-/** How the "Complete Squad with AI" assistant fills the remaining slots. */
-export type AiStrategy = "best" | "balanced" | "attacking" | "defensive" | "random";
+/** How the "Complete Squad with AI" assistant fills the remaining slots.
+ *  RELAXED is the default: a fair, believable XI built mostly from 75–87 rated
+ *  players — never an auto super-team. "best" is the opt-in advanced mode. */
+export type AiStrategy = "relaxed" | "youthful" | "experienced" | "random" | "best";
 
 /** Scarcer positions are filled first so the assistant never runs out of a rare
  *  role (a lone goalkeeper) after spending it elsewhere. */
@@ -33,27 +35,54 @@ function aiScarcity(pos: Position): number {
   return pos === "GK" ? 0 : POSITION_GROUP[pos] === "DEF" ? 1 : 2;
 }
 
-/** Pick the best candidate for a slot under the chosen strategy. All candidates
- *  are already position-legal and unused; this only ranks quality/flavour. */
-function aiPick(cands: Player[], slotPos: Position, strategy: AiStrategy, rand: () => number): Player | undefined {
-  const group = POSITION_GROUP[slotPos];
+/** Running squad-level context so the assistant keeps the XI fair and varied. */
+interface AiCtx { stars: number; club: Record<string, number>; nation: Record<string, number> }
+/** Bumped each completion so a "regenerate" yields a genuinely different XI. */
+let aiSeedBump = 0;
+
+/** How desirable a rating is for the fair (non-"best") modes — peaks at 78–84,
+ *  85–87 is used sparingly, 88+ is strongly avoided. */
+function bandScore(overall: number): number {
+  if (overall >= 78 && overall <= 84) return 10;
+  if (overall >= 75 && overall <= 77) return 7;
+  if (overall >= 85 && overall <= 87) return 5;
+  if (overall >= 88) return -24;
+  return 3;
+}
+
+/**
+ * Pick a candidate for a slot. All candidates are already position-legal and
+ * unused. Fair modes stay inside a 75–87 band, cap elite players (≤2 rated
+ * 86–87, none 88+ unless nothing else fits), keep ≤3 from any club, and add
+ * club/nation variety so the XI feels different every time. "best" ignores the
+ * band and simply takes the strongest legal player.
+ */
+function aiPick(cands: Player[], slotPos: Position, strategy: AiStrategy, rand: () => number, ctx: AiCtx): Player | undefined {
+  if (!cands.length) return undefined;
+  const clubOk = (p: Player) => (ctx.club[p.club] ?? 0) < 3;
+
+  let pool: Player[];
+  if (strategy === "best") {
+    pool = cands.filter(clubOk);
+    if (!pool.length) pool = cands;
+  } else {
+    // fair band: ≤87, no more stars once we already have two, respect club cap
+    pool = cands.filter((p) => p.overall <= 87 && !(ctx.stars >= 2 && p.overall >= 86) && clubOk(p));
+    if (!pool.length) pool = cands.filter((p) => p.overall <= 87 && clubOk(p));
+    if (!pool.length) pool = cands; // last resort — never leave a slot empty
+  }
+
+  const natural = (p: Player) => (p.position === slotPos ? 12 : 0);
+  const variety = (p: Player) => (ctx.club[p.club] ?? 0) * 3 + (ctx.nation[p.nationality] ?? 0) * 1.5;
   const score = (p: Player) => {
-    let s = p.overall + (p.position === slotPos ? 8 : 0); // prefer natural over secondary
-    if (strategy === "attacking") s += group === "ATT" ? 6 : group === "MID" ? 3 : 0;
-    else if (strategy === "defensive") s += group === "DEF" || slotPos === "GK" ? 6 : group === "MID" ? 2 : 0;
+    if (strategy === "best") return p.overall + natural(p);
+    let s = bandScore(p.overall) + natural(p) - variety(p) + rand() * 4;
+    if (strategy === "youthful") s += Math.max(0, p.season - 1995) * 0.12;      // recent vintages
+    else if (strategy === "experienced") s += Math.max(0, 2005 - p.season) * 0.12; // classic vintages
+    else if (strategy === "random") s += rand() * 9;                             // extra spread
     return s;
   };
-  const sorted = [...cands].sort((a, b) => score(b) - score(a));
-  if (strategy === "random") {
-    const nat = sorted.filter((p) => p.position === slotPos);
-    const window = (nat.length >= 4 ? nat : sorted).slice(0, 10);
-    return window[Math.floor(rand() * window.length)] ?? sorted[0];
-  }
-  if (strategy === "balanced") {
-    const top = sorted.slice(0, 3);
-    return top[Math.floor(rand() * top.length)] ?? sorted[0];
-  }
-  return sorted[0]; // best · attacking · defensive → the top-ranked player
+  return [...pool].sort((a, b) => score(b) - score(a))[0];
 }
 
 interface DraftSetup {
@@ -351,20 +380,34 @@ export const useGame = create<StoreState>()(
           .map((s, i) => ({ i, pos: s.pos }))
           .filter((o) => newPicks[o.i] === undefined)
           .sort((a, b) => aiScarcity(a.pos) - aiScarcity(b.pos));
-        // seeded PRNG so "random fun" varies but a given board is reproducible
-        let seed = (placedSlots.length * 131 + empty.length * 17 + 7) & 0x7fffffff;
+        // seed varies per fill (matchday/board state) so the same open board can
+        // regenerate a genuinely different XI, but each fill is self-consistent.
+        let seed = (placedSlots.length * 131 + empty.length * 17 + 7 + aiSeedBump) & 0x7fffffff;
+        aiSeedBump = (aiSeedBump + 101) & 0x7fffffff;
         const rand = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+        // squad-level context seeded from the manual picks already on the board
+        const ctx: AiCtx = { stars: 0, club: {}, nation: {} };
+        for (const id of Object.values(picks)) {
+          const p = byId.get(id);
+          if (!p) continue;
+          if (p.overall >= 86 && p.overall <= 87) ctx.stars++;
+          ctx.club[p.club] = (ctx.club[p.club] ?? 0) + 1;
+          ctx.nation[p.nationality] = (ctx.nation[p.nationality] ?? 0) + 1;
+        }
         let filled = 0;
         for (const slot of empty) {
           const candidates = all.filter(
             (p) => !usedIds.has(p.id) && !usedNames.has(p.name) && canPlaySlot(p.position, p.altPositions, slot.pos),
           );
-          const chosen = aiPick(candidates, slot.pos, strategy, rand);
+          const chosen = aiPick(candidates, slot.pos, strategy, rand, ctx);
           if (!chosen) continue; // no valid player for this slot — leave it open
           newPicks[slot.i] = chosen.id;
           newPlaced.push(slot.i);
           usedIds.add(chosen.id);
           usedNames.add(chosen.name);
+          if (chosen.overall >= 86 && chosen.overall <= 87) ctx.stars++;
+          ctx.club[chosen.club] = (ctx.club[chosen.club] ?? 0) + 1;
+          ctx.nation[chosen.nationality] = (ctx.nation[chosen.nationality] ?? 0) + 1;
           filled++;
         }
         const complete = Object.keys(newPicks).length >= formation.slots.length;

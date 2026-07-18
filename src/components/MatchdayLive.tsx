@@ -15,7 +15,7 @@ import { play, startAmbience, stopAmbience } from "@/lib/sound";
  *
  * The show mounts BEFORE the round is simulated (fixtures === null renders a
  * cinematic "preparing" beat) so the page behind never flashes a result — no
- * spoilers. Once fixtures arrive the reveal begins, with ×1/×2 pacing.
+ * spoilers. Once fixtures arrive the reveal begins, with ×1/×3 pacing.
  */
 
 type Comp = "cl" | "euro" | "copa";
@@ -505,7 +505,7 @@ function MatchdayShow({
             <span>{completed} / {fixtures.length} completed</span>
             {!allDone && (
               <span className="flex items-center gap-2">
-                {[1, 2].map((x) => (
+                {[1, 3].map((x) => (
                   <button key={x} onClick={() => { setSpeed(x); play("click"); }}
                     title={x === 1 ? "Normal pace" : "Fast pace — all results preserved"}
                     className="rounded-full px-2.5 py-0.5 font-extrabold transition-colors"

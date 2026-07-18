@@ -26,12 +26,12 @@ const POS_NAME: Record<string, string> = {
 const GROUP_ORDER: PositionGroup[] = ["GK", "DEF", "MID", "ATT"];
 const GROUP_LABEL: Record<PositionGroup, string> = { GK: "Goalkeeper", DEF: "Defense", MID: "Midfield", ATT: "Attack" };
 
-const AI_STRATEGIES: { id: AiStrategy; label: string; hint: string }[] = [
-  { id: "balanced", label: "Balanced", hint: "Rating, balance & fit" },
-  { id: "best", label: "Best Overall", hint: "Highest-quality XI" },
-  { id: "attacking", label: "Attacking", hint: "Favour the front line" },
-  { id: "defensive", label: "Defensive", hint: "Solid at the back" },
-  { id: "random", label: "Random Fun", hint: "Valid, with variety" },
+const AI_STRATEGIES: { id: AiStrategy; label: string; hint: string; advanced?: boolean }[] = [
+  { id: "relaxed", label: "Relaxed & Balanced", hint: "Fair, mostly 75–87 rated" },
+  { id: "youthful", label: "Youthful", hint: "Newer vintages, moderate" },
+  { id: "experienced", label: "Experienced", hint: "Classic veterans" },
+  { id: "random", label: "Random Fun", hint: "Varied & unpredictable" },
+  { id: "best", label: "Best Overall", hint: "Advanced · stronger squad", advanced: true },
 ];
 const AI_STEPS = ["Analyzing formation…", "Balancing the defense…", "Finding the best midfielders…", "Sharpening the attack…", "Completing your XI…"];
 
@@ -69,8 +69,7 @@ export function DraftRoundView() {
   const [showFormation, setShowFormation] = useState(false);
   // AI Complete Squad flow: confirm → running analysis → fills & continues
   const [aiStage, setAiStage] = useState<"hidden" | "confirm" | "running">("hidden");
-  const [aiStrategy, setAiStrategy] = useState<AiStrategy>("balanced");
-  const [aiPrioritize, setAiPrioritize] = useState(false);
+  const [aiStrategy, setAiStrategy] = useState<AiStrategy>("relaxed");
   const [aiStep, setAiStep] = useState(0);
   const pitchRef = useRef<HTMLDivElement>(null);
 
@@ -119,7 +118,7 @@ export function DraftRoundView() {
     play("advance");
     const timers = AI_STEPS.map((_, i) => setTimeout(() => setAiStep(i), i * 460));
     timers.push(setTimeout(() => {
-      completeWithAI(aiPrioritize ? "best" : aiStrategy);
+      completeWithAI(aiStrategy);
       play("win");
       router.push("/squad"); // draftComplete also redirects; this is the belt-and-braces
     }, AI_STEPS.length * 460 + 320));
@@ -424,21 +423,21 @@ export function DraftRoundView() {
                 <h3 className="font-display text-lg font-extrabold text-white">Complete the remaining squad with AI?</h3>
               </div>
               <p className="mt-1.5 text-[0.78rem] leading-relaxed text-white/65">
-                The assistant fills all {remaining} open position{remaining > 1 ? "s" : ""} using your formation, the available player pool and squad balance. These selections will be final.
+                The assistant fills all {remaining} open position{remaining > 1 ? "s" : ""} in valid roles using mostly 75–87 rated players — a fair, balanced XI, not an auto super-team.
               </p>
 
               <div className="mt-4 text-[0.56rem] font-bold uppercase tracking-[0.2em] text-white/45">Strategy</div>
               <div className="mt-1.5 grid grid-cols-2 gap-1.5 sm:grid-cols-3">
                 {AI_STRATEGIES.map((s) => {
-                  const active = aiStrategy === s.id && !aiPrioritize;
+                  const active = aiStrategy === s.id;
                   return (
                     <button key={s.id}
-                      onClick={() => { setAiStrategy(s.id); setAiPrioritize(false); play("click"); }}
+                      onClick={() => { setAiStrategy(s.id); play("click"); }}
                       aria-pressed={active}
                       className="min-h-[44px] rounded-xl border px-2 py-1.5 text-left transition-all active:scale-95"
                       style={active
                         ? { borderColor: theme.accent, background: theme.soft }
-                        : { borderColor: "rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.03)" }}>
+                        : { borderColor: s.advanced ? "rgba(255,180,80,0.35)" : "rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.03)" }}>
                       <div className="text-[0.72rem] font-extrabold text-white">{s.label}</div>
                       <div className="text-[0.54rem] text-white/50">{s.hint}</div>
                     </button>
@@ -446,16 +445,11 @@ export function DraftRoundView() {
                 })}
               </div>
 
-              <button
-                onClick={() => { setAiPrioritize((v) => !v); play("click"); }}
-                aria-pressed={aiPrioritize}
-                className="mt-3 flex w-full items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition-colors"
-                style={{ borderColor: aiPrioritize ? theme.accent : "rgba(255,255,255,0.12)", background: aiPrioritize ? theme.soft : "transparent" }}>
-                <span className="grid h-5 w-5 shrink-0 place-items-center rounded-md border" style={{ borderColor: theme.accent, background: aiPrioritize ? theme.accent : "transparent" }}>
-                  {aiPrioritize && <span className="text-[0.6rem] font-black text-[#04101f]">✓</span>}
-                </span>
-                <span className="text-[0.74rem] font-semibold text-white/85">Prioritize strongest available players</span>
-              </button>
+              <div className="mt-3 rounded-xl bg-black/25 px-3 py-2 text-[0.68rem] text-white/70">
+                {aiStrategy === "best"
+                  ? "⚠ Best Overall may create a noticeably stronger squad than the fair default."
+                  : <>Expected completed squad: <span className="font-bold" style={{ color: theme.accent }}>~81–84 OVR</span> · balanced positions, varied players.</>}
+              </div>
 
               <div className="mt-5 flex gap-2.5">
                 <button className="btn btn-ghost flex-1" onClick={() => { setAiStage("hidden"); play("click"); }}>Cancel</button>

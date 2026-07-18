@@ -1051,10 +1051,10 @@ export function LiveMatch({
             <button className="btn btn-ghost px-4 py-1.5 text-[0.68rem]" onClick={() => { setPaused((p) => !p); play("click"); }}>
               {paused ? "▶ Resume" : "⏸ Pause"}
             </button>
-            {/* premium speed segmented control — 1× Normal · 2× Fast */}
+            {/* premium speed segmented control — 1× Normal · 3× Fast */}
             <div className="relative flex items-center rounded-full p-0.5" role="group" aria-label="Simulation speed"
               style={{ background: "rgba(255,255,255,0.07)", boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.08)" }}>
-              {([[1, "Normal", "Full animations and commentary."], [2, "Fast", "Faster match flow with all key moments preserved."]] as const).map(([s, lbl, tip]) => (
+              {([[1, "Normal", "Full broadcast animations and pacing."], [3, "Fast", "Compact highlights — every key moment stays readable."]] as const).map(([s, lbl, tip]) => (
                 <button
                   key={s}
                   onClick={() => { setSpeed(s as SimSpeed); play("click"); }}
@@ -1229,7 +1229,7 @@ export function SimStyleChoice({
             </div>
             <p className="mt-1.5 text-[0.72rem] leading-relaxed text-white/60">
               The full TV experience — cinematic intro, momentum, live ratings and
-              statistics. Pause, switch to ×2 Fast, or skip to the result at any time.
+              statistics. Pause, switch to ×3 Fast, or skip to the result at any time.
             </p>
           </button>
           <button

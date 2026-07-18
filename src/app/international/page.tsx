@@ -24,6 +24,7 @@ import { RainOverlay, CameraFlashes, Confetti, Sparks } from "@/components/fx/At
 import { EuroScene, CopaScene } from "@/components/fx/Scenes";
 import { LiveMatch, SimStyleChoice, type LiveLeg } from "@/components/LiveMatch";
 import { MatchdayLive, type MDFixtureView, type MiniRow } from "@/components/MatchdayLive";
+import { QuickSim, scorersOf, type QuickSimData, type QuickMatch, type QuickTeamRef } from "@/components/QuickSim";
 import { PageBoundary } from "@/components/PageBoundary";
 import { useT } from "@/lib/i18n";
 import { useFxLevel } from "@/lib/fx";
@@ -201,6 +202,10 @@ function International() {
   const [matchdayShow, setMatchdayShow] = useState<{
     fixtures: MDFixtureView[] | null; baseTable: MiniRow[]; title: string; prevPhase: string;
   } | null>(null);
+  // Quick Sim — compact result / group-stage recap (no full broadcast show)
+  const [quickShow, setQuickShow] = useState<{ data: QuickSimData | null; title: string } | null>(null);
+  const [quickConfirm, setQuickConfirm] = useState(false);
+  const [quickStopEarly, setQuickStopEarly] = useState(true);
   const pendingFn = useRef<(() => void) | null>(null);
   // synchronous double-click guard — React state alone races (two fast clicks
   // both see idle state and would advance two rounds at once)
@@ -338,6 +343,76 @@ function International() {
     busyRef.current = false;
     fireBurstIfQualified(prevPhase);
   };
+
+  // ---- Quick Sim (group stage) — same engine, compact presentation ----
+  const iRef = (t: IntlState, key: string): QuickTeamRef => {
+    const team = t.teams[key];
+    return { name: team.isUser ? team.name : `${team.name}${team.season ? ` ${team.season}` : ""}`, short: team.short, colors: team.colors };
+  };
+  const intlQualLine = (t: IntlState): string => {
+    if (!t.userAlive || t.phase === "done") return t.exit?.text ?? "Eliminated in the group stage";
+    const gi = t.groups.findIndex((g) => g.includes(t.userKey));
+    if (gi < 0) return "Qualified for the knockouts";
+    const pos = groupTable(t, gi).findIndex((r) => r.teamId === t.userKey) + 1;
+    return pos === 1 ? "Qualified as group winner" : pos === 2 ? "Qualified as runner-up" : "Qualified as one of the best third-placed teams";
+  };
+  const userGroupPos = (t: IntlState): number => {
+    const gi = t.groups.findIndex((g) => g.includes(t.userKey));
+    return gi >= 0 ? groupTable(t, gi).findIndex((r) => r.teamId === t.userKey) + 1 : 0;
+  };
+
+  const quickSimSingle = () => {
+    if (busyRef.current) return;
+    const cur = useGame.getState().intl;
+    if (!cur || cur.phase !== "groups") return;
+    busyRef.current = true; play("whistle");
+    const md = cur.matchday;
+    setQuickShow({ data: null, title: tr("intl.matchday", { n: md }) });
+    setTimeout(() => {
+      const before = userGroupPos(useGame.getState().intl!);
+      useGame.getState().advanceIntlGroups();
+      const next = useGame.getState().intl;
+      const uf = next?.fixtures.find((f) => f.matchday === md && f.result && (f.home === next.userKey || f.away === next.userKey));
+      if (!next || !uf?.result) { setQuickShow(null); busyRef.current = false; return; }
+      const r = uf.result; const side: 0 | 1 = r.home === next.userKey ? 0 : 1;
+      setQuickShow((prev) => (prev ? { ...prev, data: {
+        kind: "single", home: iRef(next, r.home), away: iRef(next, r.away),
+        hg: r.homeGoals, ag: r.awayGoals, userSide: side, scorers: scorersOf(r), result: r,
+        posBefore: before, posAfter: next.phase === "groups" ? userGroupPos(next) : before,
+        qualLine: next.phase !== "groups" ? intlQualLine(next) : undefined,
+      } } : prev));
+    }, 900);
+  };
+
+  const quickSimPhase = () => {
+    if (busyRef.current) return;
+    busyRef.current = true; setQuickConfirm(false); play("whistle");
+    const stopEarly = quickStopEarly;
+    setQuickShow({ data: null, title: tr("intl.groupStage") });
+    setTimeout(() => {
+      const matches: QuickMatch[] = [];
+      let w = 0, d = 0, l = 0, gf = 0, ga = 0;
+      while (useGame.getState().intl?.phase === "groups") {
+        const md = useGame.getState().intl!.matchday;
+        useGame.getState().advanceIntlGroups();
+        const next = useGame.getState().intl!;
+        const uf = next.fixtures.find((f) => f.matchday === md && f.result && (f.home === next.userKey || f.away === next.userKey));
+        if (uf?.result) {
+          const r = uf.result; const side: 0 | 1 = r.home === next.userKey ? 0 : 1;
+          const us = side === 0 ? r.homeGoals : r.awayGoals, them = side === 0 ? r.awayGoals : r.homeGoals;
+          gf += us; ga += them; if (us > them) w++; else if (us === them) d++; else l++;
+          matches.push({ home: iRef(next, r.home), away: iRef(next, r.away), hg: r.homeGoals, ag: r.awayGoals, userSide: side, scorers: scorersOf(r), result: r, md });
+        }
+        if (stopEarly && !next.userAlive) break;
+      }
+      const t = useGame.getState().intl!;
+      setQuickShow((prev) => (prev ? { ...prev, data: {
+        kind: "phase", simmed: matches.length, w, d, l, gf, ga, pos: userGroupPos(t), qualified: t.userAlive, qualification: intlQualLine(t), matches,
+      } } : prev));
+    }, 900);
+  };
+
+  const onQuickDone = () => { setQuickShow(null); busyRef.current = false; fireBurstIfQualified("groups"); };
 
   /* ---------------------------- LOBBY ---------------------------- */
   if (!intl && !selecting) {
@@ -659,11 +734,24 @@ function International() {
               </div>
             </div>
             <div>
-              {intl.phase === "groups" && (
-                <button className="btn btn-gold btn-pulse" disabled={!!matchdayShow} onClick={startGroupMatchday}>
-                  {matchdayShow ? tr("intl.playing") : tr("intl.play", { round: roundTitle })}
-                </button>
-              )}
+              {intl.phase === "groups" && (() => {
+                const busy = !!matchdayShow || !!quickShow;
+                return (
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    <button className="btn btn-gold btn-pulse" disabled={busy} onClick={startGroupMatchday}>
+                      {matchdayShow ? tr("intl.playing") : tr("intl.play", { round: roundTitle })}
+                    </button>
+                    <button className="btn btn-secondary" disabled={busy} onClick={quickSimSingle}
+                      title="Instantly simulate this match and view the result.">
+                      ⏩ {tr("intl.quickSim")}
+                    </button>
+                    <button className="btn btn-ghost text-xs" disabled={busy} onClick={() => { setQuickConfirm(true); play("click"); }}
+                      title="Instantly simulate every remaining group-stage match.">
+                      ⏩ {tr("intl.quickSimGroup")}
+                    </button>
+                  </div>
+                );
+              })()}
               {["r16", "qf"].includes(intl.phase) && (
                 <button className="btn btn-gold btn-pulse" disabled={!!transition} onClick={() => runCinematic(roundTitle, t.title, advanceKO)}>
                   {transition ? tr("intl.playing") : tr("intl.play", { round: roundTitle })}
@@ -905,6 +993,54 @@ function International() {
               zones={{ direct: 2, secondary: 3 }}
               onDone={onMatchdayDone}
             />
+          )}
+        </AnimatePresence>
+
+        {/* QUICK SIM — compact result / group-stage recap */}
+        <AnimatePresence>
+          {quickShow && (
+            <QuickSim
+              title={`${t.title} · ${quickShow.title}`}
+              accent={t.accent} emblem={t.emoji}
+              data={quickShow.data}
+              onDone={onQuickDone}
+              onViewMatch={(r) => setModal({ result: r, title: "Match statistics" })}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* QUICK SIM GROUP STAGE — confirmation */}
+        <AnimatePresence>
+          {quickConfirm && (
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[140] flex items-end justify-center p-4 sm:items-center"
+              style={{ background: "rgba(2,7,20,0.82)" }}
+              onClick={() => setQuickConfirm(false)} role="dialog" aria-modal="true" aria-label="Quick Sim group stage"
+            >
+              <motion.div initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 20, opacity: 0 }}
+                className="glass w-full max-w-md rounded-2xl p-5" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center gap-2">
+                  <span aria-hidden className="text-xl">⏩</span>
+                  <h3 className="font-display text-lg font-extrabold text-white">Quick Sim the remaining group stage?</h3>
+                </div>
+                <p className="mt-1.5 text-[0.78rem] leading-relaxed text-white/65">
+                  This instantly simulates your remaining group matches and updates the table. You&apos;ll still be able to review every result afterward.
+                </p>
+                <button onClick={() => { setQuickStopEarly((v) => !v); play("click"); }} aria-pressed={quickStopEarly}
+                  className="mt-3 flex w-full items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition-colors"
+                  style={{ borderColor: quickStopEarly ? t.accent : "rgba(255,255,255,0.12)", background: quickStopEarly ? t.soft : "transparent" }}>
+                  <span className="grid h-5 w-5 shrink-0 place-items-center rounded-md border" style={{ borderColor: t.accent, background: quickStopEarly ? t.accent : "transparent" }}>
+                    {quickStopEarly && <span className="text-[0.6rem] font-black text-[#04101f]">✓</span>}
+                  </span>
+                  <span className="text-[0.74rem] font-semibold text-white/85">Stop if qualification or elimination is confirmed</span>
+                </button>
+                <div className="mt-5 flex gap-2.5">
+                  <button className="btn btn-ghost flex-1" onClick={() => { setQuickConfirm(false); play("click"); }}>Cancel</button>
+                  <button className="btn btn-gold flex-1" onClick={quickSimPhase}>⏩ Quick Sim Remaining</button>
+                </div>
+              </motion.div>
+            </motion.div>
           )}
         </AnimatePresence>
 

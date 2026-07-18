@@ -6,7 +6,7 @@ legendary players — each rated for one **exact** campaign, not their career �
 build the ultimate XI, then lead it through the **Champions League**, the
 **UEFA EURO**, or the **Copa América** to continental glory.
 
-**Play it:** https://continentalxi.github.io/continental-xi/
+**Play it:** https://continental-xi-snowy.vercel.app/
 
 > Not affiliated with UEFA, CONMEBOL, FIFA or any club. No official logos,
 > branding or protected assets are used — the visual identity, names and

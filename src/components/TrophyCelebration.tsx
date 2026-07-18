@@ -131,6 +131,7 @@ export function TrophyCelebration({ tournament, teamName, tie, onViewStats, onCo
   const message = kind === "champion" ? MESSAGE.champion : kind === "runner" ? MESSAGE.runner : MESSAGE[outTier];
 
   const rawXi = useGame((s) => s.getXI)();
+  const resetDraft = useGame((s) => s.resetDraft);
   const xi = rawXi.filter(Boolean);
   const formationObj = useGame.getState().formation;
   const formationName = useGame.getState().setup?.formationName;
@@ -270,7 +271,7 @@ export function TrophyCelebration({ tournament, teamName, tie, onViewStats, onCo
             {/* actions — immediately below the hero, no scrolling required */}
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
               className="mt-4 flex flex-wrap gap-2.5">
-              <button className="btn btn-gold" onClick={() => { play("select"); router.push("/draft"); }}>🔁 Play Again</button>
+              <button className="btn btn-gold" onClick={() => { play("select"); resetDraft(); router.push("/draft"); }}>🆕 Start New Draft</button>
               <button className="btn btn-secondary" onClick={() => { play("select"); onContinue(); }}>📊 Tournament Stats</button>
               <button className="btn btn-ghost" onClick={shareCard}>📸 Share XI</button>
               {won && <button className="btn btn-ghost" onClick={() => { play("trophy"); setCelebrateKey((k) => k + 1); }}>🎆 Replay</button>}

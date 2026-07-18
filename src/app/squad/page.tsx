@@ -299,7 +299,7 @@ export default function SquadPage() {
                 </div>
               </div>
               <p className="mt-3 text-[0.62rem] text-white/40">
-                87% player quality (position-adjusted) · 5% suitability · 4% tactical fit · 4% experience
+                90% player quality (position-adjusted) · 6% suitability · 4% experience — Tactical Fit is scored separately and never inflates Overall
               </p>
             </div>
 

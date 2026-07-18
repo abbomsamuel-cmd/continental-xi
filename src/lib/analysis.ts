@@ -57,8 +57,11 @@ export function analyzeTeam(formation: Formation, players: (Player | null)[], ta
   const expLead = round(experience * 0.6 + leadership * 0.4);
 
   const avgEffective = avg(filled.map(effOverall));
+  // Base Squad OVR is tactic-INDEPENDENT — the honest quality of the XI (player
+  // quality, position suitability, experience). Tactical Fit is reported
+  // separately (breakdown.tacticFit) and never inflates this number.
   const overall = filled.length
-    ? round(avgEffective * 0.87 + positionScore * 0.05 + fitScore * 0.04 + expLead * 0.04)
+    ? round(avgEffective * 0.9 + positionScore * 0.06 + expLead * 0.04)
     : 0;
 
   const possession = round(avg([...mid, ...att].map((x) => x.p.attributes.passing)) * 0.85 + midfield * 0.15);

@@ -1268,8 +1268,8 @@ function International() {
                       📸 Save Trophy Card
                     </button>
                   )}
-                  <button className="btn btn-ghost text-xs" onClick={() => { play("select"); router.push("/international"); }}>
-                    🔁 {tr("intl.playAgain")}
+                  <button className="btn btn-ghost text-xs" onClick={() => { play("select"); endIntl(); router.push("/international"); }}>
+                    🆕 {tr("intl.startNewDraft")}
                   </button>
                   <button className="btn btn-ghost text-xs" onClick={() => { play("click"); router.push("/"); }}>
                     🏠 {tr("intl.returnHome")}

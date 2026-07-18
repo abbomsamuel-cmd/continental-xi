@@ -472,6 +472,7 @@ const DICT: Record<string, Entry> = {
   "intl.saveReturn": { en: "Save & Return", es: "Guardar y Volver" },
   "intl.viewBracket": { en: "View bracket", es: "Ver cuadro" },
   "intl.playAgain": { en: "Play Again", es: "Jugar de Nuevo" },
+  "intl.startNewDraft": { en: "Start New Draft", es: "Nuevo Sorteo" },
   "intl.returnHome": { en: "Return Home", es: "Volver al Inicio" },
   "intl.quickSim": { en: "Quick Sim", es: "Sim Rápida" },
   "intl.quickSimGroup": { en: "Sim Group Stage", es: "Sim Fase de Grupos" },

@@ -180,6 +180,15 @@ const SUB = [
   "The manager has seen enough — {t} make a change.",
 ];
 
+// in-match tactical decision — the trailing side reshapes to chase the game
+const TACTICAL_SHIFT = [
+  "Tactical rethink on the {t} bench — an extra body forward as they chase it.",
+  "The {t} manager rolls the dice: higher line, all-out to force a goal.",
+  "Off come the shackles for {t} — bolder shape, pushing men into the box.",
+  "A change of plan from the {t} touchline, caution cast aside to level it.",
+  "{t} shift their approach — everything committed to finding a way through.",
+];
+
 const HT = [
   "The half-time whistle blows. Breathe.",
   "That's the half — the managers have plenty to say.",
@@ -275,6 +284,19 @@ export function buildFeed(r: MatchResult, home: BroadcastTeamRef, away: Broadcas
   for (let i = 0; i < 2; i++) {
     const team = (i % 2) as 0 | 1;
     lines.push({ minute: freeMinute(n++, 58, 82), kind: "sub", team, text: fill(pick(SUB, seed, 440 + i * 9), { t: teamName(team) }) });
+  }
+
+  // in-match tactical decision — grounded in the real game state: whoever is
+  // behind late reshapes to chase it. Never reveals the final result (it reads
+  // the score only up to ~70', not the finish).
+  {
+    const at = 68 + Math.floor(frac(seed + 91) * 12); // 68'–79'
+    const goalsBy = (t: 0 | 1) => r.events.filter((e) => e.type === "goal" && e.team === t && e.minute <= at).length;
+    const gd = goalsBy(0) - goalsBy(1);
+    if (gd !== 0) {
+      const trailing = (gd < 0 ? 0 : 1) as 0 | 1;
+      lines.push({ minute: freeMinute(n++, at, at + 7), kind: "sub", team: trailing, text: fill(pick(TACTICAL_SHIFT, seed, 600), { t: teamName(trailing) }) });
+    }
   }
 
   for (let i = 0; i < 2; i++) {

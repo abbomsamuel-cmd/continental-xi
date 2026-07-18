@@ -524,10 +524,10 @@ export const useGame = create<StoreState>()(
         const pool = setup?.pool ?? "clubs";
         if (pool === "euro" || pool === "copa") {
           // drafted XI of international legends enters its own tournament
-          set({ intl: createIntlDraft(rng, pool, name, colors, analysis, tacticAdj) });
+          set({ intl: createIntlDraft(rng, pool, name, colors, analysis, tacticAdj, tactic) });
           return;
         }
-        set({ tournament: createTournament(rng, name, analysis, colors, tacticAdj) });
+        set({ tournament: createTournament(rng, name, analysis, colors, tacticAdj, tactic) });
       },
 
       advanceLeague: () => {

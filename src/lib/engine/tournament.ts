@@ -6,6 +6,7 @@ import { shuffle } from "../rng";
 import { CLUB_REGISTRY } from "../data/clubs";
 import { SQUADS } from "../players";
 import { simulateMatch, penaltyShootout, type EngineTeamContext, type ShootoutSide } from "./match";
+import { pickAiTactic, type TacticId } from "../tactics";
 
 export const USER_TEAM_ID = "user";
 
@@ -42,6 +43,8 @@ export function createTournament(
   userColors: [string, string],
   /** small attack/defense nudge from the chosen tactical style (±2.5 max) */
   tacticAdj: { attack: number; defense: number } = { attack: 0, defense: 0 },
+  /** the user's chosen tactical style — drives the style-vs-style matchup */
+  userTactic: TacticId | null = null,
 ): TournamentState {
   const clubs = shuffle(rng, CLUB_REGISTRY).slice(0, 35);
   const teams: Record<string, SimTeam> = {};
@@ -59,11 +62,14 @@ export function createTournament(
     defense: Math.min(99, (analysis.defense + analysis.goalkeeper) / 2 + tacticAdj.defense),
     isUser: true,
     pot: 1,
+    tactic: userTactic ?? undefined,
   };
 
   for (const c of clubs) {
     const noise = (rng() - 0.5) * 6; // this season's form
     const strength = Math.max(45, Math.min(97, c.coeff + noise));
+    const attack = Math.max(40, strength + (rng() - 0.5) * 8);
+    const defense = Math.max(40, strength + (rng() - 0.5) * 8);
     teams[c.name] = {
       id: c.name,
       name: c.name,
@@ -71,11 +77,12 @@ export function createTournament(
       country: c.country,
       colors: c.colors,
       strength,
-      attack: Math.max(40, strength + (rng() - 0.5) * 8),
-      defense: Math.max(40, strength + (rng() - 0.5) * 8),
+      attack,
+      defense,
       isUser: false,
       pot: 0,
       season: seasonForClub(rng, c.name),
+      tactic: pickAiTactic(attack, defense, rng()),
     };
   }
 

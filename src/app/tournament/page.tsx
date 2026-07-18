@@ -23,6 +23,7 @@ import { goldenBootRace, tournamentHeadlines, knockoutVenue } from "@/lib/broadc
 import { hashString } from "@/lib/rng";
 import { PageBoundary } from "@/components/PageBoundary";
 import { USER_TEAM_ID, teamLabel } from "@/lib/engine/tournament";
+import { matchupEdge, tacticById } from "@/lib/tactics";
 import type { Fixture, KOTie, MatchResult, SimTeam, TournamentState } from "@/lib/types";
 import { useT } from "@/lib/i18n";
 import { play } from "@/lib/sound";
@@ -523,6 +524,22 @@ function TournamentInner() {
               <div className="text-[0.62rem] text-muted">
                 {nextOpp.home === null ? "Two legs — or one final night" : nextOpp.home ? "At home" : "Away from home"}
               </div>
+              {nextOpp.team.tactic && (() => {
+                const ot = tacticById(nextOpp.team.tactic)!;
+                const ut = tournament.teams[USER_TEAM_ID].tactic;
+                const edge = matchupEdge(ut, nextOpp.team.tactic);
+                return (
+                  <div className="mt-1.5 text-[0.6rem]">
+                    <span className="text-white/45">Likely to play </span>
+                    <span className="font-semibold text-white/85">{ot.icon} {ot.name}</span>
+                    {ut && (
+                      <span className="ml-1 font-bold" style={{ color: edge > 0.3 ? "#7ee081" : edge < -0.3 ? "#f5a15a" : "#cfd6e6" }}>
+                        · {edge > 0.3 ? "your style has the edge" : edge < -0.3 ? "a tricky matchup" : "evenly matched"}
+                      </span>
+                    )}
+                  </div>
+                );
+              })()}
             </>
           ) : (
             <div className="mt-1 text-sm text-muted">{isDone ? t("tour.campaignOver") : t("tour.waitingDraw")}</div>

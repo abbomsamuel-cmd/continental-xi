@@ -11,12 +11,15 @@ function avg(nums: number[]): number {
 
 /**
  * Full team analysis for a completed (or partial) XI. No chemistry anywhere —
- * the rating is built from understandable football components:
+ * the Base Squad OVR is built from understandable, tactic-INDEPENDENT football
+ * components (a tactic never inflates it):
  *
- *   87%  average effective player rating (position suitability applied)
- *    5%  position suitability of the whole XI
- *    4%  tactical-style fit
+ *   90%  average effective player rating (position suitability applied)
+ *    6%  position suitability of the whole XI
  *    4%  experience & leadership
+ *
+ * Tactical Fit is computed separately (breakdown.tacticFit) and reported on its
+ * own 0-100 scale — it shapes how the team plays, not how good the XI is.
  */
 export function analyzeTeam(formation: Formation, players: (Player | null)[], tactic?: TacticId | null): TeamAnalysis {
   const filled = players

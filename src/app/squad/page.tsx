@@ -10,7 +10,7 @@ import { LineupPresentation } from "@/components/LineupPresentation";
 import { formationCanHold } from "@/lib/formations";
 import { EuroScene, CopaScene } from "@/components/fx/Scenes";
 import { suitability } from "@/lib/suitability";
-import { TACTICS, tacticById, tacticFit, type TacticId } from "@/lib/tactics";
+import { TACTICS, tacticById, tacticFit, tacticFitBand, tacticFitReasons, tacticMatchupSummary, type TacticId } from "@/lib/tactics";
 import { shareXI, type ShareFormat } from "@/lib/share-xi";
 import { POSITION_GROUP } from "@/lib/formations";
 import type { Player } from "@/lib/types";
@@ -472,10 +472,13 @@ export default function SquadPage() {
               >
                 <div className="cl-heading text-[0.6rem] tracking-[0.4em]" style={{ color: c.accent }}>Team Talk</div>
                 <h2 className="mt-1 font-display text-2xl font-extrabold text-white">Choose your tactical style</h2>
-                <p className="mt-1 text-xs text-muted">The style nudges how your team plays — suitability shows how well this XI can pull it off.</p>
+                <p className="mt-1 text-xs text-muted">The style shapes how your team plays and who it counters — <span className="text-white/70">Tactical Fit</span> shows how well this XI pulls it off. It never changes your Squad OVR.</p>
                 <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {TACTICS.map((t) => {
                     const fit = tacticFit(t.id, formation!, xi);
+                    const band = tacticFitBand(fit);
+                    const reasons = tacticFitReasons(t.id, formation!, xi);
+                    const mu = tacticMatchupSummary(t.id);
                     const active = setup!.tactic === t.id;
                     return (
                       <button
@@ -490,8 +493,9 @@ export default function SquadPage() {
                       >
                         <div className="flex items-center justify-between">
                           <span className="font-display text-base font-extrabold text-white">{t.icon} {t.name}</span>
-                          <span className="font-display text-lg font-extrabold" style={{ color: fit >= 84 ? "#2ee6a6" : fit >= 74 ? "#ffcf5c" : "#ff5a6a" }}>
-                            {fit}
+                          <span className="text-right leading-none">
+                            <span className="font-display text-lg font-extrabold" style={{ color: band.color }}>{fit}</span>
+                            <span className="block text-[0.5rem] font-bold uppercase tracking-wider" style={{ color: band.color }}>{band.band} fit</span>
                           </span>
                         </div>
                         {/* tiny shape diagram */}
@@ -502,13 +506,26 @@ export default function SquadPage() {
                           ))}
                         </div>
                         <p className="mt-2 text-[0.66rem] leading-relaxed text-white/65">{t.description}</p>
-                        <p className="mt-1.5 text-[0.6rem] text-green/90">▲ {t.strengths[0]}</p>
-                        <p className="text-[0.6rem] text-danger/90">▼ {t.weaknesses[0]}</p>
-                        <p className="mt-1.5 text-[0.58rem] italic text-white/40">{t.bestFor}</p>
+                        {/* dynamic — read off THIS XI's attributes, not static copy */}
+                        <div className="mt-1.5 space-y-0.5">
+                          {reasons.length
+                            ? reasons.map((r, i) => (
+                                <p key={i} className="text-[0.6rem]" style={{ color: r.startsWith("＋") ? "#7ee081" : "#f5a15a" }}>{r}</p>
+                              ))
+                            : <><p className="text-[0.6rem] text-green/90">▲ {t.strengths[0]}</p><p className="text-[0.6rem] text-danger/90">▼ {t.weaknesses[0]}</p></>}
+                        </div>
+                        {/* style matchup — who it beats / struggles against */}
+                        {(mu.beats.length > 0 || mu.loses.length > 0) && (
+                          <p className="mt-1.5 text-[0.56rem] leading-relaxed text-white/50">
+                            {mu.beats.length > 0 && <>⚔ Counters <span className="text-white/75">{mu.beats.join(", ")}</span>. </>}
+                            {mu.loses.length > 0 && <>Exposed to <span className="text-white/75">{mu.loses.join(", ")}</span>.</>}
+                          </p>
+                        )}
                       </button>
                     );
                   })}
                 </div>
+                <p className="mt-4 text-[0.58rem] italic leading-relaxed text-white/40">Opponents play their own styles too — the right matchup is worth a small edge each game (±5%), a little more over a knockout tie.</p>
               </motion.div>
             </motion.div>
           )}

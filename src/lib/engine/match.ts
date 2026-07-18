@@ -1,6 +1,7 @@
 import type { MatchEvent, MatchResult, MatchStats, Player, ShootoutData, ShootoutKick, SimTeam } from "../types";
 import type { Rng } from "../rng";
 import { generateAiName } from "./names";
+import { matchupEdge, type TacticId } from "../tactics";
 
 /**
  * Advanced probabilistic match engine.
@@ -70,37 +71,73 @@ export function simulateMatch(
   const hEff = home.team.strength + home.form * 3 + homeAdv + (home.bigMatch ? 1.5 : 0);
   const aEff = away.team.strength + away.form * 3 + (away.bigMatch ? 1.5 : 0);
 
+  // Style-vs-style matchup: reading the tie right is worth a small edge —
+  // more expected goals for, fewer against — bounded to ±5%. The opponent's
+  // mirror edge is the negation, so it never double-counts.
+  const edge = matchupEdge(home.team.tactic, away.team.tactic);
+  const hMatch = 1 + edge * 0.05;
+  const aMatch = 1 - edge * 0.05;
+
   // Expected goals from attack vs defense mismatch. Tuned to real football:
   // ~1.3 goals/side on average, mismatches nudge it a little, and blowouts are
   // rare — a dominant side wins ~3-0/4-1, not 7-0.
-  const hLambda = Math.max(0.18, 1.28 + (home.team.attack - away.team.defense) * 0.026 + (hEff - aEff) * 0.012);
-  const aLambda = Math.max(0.15, 1.05 + (away.team.attack - home.team.defense) * 0.026 + (aEff - hEff) * 0.012);
+  const hLambda = Math.max(0.18, (1.28 + (home.team.attack - away.team.defense) * 0.026 + (hEff - aEff) * 0.012) * hMatch);
+  const aLambda = Math.max(0.15, (1.05 + (away.team.attack - home.team.defense) * 0.026 + (aEff - hEff) * 0.012) * aMatch);
 
   // football variance: occasionally a slightly more open match
   const chaos = rng() < 0.08 ? 1.35 : 1;
   // cap each side at 5, and only rarely allow a 5th (keeps scorelines believable)
   const clampGoals = (g: number) => (g >= 5 ? (rng() < 0.35 ? 5 : 4) : g);
-  const hGoals = clampGoals(poisson(rng, hLambda * chaos));
-  const aGoals = clampGoals(poisson(rng, aLambda * chaos));
+
+  // --- two-phase simulation: play the first half, read the game, then respond.
+  // The first half draws ~48% of the expected goals. At the interval each side
+  // makes an in-match decision from the scoreline: a trailing team commits
+  // forward (more chances created, more exposed at the back — and an aggressive
+  // style chases harder), a leading team manages the game. Modest and fit-gated,
+  // so comebacks and upsets both stay believable; a level game is unchanged.
+  const hG1 = poisson(rng, hLambda * chaos * 0.48);
+  const aG1 = poisson(rng, aLambda * chaos * 0.48);
+  const lead = hG1 - aG1;
+  const respond = (state: "behind" | "ahead" | "level", tactic?: TacticId | null): { atk: number; def: number } => {
+    if (state === "level") return { atk: 1, def: 1 };
+    if (state === "ahead") return { atk: 0.95, def: 0.97 }; // game management — fewer chances, tighter at the back
+    const aggressive = tactic === "gegenpress" || tactic === "direct" || tactic === "counter";
+    return { atk: aggressive ? 1.24 : 1.13, def: aggressive ? 1.14 : 1.07 }; // chasing it — the more open, the more exposed
+  };
+  const hResp = respond(lead > 0 ? "ahead" : lead < 0 ? "behind" : "level", home.team.tactic);
+  const aResp = respond(lead < 0 ? "ahead" : lead > 0 ? "behind" : "level", away.team.tactic);
+  // second half ~52% of expected goals, each side's creation modulated by its
+  // own response and the opponent's defensive posture (a chasing side leaks).
+  const hG2 = poisson(rng, hLambda * chaos * 0.52 * hResp.atk * aResp.def);
+  const aG2 = poisson(rng, aLambda * chaos * 0.52 * aResp.atk * hResp.def);
+
+  const hGoals = clampGoals(hG1 + hG2);
+  const aGoals = clampGoals(aG1 + aG2);
+  // keep first-half goals, trim the (clamped) remainder from the second half
+  const hFirst = Math.min(hG1, hGoals), hSecond = hGoals - hFirst;
+  const aFirst = Math.min(aG1, aGoals), aSecond = aGoals - aFirst;
 
   // events
   const events: MatchEvent[] = [];
   const usedMinutes = new Set<number>();
-  const minute = () => {
-    let m = 1 + Math.floor(rng() * 93);
-    while (usedMinutes.has(m)) m = 1 + Math.floor(rng() * 93);
+  const minuteIn = (lo: number, hi: number) => {
+    let m = lo + Math.floor(rng() * (hi - lo));
+    while (usedMinutes.has(m)) m = lo + Math.floor(rng() * (hi - lo));
     usedMinutes.add(m);
     return m;
   };
+  const minute = () => minuteIn(1, 94);
 
-  for (let g = 0; g < hGoals; g++) {
-    const { scorer, assist } = attackers(home, rng);
-    events.push({ minute: minute(), type: "goal", team: 0, player: scorer, assist });
-  }
-  for (let g = 0; g < aGoals; g++) {
-    const { scorer, assist } = attackers(away, rng);
-    events.push({ minute: minute(), type: "goal", team: 1, player: scorer, assist });
-  }
+  const goalEvents = (n: number, side: EngineTeamContext, team: 0 | 1, lo: number, hi: number) => {
+    for (let g = 0; g < n; g++) {
+      const { scorer, assist } = attackers(side, rng);
+      events.push({ minute: minuteIn(lo, hi), type: "goal", team, player: scorer, assist });
+    }
+  };
+  goalEvents(hFirst, home, 0, 1, 45);
+  goalEvents(aFirst, away, 1, 1, 45);
+  goalEvents(hSecond, home, 0, 46, 94);
+  goalEvents(aSecond, away, 1, 46, 94);
 
   const yellows: [number, number] = [0, 0];
   const reds: [number, number] = [0, 0];

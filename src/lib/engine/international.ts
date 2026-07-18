@@ -4,6 +4,7 @@ import { EURO_SQUADS_EXTRA } from "../data/nations-extra";
 import { expandSquad } from "../players";
 import { simulateMatch, penaltyShootout, type EngineTeamContext, type ShootoutSide } from "./match";
 import { shuffle, type Rng } from "../rng";
+import { pickAiTactic, hash01, type TacticId } from "../tactics";
 
 export type IntlComp = "euro" | "copa";
 
@@ -65,6 +66,8 @@ function teamFromSquad(comp: IntlComp, sq: RawSquad, isUser: boolean): SimTeam {
   const strength = avg(sorted.slice(0, 11).map((p) => p.overall));
   const atts = ps.filter((p) => ["ST", "CF", "LW", "RW", "CAM"].includes(p.position)).sort((a, b) => b.overall - a.overall);
   const defs = ps.filter((p) => ["GK", "CB", "RB", "LB", "RWB", "LWB", "CDM"].includes(p.position)).sort((a, b) => b.overall - a.overall);
+  const attack = avg(atts.slice(0, 4).map((p) => p.overall));
+  const defense = avg(defs.slice(0, 5).map((p) => p.overall));
   return {
     id: key,
     name: sq.club,
@@ -72,11 +75,15 @@ function teamFromSquad(comp: IntlComp, sq: RawSquad, isUser: boolean): SimTeam {
     country: sq.country,
     colors: sq.colors,
     strength,
-    attack: avg(atts.slice(0, 4).map((p) => p.overall)),
-    defense: avg(defs.slice(0, 5).map((p) => p.overall)),
+    attack,
+    defense,
     isUser,
     pot: 0,
     season: sq.season,
+    // Every historic nation gets a deterministic style (hashed off the key, so
+    // it's stable across a session). The drafted-XI user is built separately and
+    // carries the tactic the player actually chose.
+    tactic: pickAiTactic(attack, defense, hash01(key)),
   };
 }
 
@@ -156,6 +163,8 @@ export function createIntlDraft(
   rng: Rng, comp: IntlComp, teamName: string, colors: [string, string], analysis: TeamAnalysis,
   /** small attack/defense nudge from the chosen tactical style (±2.5 max) */
   tacticAdj: { attack: number; defense: number } = { attack: 0, defense: 0 },
+  /** the user's chosen tactical style — drives the style-vs-style matchup */
+  userTactic: TacticId | null = null,
 ): IntlState {
   const size = COMP_SIZE[comp];
   const nations = shuffle(rng, nationField(rng, comp)).slice(0, size - 1);
@@ -176,6 +185,7 @@ export function createIntlDraft(
     defense: Math.min(99, (analysis.defense + analysis.goalkeeper) / 2 + polish + tacticAdj.defense),
     isUser: true,
     pot: 0,
+    tactic: userTactic ?? undefined,
   };
   for (const sq of nations) {
     teams[squadKey(sq)] = teamFromSquad(comp, sq, false);

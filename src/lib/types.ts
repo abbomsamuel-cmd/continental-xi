@@ -1,4 +1,5 @@
 // Core domain types for the Champions Draft simulator.
+import type { TacticId } from "./tactics";
 
 export type Position =
   | "GK" | "RB" | "CB" | "LB" | "RWB" | "LWB"
@@ -145,6 +146,7 @@ export interface SimTeam {
   isUser: boolean;
   pot: number;
   season?: number; // the specific vintage this opponent represents, e.g. 2017
+  tactic?: TacticId; // tactical style — drives the style-vs-style matchup in the engine
 }
 
 export interface MatchEvent {

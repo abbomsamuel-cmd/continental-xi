@@ -673,3 +673,16 @@ export function attendance(r: MatchResult): number {
   const seed = matchSeed(r);
   return 48000 + Math.floor(frac(seed + 97) * 34000);
 }
+
+/** Neutral, invented grand venues for the knockout-night broadcast package —
+ *  stable for a given seed so the same tie always names the same stadium. */
+const VENUES = [
+  "Estadio del Sol", "Arena Nord", "Grand Stade Lumière", "Stadio della Luna",
+  "Olympiapark Arena", "Anfield Park", "Estádio Atlântico", "Kensington Arena",
+  "Parc des Étoiles", "Allianz Nacional", "San Cristóbal", "Metropolitan Bowl",
+  "Nordbank Arena", "Estadio Centenario", "Vittoria Stadium", "Neptune Park",
+];
+
+export function knockoutVenue(seed: number): string {
+  return pick(VENUES, seed, 61);
+}

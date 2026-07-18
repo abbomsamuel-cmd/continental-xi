@@ -18,7 +18,8 @@ import { CameraFlashes, Sparks, RainOverlay } from "@/components/fx/Atmosphere";
 import { LiveMatch, SimStyleChoice, type LiveLeg } from "@/components/LiveMatch";
 import { MatchdayLive, type MDFixtureView, type MiniRow } from "@/components/MatchdayLive";
 import { MatchPreview, GoldenBootRace, HeadlinesPanel, type PreviewTeam } from "@/components/TournamentCentre";
-import { goldenBootRace, tournamentHeadlines } from "@/lib/broadcast";
+import { goldenBootRace, tournamentHeadlines, knockoutVenue } from "@/lib/broadcast";
+import { hashString } from "@/lib/rng";
 import { PageBoundary } from "@/components/PageBoundary";
 import { USER_TEAM_ID, teamLabel } from "@/lib/engine/tournament";
 import type { Fixture, KOTie, MatchResult, SimTeam } from "@/lib/types";
@@ -573,7 +574,8 @@ function TournamentInner() {
         title={transition?.title ?? ""}
         subtitle={transition?.subtitle}
         variant="cl"
-        stage={tournament.phase === "sf" ? "sf" : tournament.phase === "final" ? "final" : "ko"}
+        stage={tournament.phase === "sf" ? "sf" : tournament.phase === "final" ? "final" : tournament.phase === "qf" ? "qf" : "r16"}
+        stadium={knockoutVenue(hashString(`${tournament.phase}-${tournament.matchday}-${USER_TEAM_ID}`))}
         teams={(() => {
           const tie = tournament.ties.find(
             (k) => !k.winner && (k.teamA === USER_TEAM_ID || k.teamB === USER_TEAM_ID),
@@ -588,7 +590,7 @@ function TournamentInner() {
         })()}
         detail="Simulating the round — you have a bye"
         accent="#d4af37"
-        duration={tournament.phase === "final" ? 4600 : tournament.phase === "sf" ? 3200 : 2500}
+        duration={tournament.phase === "final" ? 5200 : tournament.phase === "sf" ? 4400 : tournament.phase === "qf" ? 4200 : 3400}
         onDone={onTransitionDone}
       />
 

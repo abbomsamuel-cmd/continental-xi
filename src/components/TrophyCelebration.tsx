@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import type { KOTie, MatchResult, TournamentState } from "@/lib/types";
 import { USER_TEAM_ID, teamLabel } from "@/lib/engine/tournament";
@@ -128,10 +129,29 @@ interface Props {
  * A defeat gets the quiet, rain-soaked version.
  */
 export function TrophyCelebration({ tournament, teamName, tie, onViewStats, onContinue }: Props) {
+  const router = useRouter();
   const won = tournament.champion === USER_TEAM_ID;
   const awards = tournament.awards;
   const reachedFinal = tournament.exit?.stage === "Final";
   const exitText = tournament.exit?.text ?? "Your run has ended";
+  const stageName = tournament.exit?.stage ?? "";
+
+  // eliminations escalate emotionally: R16 simple → QF proud → SF heartbreaking
+  const outTier: "sf" | "qf" | "r16" | "league" | "generic" =
+    /Semi/.test(stageName) ? "sf"
+      : /Quarter/.test(stageName) ? "qf"
+        : /Round of 16|Play-?off/.test(stageName) ? "r16"
+          : /League/.test(stageName) ? "league"
+            : "generic";
+  const OUT_MSG: Record<string, { head: string; sub: string }> = {
+    sf: { head: "So close to the Final.", sub: `Heartbreak for ${teamName}. One step from the biggest night of all — and it slips away.` },
+    qf: { head: "The quarter-final is as far as it goes.", sub: `A brave run, ${teamName}. You went toe-to-toe with the best before bowing out.` },
+    r16: { head: "Your European journey ends here.", sub: `Knocked out in the Round of 16. Every great story starts with a first campaign, ${teamName}.` },
+    league: { head: "The league phase was the end of the road.", sub: `It wasn't to be this time, ${teamName}. Regroup, rebuild, and go again.` },
+    generic: { head: "The dream is over.", sub: `${teamName} — ${exitText}.` },
+  };
+  const outMsg = OUT_MSG[outTier];
+  const rainDrops = outTier === "sf" ? 60 : outTier === "qf" ? 50 : outTier === "r16" ? 42 : 36;
   const xi = useGame((s) => s.getXI)().filter(Boolean);
   // the campaign digest: record, journey, unique story — shown for every outcome
   const digest = useMemo(() => campaignDigest(tournament, teamName), [tournament, teamName]);
@@ -208,7 +228,13 @@ export function TrophyCelebration({ tournament, teamName, tie, onViewStats, onCo
         )}
       </AnimatePresence>
       {kind === "runner" && stage === "summary" && <Confetti count={60} colors={["#c0c8d4", "#9fb3d1", "#ffffff"]} />}
-      {kind === "out" && <RainOverlay drops={44} opacity={0.4} />}
+      {kind === "out" && <RainOverlay drops={rainDrops} opacity={outTier === "sf" ? 0.5 : 0.4} />}
+      {/* the floodlights fade on an elimination */}
+      {kind === "out" && (
+        <motion.div aria-hidden className="pointer-events-none absolute inset-0"
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1.8 }}
+          style={{ background: "radial-gradient(120% 90% at 50% 0%, transparent 30%, rgba(2,6,18,0.72) 100%)" }} />
+      )}
 
       {/* rotating starburst rays behind the emblem */}
       <motion.div
@@ -288,16 +314,21 @@ export function TrophyCelebration({ tournament, teamName, tie, onViewStats, onCo
           )}
         </AnimatePresence>
 
-        <motion.p
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.8 }}
-          className="mx-auto mt-2 max-w-sm text-sm text-muted"
-        >
-          {won
-            ? `${teamName} are the kings of Europe. Glory is yours.`
-            : kind === "runner"
-              ? `An incredible tournament, ${teamName}. You reached the Final — very few ever do.`
-              : `${teamName} — ${exitText}.`}
-        </motion.p>
+        {won || kind === "runner" ? (
+          <motion.p
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.8 }}
+            className="mx-auto mt-2 max-w-sm text-sm text-muted"
+          >
+            {won
+              ? `${teamName} are the kings of Europe. Glory is yours.`
+              : `An incredible tournament, ${teamName}. You reached the Final — bittersweet, but very few ever get this far.`}
+          </motion.p>
+        ) : (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.8 }} className="mx-auto mt-2 max-w-sm">
+            <div className="font-display text-lg font-extrabold text-white/90">{outMsg.head}</div>
+            <p className="mt-1 text-sm text-muted">{outMsg.sub}</p>
+          </motion.div>
+        )}
 
         {/* honours: MVP, Golden Boot, Golden Glove — revealed after the lift */}
         {won && awards && (stage === "lift" ? showAwards : false) && (
@@ -376,6 +407,31 @@ export function TrophyCelebration({ tournament, teamName, tie, onViewStats, onCo
                   <span className="w-6 shrink-0 font-bold text-cyan/80">{p!.position}</span>
                   <span className="truncate font-semibold text-white/90">{p!.name}</span>
                   <span className="ml-auto font-display font-extrabold text-gold">{p!.overall}</span>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
+        {/* the XI that carried the run — shown on every non-winning outcome */}
+        {!won && xi.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.2 }}
+            className="cl-panel mx-auto mt-4 max-w-md rounded-2xl p-4"
+          >
+            <div className="cl-heading mb-2 text-[0.58rem] tracking-[0.3em]" style={{ color: theme.ring }}>
+              {kind === "runner" ? "Your Finalist XI" : "The XI That Carried You"}
+            </div>
+            <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-left sm:grid-cols-3">
+              {xi.map((p, i) => (
+                <motion.div
+                  key={p!.id}
+                  initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 1.3 + i * 0.05 }}
+                  className="flex items-center gap-1.5 text-[0.62rem]"
+                >
+                  <span className="w-6 shrink-0 font-bold" style={{ color: `${theme.ring}cc` }}>{p!.position}</span>
+                  <span className="truncate font-semibold text-white/85">{p!.name}</span>
+                  <span className="ml-auto font-display font-extrabold" style={{ color: theme.ring }}>{p!.overall}</span>
                 </motion.div>
               ))}
             </div>
@@ -494,18 +550,29 @@ export function TrophyCelebration({ tournament, teamName, tie, onViewStats, onCo
             >
               📸 Save Trophy Card
             </button>
+            <button className="btn btn-ghost" onClick={() => { play("select"); router.push("/draft"); }}>
+              🏆 New Tournament
+            </button>
             <button className="btn btn-gold" onClick={onContinue}>
               Continue to Your Profile
             </button>
           </motion.div>
         )}
         {!won && (
-          <motion.button
+          <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.2 }}
-            className="btn btn-gold mt-8" onClick={onContinue}
+            className="mt-8 flex flex-wrap items-center justify-center gap-3"
           >
-            Save Result & Continue
-          </motion.button>
+            <button className="btn btn-gold" onClick={() => { play("select"); onContinue(); }}>
+              📊 View Tournament Stats
+            </button>
+            <button className="btn btn-ghost" onClick={() => { play("select"); router.push("/draft"); }}>
+              🔁 Play Again
+            </button>
+            <button className="btn btn-ghost" onClick={() => { play("click"); router.push("/"); }}>
+              🏠 Return Home
+            </button>
+          </motion.div>
         )}
       </div>
     </motion.div>

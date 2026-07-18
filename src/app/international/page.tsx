@@ -8,7 +8,8 @@ import {
   COMP_SQUADS, groupTable, squadKey, INTL_USER, type IntlComp, type IntlState,
 } from "@/lib/engine/international";
 import { shareTrophyCard, type CardPlayer } from "@/lib/trophy-card";
-import { campaignStory, goldenBootRace, tournamentHeadlines } from "@/lib/broadcast";
+import { campaignStory, goldenBootRace, tournamentHeadlines, knockoutVenue } from "@/lib/broadcast";
+import { hashString } from "@/lib/rng";
 import { MatchPreview, GoldenBootRace, HeadlinesPanel, type PreviewTeam } from "@/components/TournamentCentre";
 import type { KOTie, KORoundName, MatchResult, Player, RawSquad, TableRow } from "@/lib/types";
 import { MatchModal } from "@/components/MatchModal";
@@ -832,7 +833,8 @@ function International() {
           title={transition?.title ?? ""}
           subtitle={transition?.subtitle}
           variant={intl.comp}
-          stage={intl.phase === "sf" ? "sf" : intl.phase === "final" ? "final" : "ko"}
+          stage={intl.phase === "sf" ? "sf" : intl.phase === "final" ? "final" : intl.phase === "qf" ? "qf" : "r16"}
+          stadium={knockoutVenue(hashString(`${intl.comp}-${intl.phase}-${intl.matchday}-${intl.userKey}`))}
           teams={(() => {
             const tie = intl.ties.find(
               (k) => !k.winner && (k.teamA === intl.userKey || k.teamB === intl.userKey),
@@ -848,7 +850,7 @@ function International() {
           })()}
           detail={nextOpponentDetail}
           accent={t.accent}
-          duration={intl.phase === "final" ? 4600 : intl.phase === "sf" ? 3200 : 2500}
+          duration={intl.phase === "final" ? 5200 : intl.phase === "sf" ? 4400 : intl.phase === "qf" ? 4200 : 3400}
           onDone={onTransitionDone}
         />
 
@@ -1010,6 +1012,22 @@ function International() {
                 >
                   {userLabel}
                 </motion.p>
+                {/* emotional send-off, escalating by how far the run reached */}
+                {!won && intl.exit?.stage !== "Final" && !intl.exit?.text.startsWith("Bronze") && (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.9 }} className="mx-auto mt-2 max-w-sm">
+                    <div className="font-display text-base font-extrabold text-white/90">
+                      {/Semi/.test(intl.exit?.stage ?? "") ? "So close to the Final."
+                        : /Quarter/.test(intl.exit?.stage ?? "") ? "Out at the quarter-final."
+                          : /Round of 16/.test(intl.exit?.stage ?? "") ? "Your journey ends in the Round of 16."
+                            : "The group stage was the end of the road."}
+                    </div>
+                    <p className="mt-1 text-xs text-muted">
+                      {/Semi/.test(intl.exit?.stage ?? "") ? `Heartbreak for ${userLabel} — a step from glory.`
+                        : /Quarter/.test(intl.exit?.stage ?? "") ? `A proud run from ${userLabel}. Held your own with the best.`
+                          : `Every campaign is a new story, ${userLabel}.`}
+                    </p>
+                  </motion.div>
+                )}
 
                 {won && (
                   <motion.div
@@ -1114,6 +1132,12 @@ function International() {
                       📸 Save Trophy Card
                     </button>
                   )}
+                  <button className="btn btn-ghost text-xs" onClick={() => { play("select"); router.push("/international"); }}>
+                    🔁 {tr("intl.playAgain")}
+                  </button>
+                  <button className="btn btn-ghost text-xs" onClick={() => { play("click"); router.push("/"); }}>
+                    🏠 {tr("intl.returnHome")}
+                  </button>
                   <button className="btn btn-gold" onClick={() => { endIntl(); play("click"); }}>
                     {won ? tr("intl.liftTrophy") : tr("intl.saveReturn")}
                   </button>

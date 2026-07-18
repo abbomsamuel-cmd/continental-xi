@@ -6,6 +6,7 @@ import type { KOTie, KORoundName, MatchResult } from "@/lib/types";
 import type { PitchVariant } from "@/components/Pitch";
 import { TeamBadge } from "@/components/TeamBadge";
 import { Confetti } from "@/components/fx/Atmosphere";
+import { useFxLevel } from "@/lib/fx";
 
 export interface BracketTeam { id: string; name: string; short: string; colors: [string, string]; season?: string; isUser?: boolean }
 
@@ -74,10 +75,14 @@ function TieCard({
   tie, teams, userKey, pal, onClick, expandable, big,
 }: { tie: KOTie; teams: Record<string, BracketTeam>; userKey: string; pal: (typeof PAL)[PitchVariant]; onClick?: () => void; expandable?: boolean; big?: boolean }) {
   const [open, setOpen] = useState(false);
+  const lvl = useFxLevel();
   const [a, b] = agg(tie);
   const pens = pensOf(tie);
   const isUser = tie.teamA === userKey || tie.teamB === userKey;
   const decided = !!tie.winner;
+  // the user's road breathes so their path through the tree stands out
+  const userWon = isUser && decided && tie.winner === userKey;
+  const pulse = isUser && lvl === "full";
 
   const handle = () => { if (onClick) onClick(); else if (expandable) setOpen((o) => !o); };
 
@@ -86,14 +91,20 @@ function TieCard({
       onClick={handle}
       disabled={!onClick && !expandable}
       whileHover={onClick || expandable ? { y: -3, scale: 1.03 } : undefined}
-      transition={{ type: "spring", stiffness: 300, damping: 20 }}
+      animate={pulse ? { boxShadow: [`0 0 10px ${pal.glow}`, `0 0 20px ${pal.glow}`, `0 0 10px ${pal.glow}`] } : undefined}
+      transition={pulse ? { boxShadow: { duration: 2.4, repeat: Infinity, ease: "easeInOut" }, default: { type: "spring", stiffness: 300, damping: 20 } } : { type: "spring", stiffness: 300, damping: 20 }}
       className={`relative block w-full overflow-hidden rounded-xl text-left ${onClick || expandable ? "cursor-pointer" : "cursor-default"}`}
       style={{
         background: pal.card,
-        border: `1px solid ${isUser ? pal.accent : pal.border}`,
+        border: `1.5px solid ${userWon ? pal.accent : isUser ? `${pal.accent}bb` : pal.border}`,
         boxShadow: isUser ? `0 0 14px ${pal.glow}` : "0 4px 10px rgba(0,0,0,0.4)",
       }}
     >
+      {/* "advanced" flourish — a check on the tie the user has just won through */}
+      {userWon && (
+        <span className="absolute right-1 top-1 z-10 grid h-4 w-4 place-items-center rounded-full text-[0.5rem] font-black"
+          style={{ background: pal.accent, color: "#04101f" }} aria-hidden>✓</span>
+      )}
       <TeamRow team={teams[tie.teamA]} goals={a} won={tie.winner === tie.teamA} decided={decided} accent={pal.accent} big={big} />
       <div className="h-px" style={{ background: "rgba(255,255,255,0.1)" }} />
       <TeamRow team={teams[tie.teamB]} goals={b} won={tie.winner === tie.teamB} decided={decided} accent={pal.accent} big={big} />

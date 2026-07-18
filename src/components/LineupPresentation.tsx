@@ -38,9 +38,10 @@ const PRES: Record<PitchVariant, {
   },
 };
 
-// same inset as the interactive pitch
+// same inset vocabulary as the interactive pitch (V6 tall band), tuned for the
+// 7/9 broadcast graphic so the enlarged cards never crowd.
 function project(x: number, y: number) {
-  return { left: `${8 + x * 0.84}%`, top: `${8 + (100 - y) * 0.72}%` };
+  return { left: `${8 + x * 0.84}%`, top: `${5 + (100 - y) * 0.82}%` };
 }
 
 interface Props {

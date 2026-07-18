@@ -62,11 +62,54 @@ const BOARD: Record<PitchVariant, {
   },
 };
 
-// Map tactical coords (x,y 0-100, y=attack) into an inset play area. The band is
-// lifted up the pitch (GK & back line higher, more grass below the keeper) and
-// spread wide so wingers/full-backs breathe.
+/* Per-competition premium background mosaic — a very low-opacity geometric
+ * pattern that gives each pitch its own identity without hurting readability.
+ * CL a soft hexagonal weave, EURO a fine diamond grid, Copa a warm gold argyle. */
+function PitchMosaic({ variant }: { variant: PitchVariant }) {
+  const id = `mz-${variant}`;
+  if (variant === "cl") {
+    return (
+      <svg className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden preserveAspectRatio="xMidYMid slice">
+        <defs>
+          <pattern id={id} width="60" height="52" patternUnits="userSpaceOnUse">
+            <path d="M15 0 L45 0 L60 26 L45 52 L15 52 L0 26 Z" fill="none" stroke="rgba(120,175,255,0.9)" strokeWidth="1" />
+            <path d="M45 0 L60 26 M15 0 L0 26 M15 52 L0 26 M45 52 L60 26" stroke="rgba(120,175,255,0.5)" strokeWidth="0.6" />
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill={`url(#${id})`} opacity="0.08" />
+      </svg>
+    );
+  }
+  if (variant === "euro") {
+    return (
+      <svg className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden preserveAspectRatio="xMidYMid slice">
+        <defs>
+          <pattern id={id} width="34" height="34" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <rect width="34" height="34" fill="none" stroke="rgba(210,225,255,0.9)" strokeWidth="0.8" />
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill={`url(#${id})`} opacity="0.07" />
+      </svg>
+    );
+  }
+  return (
+    <svg className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden preserveAspectRatio="xMidYMid slice">
+      <defs>
+        <pattern id={id} width="56" height="56" patternUnits="userSpaceOnUse">
+          <path d="M28 4 L52 28 L28 52 L4 28 Z" fill="none" stroke="rgba(255,214,120,0.9)" strokeWidth="1" />
+          <circle cx="28" cy="28" r="1.6" fill="rgba(255,214,120,0.9)" />
+        </pattern>
+      </defs>
+      <rect width="100%" height="100%" fill={`url(#${id})`} opacity="0.08" />
+    </svg>
+  );
+}
+
+// Map tactical coords (x,y 0-100, y=attack) into an inset play area. V6 uses a
+// TALL band (0.84 of the height) so the enlarged cards never crowd vertically,
+// paired with the hand-tuned formation coordinates in lib/formations.ts.
 function project(x: number, y: number): { left: string; top: string } {
-  return { left: `${8 + x * 0.84}%`, top: `${6 + (100 - y) * 0.80}%` };
+  return { left: `${8 + x * 0.84}%`, top: `${5 + (100 - y) * 0.84}%` };
 }
 
 export function Pitch({
@@ -97,13 +140,15 @@ export function Pitch({
   }
 
   // width is a % of the PITCH (container-query), so tiles scale with the pitch
-  // and never overlap regardless of where the pitch is rendered.
-  const cardW = "w-[12.5cqw]";
+  // and never overlap regardless of where the pitch is rendered. 12cqw on the
+  // enlarged pitch reads bigger in absolute px while leaving clear air between
+  // the hand-tuned formation slots.
+  const cardW = "w-[12cqw]";
 
   return (
     <div
-      className="relative mx-auto aspect-[7/10] w-full max-w-[440px] select-none"
-      style={{ transform: "perspective(1400px) rotateX(1.5deg)", transformStyle: "preserve-3d", containerType: "inline-size" }}
+      className="relative mx-auto aspect-[7/10] w-full max-w-[540px] select-none"
+      style={{ transform: "perspective(1600px) rotateX(1.5deg)", transformStyle: "preserve-3d", containerType: "inline-size" }}
     >
       <div
         className="absolute inset-0 overflow-hidden rounded-[18px]"
@@ -111,6 +156,9 @@ export function Pitch({
       >
         {/* mowing stripes / grass texture */}
         <div className="pointer-events-none absolute inset-0" aria-hidden style={{ background: board.grass }} />
+
+        {/* premium competition mosaic — low-opacity geometric identity */}
+        <PitchMosaic variant={variant} />
 
         {/* floodlight bloom top corners + grounding vignette */}
         <div className="pointer-events-none absolute inset-0" aria-hidden
@@ -135,9 +183,10 @@ export function Pitch({
           </>
         )}
 
-        {/* pitch markings — subtle */}
-        <svg viewBox="0 0 100 140" className="absolute inset-0 h-full w-full" preserveAspectRatio="none">
-          <g fill="none" stroke={board.line} strokeWidth={0.4}>
+        {/* pitch markings — subtle, with a soft competition-accent glow */}
+        <svg viewBox="0 0 100 140" className="absolute inset-0 h-full w-full" preserveAspectRatio="none"
+          style={{ filter: `drop-shadow(0 0 2.5px ${board.accent}66)` }}>
+          <g fill="none" stroke={board.line} strokeWidth={0.45}>
             <rect x="5" y="5" width="90" height="130" rx="1" />
             <line x1="5" y1="70" x2="95" y2="70" />
             <circle cx="50" cy="70" r="11" />
@@ -198,9 +247,10 @@ export function Pitch({
                   whileHover={player && tappable ? { y: -4, scale: 1.05 } : undefined}
                   transition={{ type: "spring", stiffness: 300, damping: 16 }}
                 >
-                  {/* grounding shadow — sells the "floating above the pitch" look */}
-                  <span aria-hidden className="absolute left-1/2 top-full z-0 h-2 w-3/5 -translate-x-1/2 -translate-y-1 rounded-[100%]"
-                    style={{ background: "radial-gradient(50% 100% at 50% 50%, rgba(0,0,0,0.5), transparent 72%)", filter: "blur(1.6px)" }} />
+                  {/* grounding shadow — sells the "planted on the pitch" look;
+                      grows and softens as the card lifts on hover */}
+                  <span aria-hidden className="pitch-card-shadow absolute left-1/2 top-full z-0 h-2.5 w-4/5 -translate-x-1/2 -translate-y-1 rounded-[100%]"
+                    style={{ background: "radial-gradient(50% 100% at 50% 50%, rgba(0,0,0,0.55), transparent 72%)", filter: "blur(2.4px)" }} />
                   {player ? (
                     <LineupCard
                       name={player.name}

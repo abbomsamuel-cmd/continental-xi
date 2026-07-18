@@ -437,6 +437,17 @@ button:focus-visible {
   transform: none;
   filter: none;
 }
+/* grounding shadow grows + softens as the card lifts (physical depth) */
+.pitch-card-shadow {
+  transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.18s ease;
+}
+@media (hover: hover) {
+  button:hover > div .pitch-card-shadow,
+  button:hover .pitch-card-shadow {
+    transform: translate(-50%, -1px) scaleX(1.16) scaleY(0.88);
+    opacity: 0.82;
+  }
+}
 /* selected card: breathing outline + a slow shine sweep */
 .cardv5-selected {
   outline: 1.5px solid var(--sel, rgba(242, 212, 114, 0.9));

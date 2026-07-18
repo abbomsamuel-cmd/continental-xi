@@ -16,7 +16,9 @@ import { play } from "@/lib/sound";
  */
 
 type Variant = "cl" | "euro" | "copa";
-type Stage = "ko" | "sf" | "final";
+// escalating knockout tiers: R16 (clean TV package) < QF (more drama) < SF
+// (only four remain) < Final (trophy + countdown). "ko" is a generic alias → R16.
+type Stage = "ko" | "r16" | "qf" | "sf" | "final";
 
 interface IntroTeam {
   name: string;
@@ -30,6 +32,16 @@ const PAL: Record<Variant, { emblem: string; glow: string; page: string }> = {
   copa: { emblem: "◆", glow: "rgba(23,201,122,0.4)", page: "radial-gradient(120% 90% at 50% 30%, #0a3a24, #02120a 75%)" },
 };
 
+/** How dramatic each tier feels: flashes, glow strength, spark count, and the
+ *  atmosphere line shown under the fixture. */
+const STAGE_CFG: Record<Stage, { flashes: number; glow: number; sparks: number; note: string; prep: string }> = {
+  r16: { flashes: 10, glow: 0.55, sparks: 0, note: "Round of 16 · The knockouts begin", prep: "Kick-off approaching…" },
+  ko: { flashes: 10, glow: 0.55, sparks: 0, note: "Round of 16 · The knockouts begin", prep: "Kick-off approaching…" },
+  qf: { flashes: 16, glow: 0.72, sparks: 8, note: "Quarter-final · Eight left standing", prep: "Out of the tunnel…" },
+  sf: { flashes: 18, glow: 0.82, sparks: 12, note: "Semi-final · Only four remain", prep: "The tension builds…" },
+  final: { flashes: 24, glow: 0.92, sparks: 16, note: "The Final · One match for everything", prep: "The anthem fades…" },
+};
+
 export function RoundTransition({
   show,
   title,
@@ -40,6 +52,7 @@ export function RoundTransition({
   variant = "cl",
   teams,
   stage = "ko",
+  stadium,
   onDone,
 }: {
   show: boolean;
@@ -52,13 +65,15 @@ export function RoundTransition({
   variant?: Variant;
   /** the user's fixture — teams animate in from opposite sides */
   teams?: { a: IntroTeam; b: IntroTeam } | null;
-  /** escalation: ko < sf < final (trophy + countdown + whistle) */
+  /** escalation: r16 < qf < sf < final (trophy + countdown + whistle) */
   stage?: Stage;
+  /** venue for the R16/QF/SF broadcast package */
+  stadium?: string;
   onDone: () => void;
 }) {
   const pal = PAL[variant];
+  const cfg = STAGE_CFG[stage] ?? STAGE_CFG.ko;
   const isFinal = stage === "final";
-  const isSf = stage === "sf";
   const [count, setCount] = useState<number | null>(null);
   const doneRef = useRef(false);
   // mobile performance mode keeps stage intros short (200–400ms feel per beat)
@@ -93,7 +108,7 @@ export function RoundTransition({
   };
 
   const bars = useMemo(() => Array.from({ length: 7 }, (_, i) => i), []);
-  const flashCount = isFinal ? 22 : isSf ? 14 : 8;
+  const flashCount = cfg.flashes;
 
   return (
     <AnimatePresence>
@@ -127,7 +142,7 @@ export function RoundTransition({
             aria-hidden
             className="fx-glow absolute left-1/2 top-[-16%] h-[60vh] w-[85vw] -translate-x-1/2 rounded-full"
             style={{ background: `radial-gradient(circle, ${pal.glow}, transparent 65%)`, filter: "blur(46px)" }}
-            initial={{ opacity: 0 }} animate={{ opacity: isFinal ? 0.85 : 0.55 }} transition={{ duration: 0.8 }}
+            initial={{ opacity: 0 }} animate={{ opacity: cfg.glow }} transition={{ duration: 0.8 }}
           />
           <motion.div
             aria-hidden
@@ -138,7 +153,7 @@ export function RoundTransition({
             transition={{ delay: 0.3 }}
           />
           <CameraFlashes count={flashCount} />
-          {isFinal && <Sparks count={14} color={accent} />}
+          {cfg.sparks > 0 && <Sparks count={cfg.sparks} color={accent} />}
 
           <div className="relative z-10 w-full max-w-2xl px-6 text-center">
             {/* competition ident */}
@@ -170,10 +185,10 @@ export function RoundTransition({
             >
               {title}
             </motion.h2>
-            {isSf && (
+            {!isFinal && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.55 }}
-                className="mt-2 text-[0.7rem] font-bold uppercase tracking-[0.35em] text-white/60">
-                Only four remain
+                className="mt-2 text-[0.7rem] font-bold uppercase tracking-[0.32em] text-white/60">
+                {cfg.note}
               </motion.div>
             )}
             <motion.div
@@ -222,6 +237,17 @@ export function RoundTransition({
               </motion.p>
             ) : null}
 
+            {/* venue — the TV broadcast package (not the Final, which counts in) */}
+            {stadium && !isFinal && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.9 }}
+                className="mt-4 flex items-center justify-center gap-2 text-[0.72rem] font-semibold text-white/55"
+              >
+                <span aria-hidden>🏟️</span>
+                <span className="uppercase tracking-[0.2em]">{stadium}</span>
+              </motion.div>
+            )}
+
             {/* the Final counts itself in */}
             <AnimatePresence mode="popLayout">
               {count !== null && (
@@ -249,7 +275,7 @@ export function RoundTransition({
                   />
                 </div>
                 <div className="mt-2 text-[0.56rem] uppercase tracking-[0.4em] text-white/40">
-                  {isFinal ? "The anthem fades…" : "Preparing match…"}
+                  {cfg.prep}
                 </div>
               </motion.div>
             )}

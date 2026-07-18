@@ -15,6 +15,7 @@ import { useFxLevel } from "@/lib/fx";
 import {
   play, startAmbience, stopAmbience, swellAmbience, hushAmbience,
 } from "@/lib/sound";
+import { useMatchClock, beatHold, type SimSpeed } from "@/lib/match-clock";
 
 /**
  * Live Match 2.0 — a broadcast, not a dashboard. Replays an already-simulated
@@ -895,12 +896,10 @@ export function LiveMatch({
   }, [r]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [introDone, setIntroDone] = useState(false);
-  const [minute, setMinute] = useState(0);
   // the current full-screen broadcast overlay (GOAL / VAR / card / sub)
   const [cue, setCue] = useState<BroadcastCue | null>(null);
-  const cueTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const [paused, setPaused] = useState(false);
-  const [speed, setSpeed] = useState(1);
+  const [speed, setSpeed] = useState<SimSpeed>(1);
   const [finished, setFinished] = useState(false);
   const [tab, setTab] = useState<Tab>("overview");
   // a shootout is watched (or skipped) before its score is ever revealed
@@ -911,6 +910,62 @@ export function LiveMatch({
 
   const goalsAt = (team: 0 | 1, m: number) =>
     r.events.filter((e) => e.type === "goal" && e.team === team && e.minute <= m).length;
+
+  // One beat of the match: fire exactly one sound cue, drive the crowd, and
+  // mount at most one broadcast overlay — then return how long the clock should
+  // hold so that overlay plays fully and the next event can never overlap it.
+  // Called imperatively from the single match clock (safe to setState here).
+  const onMinute = (m: number): number => {
+    const here = feed.filter((l) => l.minute === m);
+    for (const kind of SOUND_PRIORITY) {
+      if (here.some((l) => l.kind === kind)) {
+        const s = EVENT_SOUND[kind];
+        if (s) play(s);
+        break;
+      }
+    }
+
+    const goal = r.events.find((e) => e.type === "goal" && e.minute === m);
+    const red = r.events.find((e) => e.type === "red" && e.minute === m);
+    const yellow = r.events.find((e) => e.type === "yellow" && e.minute === m);
+    const sub = r.events.find((e) => e.type === "sub" && e.minute === m);
+    const beat = here[0];
+
+    // dynamic crowd — eruptions for goals, a rise for chances/saves, a hush
+    // when the officials go to the monitor
+    if (goal) swellAmbience(0.08, 2.4);
+    else if (beat?.kind === "var") hushAmbience(2.2);
+    else if (beat?.kind === "save" || beat?.kind === "crossbar") swellAmbience(0.045, 1.0);
+    else if (beat?.kind === "chance") swellAmbience(0.03, 0.7);
+
+    // one overlay at a time, by priority (goal > red > VAR > yellow > sub); at
+    // 4× the routine sub overlay is suppressed (timeline only). Setting the cue
+    // to null clears whatever was showing, so overlays never stack.
+    let next: BroadcastCue | null = null;
+    let holdKind = "";
+    if (goal) { next = { kind: "goal", team: goal.team as 0 | 1, player: goal.player, assist: goal.assist, minute: m, h: goalsAt(0, m), a: goalsAt(1, m) }; holdKind = "goal"; }
+    else if (red) { next = { kind: "card", team: red.team as 0 | 1, player: red.player, minute: m, red: true }; holdKind = "red"; }
+    else if (beat?.kind === "var") { next = { kind: "var", minute: m }; holdKind = "var"; }
+    else if (yellow) { next = { kind: "card", team: yellow.team as 0 | 1, player: yellow.player, minute: m, red: false }; holdKind = "yellow"; }
+    else if (sub && speed !== 4) { next = { kind: "sub", team: sub.team as 0 | 1, player: sub.player, off: sub.assist, minute: m }; holdKind = "sub"; }
+    else if (m === 45) holdKind = "ht";
+    else if (beat?.kind === "save") holdKind = "save";
+    else if (beat?.kind === "chance") holdKind = "chance";
+
+    setCue(next);
+    return beatHold(holdKind, speed);
+  };
+
+  const rawMinute = useMatchClock({
+    endMinute, speed, paused,
+    active: introDone && !finished,
+    msPerMinute: MS_PER_MINUTE,
+    onMinute,
+    onFinish: () => { setFinished(true); play("whistle"); },
+  });
+  // display clock: snaps to full time so a skip/finish shows the whole match
+  const minute = finished ? endMinute : rawMinute;
+
   const hGoals = finished ? r.homeGoals : goalsAt(0, minute);
   const aGoals = finished ? r.awayGoals : goalsAt(1, minute);
   const lastGoal = useMemo(() => {
@@ -918,87 +973,6 @@ export function LiveMatch({
     const last = g[g.length - 1];
     return last ? { team: last.team as 0 | 1, minute: last.minute } : null;
   }, [r.events, minute]);
-
-  // the clock — only once the intro has handed over
-  useEffect(() => {
-    if (!introDone || paused || finished) return;
-    if (minute >= endMinute) {
-      const id = setTimeout(() => { setFinished(true); play("whistle"); }, 700);
-      return () => clearTimeout(id);
-    }
-    // linger on the big beats: half-time and any goal minute
-    const isBeat = minute === 45 || r.events.some((e) => e.type === "goal" && e.minute === minute);
-    const id = setTimeout(() => setMinute((m) => m + 1), (isBeat ? MS_PER_MINUTE * 3.2 : MS_PER_MINUTE) / speed);
-    return () => clearTimeout(id);
-  }, [minute, paused, speed, finished, endMinute, r.events, introDone]);
-
-  // one cue per beat, most important first — never a sound pile-up
-  useEffect(() => {
-    if (!introDone || finished) return;
-    const here = feed.filter((l) => l.minute === minute);
-    if (!here.length) return;
-    for (const kind of SOUND_PRIORITY) {
-      const line = here.find((l) => l.kind === kind);
-      if (line) {
-        const cue = EVENT_SOUND[kind];
-        if (cue) play(cue);
-        break;
-      }
-    }
-    // the atmosphere carries the story — the crowd swells and hushes with the
-    // play, and the big moments get a full-screen broadcast overlay. No voice.
-    const goal = r.events.find((e) => e.type === "goal" && e.minute === minute);
-    const red = r.events.find((e) => e.type === "red" && e.minute === minute);
-    const yellow = r.events.find((e) => e.type === "yellow" && e.minute === minute);
-    const sub = r.events.find((e) => e.type === "sub" && e.minute === minute);
-    const beat = here[0];
-
-    // build the overlay for this beat (goal outranks red > var > yellow > sub)
-    let next: BroadcastCue | null = null;
-    if (goal) {
-      next = {
-        kind: "goal", team: goal.team as 0 | 1, player: goal.player, assist: goal.assist,
-        minute, h: goalsAt(0, minute), a: goalsAt(1, minute),
-      };
-    } else if (red) {
-      next = { kind: "card", team: red.team as 0 | 1, player: red.player, minute, red: true };
-    } else if (beat?.kind === "var") {
-      next = { kind: "var", minute };
-    } else if (yellow) {
-      next = { kind: "card", team: yellow.team as 0 | 1, player: yellow.player, minute, red: false };
-    } else if (sub) {
-      next = { kind: "sub", team: sub.team as 0 | 1, player: sub.player, off: sub.assist, minute };
-    }
-
-    // dynamic crowd: eruptions for goals, a rise for chances/saves, a hush
-    // when the officials go to the monitor
-    if (goal) swellAmbience(0.08, 2.4);
-    else if (beat?.kind === "var") hushAmbience(2.2);
-    else if (beat?.kind === "save" || beat?.kind === "crossbar") swellAmbience(0.045, 1.0);
-    else if (beat?.kind === "chance") swellAmbience(0.03, 0.7);
-
-    // show the overlay (deferred into a timer so it lands just after the net
-    // ripple + scoreboard tick — never before the viewer sees it) and auto-clear
-    if (next) {
-      const c = next;
-      cueTimers.current.forEach(clearTimeout);
-      const show = c.kind === "goal" ? 420 : 120;
-      const hold = c.kind === "goal" ? 3600 : c.kind === "var" ? 3000 : 2400;
-      cueTimers.current = [
-        setTimeout(() => setCue(c), show),
-        setTimeout(() => setCue((cur) => (cur === c ? null : cur)), show + hold),
-      ];
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [minute, feed, introDone, finished]);
-
-  // clear any pending overlay timers on unmount / leg change
-  useEffect(() => () => { cueTimers.current.forEach(clearTimeout); }, [legIdx]);
-
-  // stop scheduling overlays once we reach full time (render gates on !finished)
-  useEffect(() => {
-    if (finished) cueTimers.current.forEach(clearTimeout);
-  }, [finished]);
 
   // crowd bed: rises after the intro, falls at the whistle
   useEffect(() => {
@@ -1017,13 +991,13 @@ export function LiveMatch({
     ? r.penalties ? "FT · PENS" : "FULL TIME"
     : minute === 45 ? "HALF TIME" : minute >= 90 ? `90+${minute - 90}'` : `${minute}'`;
 
-  const skip = () => { setMinute(endMinute); setFinished(true); play("whistle"); };
+  const skip = () => { setCue(null); setFinished(true); play("whistle"); };
 
   const nextLeg = legIdx < legs.length - 1;
   const continueFrom = () => {
     if (nextLeg) {
       setLegIdx(legIdx + 1);
-      setMinute(0);
+      setCue(null);
       setFinished(false);
       setShootoutDone(false);
       setPaused(false);
@@ -1078,7 +1052,7 @@ export function LiveMatch({
             <button className="btn btn-ghost px-4 py-1.5 text-[0.68rem]" onClick={() => { setPaused((p) => !p); play("click"); }}>
               {paused ? "▶ Resume" : "⏸ Pause"}
             </button>
-            {[1, 2, 4].map((s) => (
+            {([1, 2, 4] as SimSpeed[]).map((s) => (
               <button
                 key={s}
                 onClick={() => { setSpeed(s); play("click"); }}

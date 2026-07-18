@@ -16,6 +16,7 @@ import { MatchModal } from "@/components/MatchModal";
 import { PremiumBracket, type BracketTeam } from "@/components/PremiumBracket";
 import { TeamBadge } from "@/components/TeamBadge";
 import { CrestLogo } from "@/components/CrestLogo";
+import { Pitch } from "@/components/Pitch";
 import { TiltCard } from "@/components/fx/TiltCard";
 import { WavingFlag } from "@/components/fx/WavingFlag";
 import { RoundTransition } from "@/components/fx/RoundTransition";
@@ -212,11 +213,14 @@ function International() {
   const busyRef = useRef(false);
 
   // Result sting plays only when the end ceremony actually appears — never at
-  // simulation time — so a Live Match watched first is never spoiled by sound.
+  // simulation time — and lands a beat AFTER the screen paints, so the visual
+  // reveal always leads and the sound can never spoil the outcome first.
   const ceremonyVisible = !!intl && intl.phase === "done" && !dismissedEnd && !modal && !live;
   const wonFinal = !!intl && intl.champion === intl.userKey;
   useEffect(() => {
-    if (ceremonyVisible) play(wonFinal ? "trophy" : "lose");
+    if (!ceremonyVisible) return;
+    const id = setTimeout(() => play(wonFinal ? "trophy" : "lose"), 450);
+    return () => clearTimeout(id);
   }, [ceremonyVisible, wonFinal]);
 
   // deep link from the home screen mode cards: /international?comp=copa —
@@ -1065,8 +1069,8 @@ function International() {
           {isDone && !dismissedEnd && !modal && !live && (
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[120] flex items-center justify-center overflow-y-auto p-4"
-              style={{ background: `radial-gradient(130% 90% at 50% 25%, ${won ? "#3d2f05" : "#0a1330"}, #030b22 72%)` }}
+              className="fixed inset-0 z-[120] overflow-y-auto"
+              style={{ background: `radial-gradient(130% 85% at 50% 8%, ${won ? (intl.comp === "copa" ? "#2c2005" : "#122a05") : "#0a1330"}, #030b22 74%)` }}
             >
               {(() => {
                 const digest = intlCampaignDigest(intl, userLabel);
@@ -1101,7 +1105,10 @@ function International() {
                 );
               })()}
 
-              <div className="relative z-10 w-full max-w-md py-6 text-center">
+              <div className="relative z-10 mx-auto w-full max-w-[1300px] px-1 pb-12 pt-20 sm:px-4">
+                <div className="grid items-start gap-5 lg:grid-cols-[1.35fr_1fr]">
+                  {/* ===================== LEFT · HERO ===================== */}
+                  <div className="glass relative overflow-hidden rounded-3xl p-6 text-center sm:p-8">
                 {!won && (
                   <motion.div
                     initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ delay: 0.3, duration: 0.5 }}
@@ -1165,10 +1172,51 @@ function International() {
                   </motion.div>
                 )}
 
+                {/* decisive tie — the score that settled the campaign, with crests */}
+                {(() => {
+                  const uk = intl.userKey;
+                  const koTies = intl.ties.filter((k) => (k.teamA === uk || k.teamB === uk) && (k.leg1 || k.leg2));
+                  const ORDER = ["Round of 16", "Quarter-final", "Semi-final", "Third Place", "Final"];
+                  const tie = [...koTies].sort((a, b) => ORDER.indexOf(a.round as string) - ORDER.indexOf(b.round as string)).pop();
+                  if (!tie) return null; // out in the group stage — the headline text carries it
+                  const legs = [tie.leg1, tie.leg2].filter(Boolean) as MatchResult[];
+                  const uf = (l: MatchResult) => (l.home === uk ? l.homeGoals : l.awayGoals);
+                  const og = (l: MatchResult) => (l.home === uk ? l.awayGoals : l.homeGoals);
+                  const userAgg = legs.reduce((s, l) => s + uf(l), 0);
+                  const oppAgg = legs.reduce((s, l) => s + og(l), 0);
+                  const oppId = tie.teamA === uk ? tie.teamB : tie.teamA;
+                  const opp = intl.teams[oppId];
+                  const uTeam = intl.teams[uk];
+                  const pens = (tie.leg2 ?? tie.leg1)?.penalties;
+                  return (
+                    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.85 }}
+                      className="mt-6 flex flex-wrap items-center justify-center gap-3">
+                      <div className="flex items-center gap-2">
+                        <TeamBadge colors={uTeam.colors} code={uTeam.short} size={38} />
+                        <span className="font-display text-5xl font-black text-white sm:text-6xl">{userAgg}</span>
+                      </div>
+                      <span className="font-display text-3xl font-black text-white/30">–</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-display text-5xl font-black text-white sm:text-6xl">{oppAgg}</span>
+                        <TeamBadge colors={opp.colors} code={opp.short} size={38} />
+                      </div>
+                      <div className="min-w-0 text-left">
+                        <div className="truncate font-display text-base font-extrabold text-white">{label(intl, oppId)}</div>
+                        <div className="text-[0.6rem] font-bold uppercase tracking-widest text-white/50">
+                          {t.title} · {tie.round}{legs.length === 2 ? " · Aggregate" : ""}{pens ? ` · pens ${pens[0]}-${pens[1]}` : ""}
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })()}
+                  </div>{/* ===== close LEFT hero ===== */}
+
+                  {/* ===================== RIGHT · SUMMARY ===================== */}
+                  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="space-y-4">
                 {won && (
                   <motion.div
                     initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.9 }}
-                    className="mx-auto mt-4 w-fit rounded-xl px-5 py-2"
+                    className="mx-auto mt-0 w-fit rounded-xl px-5 py-2"
                     style={{ background: `linear-gradient(120deg, ${t.soft}, transparent)`, border: `1px solid ${t.accent}55` }}
                   >
                     <span className="cl-heading text-[0.62rem] tracking-[0.35em]" style={{ color: t.accent }}>
@@ -1220,10 +1268,28 @@ function International() {
                   );
                 })()}
 
+                {/* mini tactical pitch — the drafted XI that made the run */}
+                {intl.userKey === INTL_USER && (() => {
+                  const fm = useGame.getState().formation;
+                  const rawXi = useGame.getState().getXI();
+                  if (!fm || !rawXi.some(Boolean)) return null;
+                  return (
+                    <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.05 }}
+                      className={`rounded-2xl p-3 ${t.panel}`}>
+                      <div className="cl-heading mb-2 text-center text-[0.56rem] tracking-[0.3em]" style={{ color: t.accent }}>Your Starting XI</div>
+                      <div className="mx-auto max-w-[300px]">
+                        <Pitch formation={fm} players={rawXi} variant={intl.comp} showRatings compact />
+                      </div>
+                    </motion.div>
+                  );
+                })()}
+                  </motion.div>{/* ===== close RIGHT summary ===== */}
+                </div>{/* ===== close two-column grid ===== */}
+
                 {lastUserMatch && (
                   <motion.button
                     initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1 }}
-                    className="mt-5 rounded-xl border px-4 py-2 text-xs font-bold uppercase tracking-wider"
+                    className="mx-auto mt-6 block rounded-xl border px-4 py-2 text-xs font-bold uppercase tracking-wider"
                     style={{ borderColor: t.soft, color: t.accent }}
                     onClick={() => { setDismissedEnd(true); setModal({ result: lastUserMatch, title: "Your final match" }); }}
                   >

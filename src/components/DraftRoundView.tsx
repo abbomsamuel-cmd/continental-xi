@@ -31,7 +31,6 @@ const AI_STRATEGIES: { id: AiStrategy; label: string; hint: string; advanced?: b
   { id: "youthful", label: "Youthful", hint: "Newer vintages, moderate" },
   { id: "experienced", label: "Experienced", hint: "Classic veterans" },
   { id: "random", label: "Random Fun", hint: "Varied & unpredictable" },
-  { id: "best", label: "Best Overall", hint: "Advanced · stronger squad", advanced: true },
 ];
 const AI_STEPS = ["Analyzing formation…", "Balancing the defense…", "Finding the best midfielders…", "Sharpening the attack…", "Completing your XI…"];
 
@@ -446,9 +445,7 @@ export function DraftRoundView() {
               </div>
 
               <div className="mt-3 rounded-xl bg-black/25 px-3 py-2 text-[0.68rem] text-white/70">
-                {aiStrategy === "best"
-                  ? "⚠ Best Overall may create a noticeably stronger squad than the fair default."
-                  : <>Expected completed squad: <span className="font-bold" style={{ color: theme.accent }}>~81–84 OVR</span> · balanced positions, varied players.</>}
+                Expected completed squad: <span className="font-bold" style={{ color: theme.accent }}>~81–84 OVR</span> · balanced positions, varied players.
               </div>
 
               <div className="mt-5 flex gap-2.5">

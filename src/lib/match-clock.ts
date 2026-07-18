@@ -15,15 +15,15 @@ import { useEffect, useRef, useState } from "react";
  * to setState, play a cue, mount an overlay) and may return a HOLD in ms. While
  * a hold is active the clock freezes, so a critical moment (goal, card, VAR)
  * always gets its full readable animation and the next event can never overlap
- * it. Holds are supplied already scaled for the current speed, with floors, so
- * the big moments stay understandable even at 4×.
+ * it. Holds are supplied already scaled for the current speed (1× full
+ * broadcast, 2× fast but still readable), so the big moments stay understandable.
  *
  * dt is clamped per frame, so returning from a background tab (where rAF is
  * throttled/paused) never jumps the match clock. Cleanup cancels the loop on
  * unmount or when the clock goes inactive — no leaks, no stray timers.
  */
 
-export type SimSpeed = 1 | 2 | 4;
+export type SimSpeed = 1 | 2;
 
 interface MatchClockOpts {
   endMinute: number;
@@ -91,18 +91,18 @@ export function useMatchClock(opts: MatchClockOpts): number {
   return minute;
 }
 
-/** Readable beat durations (ms) per event, per speed — floored so the big
- *  moments never become impossible to follow. 0 = no full-screen hold (the
- *  event stays a timeline update only). */
+/** Readable beat durations (ms) per event, per speed. 1× is the full broadcast;
+ *  2× shortens dead time but keeps every big moment clearly readable. 0 = no
+ *  full-screen hold (the event stays a timeline update only). */
 const HOLD: Record<string, Record<SimSpeed, number>> = {
-  goal: { 1: 3200, 2: 1800, 4: 1100 },
-  red: { 1: 2800, 2: 1700, 4: 1050 },
-  var: { 1: 2800, 2: 1700, 4: 1050 },
-  ht: { 1: 2200, 2: 1400, 4: 900 },
-  yellow: { 1: 1600, 2: 1050, 4: 750 },
-  sub: { 1: 1500, 2: 1000, 4: 0 },
-  save: { 1: 1100, 2: 800, 4: 550 },
-  chance: { 1: 650, 2: 480, 4: 0 },
+  goal: { 1: 3200, 2: 1900 },
+  red: { 1: 2800, 2: 1750 },
+  var: { 1: 2800, 2: 1750 },
+  ht: { 1: 2200, 2: 1450 },
+  yellow: { 1: 1600, 2: 1100 },
+  sub: { 1: 1500, 2: 1050 },
+  save: { 1: 1100, 2: 850 },
+  chance: { 1: 650, 2: 500 },
 };
 
 export function beatHold(kind: string, speed: SimSpeed): number {

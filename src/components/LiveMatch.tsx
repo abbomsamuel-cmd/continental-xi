@@ -938,16 +938,15 @@ export function LiveMatch({
     else if (beat?.kind === "save" || beat?.kind === "crossbar") swellAmbience(0.045, 1.0);
     else if (beat?.kind === "chance") swellAmbience(0.03, 0.7);
 
-    // one overlay at a time, by priority (goal > red > VAR > yellow > sub); at
-    // 4× the routine sub overlay is suppressed (timeline only). Setting the cue
-    // to null clears whatever was showing, so overlays never stack.
+    // one overlay at a time, by priority (goal > red > VAR > yellow > sub).
+    // Setting the cue to null clears whatever was showing, so overlays never stack.
     let next: BroadcastCue | null = null;
     let holdKind = "";
     if (goal) { next = { kind: "goal", team: goal.team as 0 | 1, player: goal.player, assist: goal.assist, minute: m, h: goalsAt(0, m), a: goalsAt(1, m) }; holdKind = "goal"; }
     else if (red) { next = { kind: "card", team: red.team as 0 | 1, player: red.player, minute: m, red: true }; holdKind = "red"; }
     else if (beat?.kind === "var") { next = { kind: "var", minute: m }; holdKind = "var"; }
     else if (yellow) { next = { kind: "card", team: yellow.team as 0 | 1, player: yellow.player, minute: m, red: false }; holdKind = "yellow"; }
-    else if (sub && speed !== 4) { next = { kind: "sub", team: sub.team as 0 | 1, player: sub.player, off: sub.assist, minute: m }; holdKind = "sub"; }
+    else if (sub) { next = { kind: "sub", team: sub.team as 0 | 1, player: sub.player, off: sub.assist, minute: m }; holdKind = "sub"; }
     else if (m === 45) holdKind = "ht";
     else if (beat?.kind === "save") holdKind = "save";
     else if (beat?.kind === "chance") holdKind = "chance";
@@ -1052,16 +1051,27 @@ export function LiveMatch({
             <button className="btn btn-ghost px-4 py-1.5 text-[0.68rem]" onClick={() => { setPaused((p) => !p); play("click"); }}>
               {paused ? "▶ Resume" : "⏸ Pause"}
             </button>
-            {([1, 2, 4] as SimSpeed[]).map((s) => (
-              <button
-                key={s}
-                onClick={() => { setSpeed(s); play("click"); }}
-                className="rounded-full px-3 py-1.5 text-[0.68rem] font-extrabold uppercase tracking-wider transition-colors"
-                style={speed === s ? { background: v.accent, color: "#06101f" } : { background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.6)" }}
-              >
-                ×{s}
-              </button>
-            ))}
+            {/* premium speed segmented control — 1× Normal · 2× Fast */}
+            <div className="relative flex items-center rounded-full p-0.5" role="group" aria-label="Simulation speed"
+              style={{ background: "rgba(255,255,255,0.07)", boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.08)" }}>
+              {([[1, "Normal", "Full animations and commentary."], [2, "Fast", "Faster match flow with all key moments preserved."]] as const).map(([s, lbl, tip]) => (
+                <button
+                  key={s}
+                  onClick={() => { setSpeed(s as SimSpeed); play("click"); }}
+                  aria-pressed={speed === s}
+                  title={`${s}× ${lbl} Broadcast — ${tip}`}
+                  className="relative z-10 rounded-full px-3 py-1 text-[0.66rem] font-extrabold uppercase tracking-wider transition-colors"
+                  style={{ color: speed === s ? "#06101f" : "rgba(255,255,255,0.62)" }}
+                >
+                  {speed === s && (
+                    <motion.span layoutId="speedpill" aria-hidden className="absolute inset-0 -z-10 rounded-full"
+                      style={{ background: v.accent, boxShadow: `0 0 12px ${v.accent}66` }}
+                      transition={{ type: "spring", stiffness: 400, damping: 30 }} />
+                  )}
+                  <span aria-hidden>{s === 1 ? "▶" : "⏩"}</span> {s}× {lbl}
+                </button>
+              ))}
+            </div>
             <button className="btn btn-ghost px-4 py-1.5 text-[0.68rem]" onClick={skip}>⏭ Skip to Result</button>
           </div>
         )}
@@ -1218,8 +1228,8 @@ export function SimStyleChoice({
               <span className="chip ml-auto" style={{ background: `${accent}22`, color: accent }}>Broadcast</span>
             </div>
             <p className="mt-1.5 text-[0.72rem] leading-relaxed text-white/60">
-              The full TV experience — cinematic intro, commentary, momentum, live ratings
-              and statistics. Pause, speed up ×2/×4, or skip to the result at any time.
+              The full TV experience — cinematic intro, momentum, live ratings and
+              statistics. Pause, switch to ×2 Fast, or skip to the result at any time.
             </p>
           </button>
           <button

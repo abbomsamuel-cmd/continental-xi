@@ -6,7 +6,7 @@ import type {
   DraftRecord, Fixture, Formation, GameMode, IntlRecord, KOTie, LoggedMatch, Player, Position, Profile,
   SimTeam, TeamAnalysis, TournamentState,
 } from "./types";
-import { getFormation, canPlaySlot, greedyAssign } from "./formations";
+import { getFormation, canPlaySlot, greedyAssign, POSITION_GROUP } from "./formations";
 import { getPool, getPoolPlayers, poolSquadPlayers, type DraftPool } from "./players";
 import { pickDraftSquad } from "./draft";
 import { analyzeTeam } from "./analysis";
@@ -24,6 +24,37 @@ import { detectEggs } from "./easter-eggs";
 import { play, setSoundEnabled } from "./sound";
 
 export type Difficulty = "easy" | "medium" | "hard";
+/** How the "Complete Squad with AI" assistant fills the remaining slots. */
+export type AiStrategy = "best" | "balanced" | "attacking" | "defensive" | "random";
+
+/** Scarcer positions are filled first so the assistant never runs out of a rare
+ *  role (a lone goalkeeper) after spending it elsewhere. */
+function aiScarcity(pos: Position): number {
+  return pos === "GK" ? 0 : POSITION_GROUP[pos] === "DEF" ? 1 : 2;
+}
+
+/** Pick the best candidate for a slot under the chosen strategy. All candidates
+ *  are already position-legal and unused; this only ranks quality/flavour. */
+function aiPick(cands: Player[], slotPos: Position, strategy: AiStrategy, rand: () => number): Player | undefined {
+  const group = POSITION_GROUP[slotPos];
+  const score = (p: Player) => {
+    let s = p.overall + (p.position === slotPos ? 8 : 0); // prefer natural over secondary
+    if (strategy === "attacking") s += group === "ATT" ? 6 : group === "MID" ? 3 : 0;
+    else if (strategy === "defensive") s += group === "DEF" || slotPos === "GK" ? 6 : group === "MID" ? 2 : 0;
+    return s;
+  };
+  const sorted = [...cands].sort((a, b) => score(b) - score(a));
+  if (strategy === "random") {
+    const nat = sorted.filter((p) => p.position === slotPos);
+    const window = (nat.length >= 4 ? nat : sorted).slice(0, 10);
+    return window[Math.floor(rand() * window.length)] ?? sorted[0];
+  }
+  if (strategy === "balanced") {
+    const top = sorted.slice(0, 3);
+    return top[Math.floor(rand() * top.length)] ?? sorted[0];
+  }
+  return sorted[0]; // best · attacking · defensive → the top-ranked player
+}
 
 interface DraftSetup {
   mode: GameMode;
@@ -96,6 +127,8 @@ interface StoreState {
   cancelRound: () => void;
   /** place the chosen player into an open, eligible slot (may differ from the target) */
   choosePlayer: (playerId: string, slotIndex: number) => void;
+  /** fill every remaining empty slot with valid players under the chosen strategy — returns how many were placed */
+  completeWithAI: (strategy: AiStrategy) => number;
   undoLastPick: () => void;
   setTactic: (t: TacticId) => void;
   setCaptain: (playerId: string | null) => void;
@@ -296,6 +329,53 @@ export const useGame = create<StoreState>()(
           spinSquadIndex: -1,
           draftComplete: complete,
         });
+      },
+
+      // Fill every remaining empty slot with valid players. Same eligibility
+      // rules as a manual pick (never a GK at CB, never an invalid slot) and no
+      // duplicate player or duplicate name. Scarce positions go first so a lone
+      // keeper is never crowded out.
+      completeWithAI: (strategy) => {
+        const { formation, picks, placedSlots, setup } = get();
+        if (!formation) return 0;
+        const pool = setup?.pool ?? "clubs";
+        const all = getPoolPlayers(pool);
+        const byId = new Map(all.map((p) => [p.id, p]));
+        const usedIds = new Set(Object.values(picks));
+        const usedNames = new Set(
+          Object.values(picks).map((id) => byId.get(id)?.name).filter(Boolean) as string[],
+        );
+        const newPicks = { ...picks };
+        const newPlaced = [...placedSlots];
+        const empty = formation.slots
+          .map((s, i) => ({ i, pos: s.pos }))
+          .filter((o) => newPicks[o.i] === undefined)
+          .sort((a, b) => aiScarcity(a.pos) - aiScarcity(b.pos));
+        // seeded PRNG so "random fun" varies but a given board is reproducible
+        let seed = (placedSlots.length * 131 + empty.length * 17 + 7) & 0x7fffffff;
+        const rand = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+        let filled = 0;
+        for (const slot of empty) {
+          const candidates = all.filter(
+            (p) => !usedIds.has(p.id) && !usedNames.has(p.name) && canPlaySlot(p.position, p.altPositions, slot.pos),
+          );
+          const chosen = aiPick(candidates, slot.pos, strategy, rand);
+          if (!chosen) continue; // no valid player for this slot — leave it open
+          newPicks[slot.i] = chosen.id;
+          newPlaced.push(slot.i);
+          usedIds.add(chosen.id);
+          usedNames.add(chosen.name);
+          filled++;
+        }
+        const complete = Object.keys(newPicks).length >= formation.slots.length;
+        set({
+          picks: newPicks,
+          placedSlots: newPlaced,
+          targetSlot: null,
+          spinSquadIndex: -1,
+          draftComplete: complete,
+        });
+        return filled;
       },
 
       // Take back the last pick — the player returns to the pool.

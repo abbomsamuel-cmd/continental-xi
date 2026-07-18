@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
-import { useGame } from "@/lib/store";
+import { motion, AnimatePresence } from "framer-motion";
+import { useGame, type AiStrategy } from "@/lib/store";
 import { PlayerCard } from "@/components/PlayerCard";
 import { Pitch, type PitchVariant } from "@/components/Pitch";
 import { FormationPicker } from "@/components/FormationPicker";
@@ -11,10 +11,29 @@ import { SquadSpinner } from "@/components/SquadSpinner";
 import { EuroSpinner, CopaSpinner } from "@/components/NationSpinner";
 import { EuroScene, CopaScene } from "@/components/fx/Scenes";
 import { getPool } from "@/lib/players";
-import { formationCanHold } from "@/lib/formations";
+import { formationCanHold, POSITION_GROUP } from "@/lib/formations";
 import { suitability } from "@/lib/suitability";
-import type { Player } from "@/lib/types";
+import type { Player, PositionGroup } from "@/lib/types";
 import { play } from "@/lib/sound";
+
+/** Full position names — friendlier for newer fans, shown as tooltips. */
+const POS_NAME: Record<string, string> = {
+  GK: "Goalkeeper", RB: "Right Back", CB: "Centre Back", LB: "Left Back",
+  RWB: "Right Wing-Back", LWB: "Left Wing-Back", CDM: "Defensive Midfielder",
+  CM: "Central Midfielder", CAM: "Attacking Midfielder", RM: "Right Midfielder",
+  LM: "Left Midfielder", RW: "Right Winger", LW: "Left Winger", CF: "Centre Forward", ST: "Striker",
+};
+const GROUP_ORDER: PositionGroup[] = ["GK", "DEF", "MID", "ATT"];
+const GROUP_LABEL: Record<PositionGroup, string> = { GK: "Goalkeeper", DEF: "Defense", MID: "Midfield", ATT: "Attack" };
+
+const AI_STRATEGIES: { id: AiStrategy; label: string; hint: string }[] = [
+  { id: "balanced", label: "Balanced", hint: "Rating, balance & fit" },
+  { id: "best", label: "Best Overall", hint: "Highest-quality XI" },
+  { id: "attacking", label: "Attacking", hint: "Favour the front line" },
+  { id: "defensive", label: "Defensive", hint: "Solid at the back" },
+  { id: "random", label: "Random Fun", hint: "Valid, with variety" },
+];
+const AI_STEPS = ["Analyzing formation…", "Balancing the defense…", "Finding the best midfielders…", "Sharpening the attack…", "Completing your XI…"];
 
 const POOL_BADGE: Record<string, string | null> = {
   clubs: null, euro: "🇪🇺 UEFA EURO DRAFT", copa: "🌎 COPA AMÉRICA DRAFT",
@@ -43,10 +62,16 @@ export function DraftRoundView() {
   const resetDraft = useGame((s) => s.resetDraft);
   const getOffered = useGame((s) => s.getOfferedPlayers);
   const getXI = useGame((s) => s.getXI);
+  const completeWithAI = useGame((s) => s.completeWithAI);
 
   const [revealedKey, setRevealedKey] = useState("");
   const [placing, setPlacing] = useState<Player | null>(null);
   const [showFormation, setShowFormation] = useState(false);
+  // AI Complete Squad flow: confirm → running analysis → fills & continues
+  const [aiStage, setAiStage] = useState<"hidden" | "confirm" | "running">("hidden");
+  const [aiStrategy, setAiStrategy] = useState<AiStrategy>("balanced");
+  const [aiPrioritize, setAiPrioritize] = useState(false);
+  const [aiStep, setAiStep] = useState(0);
   const pitchRef = useRef<HTMLDivElement>(null);
 
   const pool = setup.pool ?? "clubs";
@@ -80,15 +105,37 @@ export function DraftRoundView() {
   const phase: "spin" | "choose" | "offer" | "place" =
     spinning ? "spin" : targetSlot === null ? "choose" : placing ? "place" : "offer";
 
-  const emptySlots = formation.slots
-    .map((s, i) => ({ i, pos: s.pos, filled: !!xi[i] }))
-    .filter((s) => !s.filled);
-
   const doPlace = (slotIndex: number) => {
     if (!placing) return;
     choosePlayer(placing.id, slotIndex);
     setPlacing(null);
   };
+
+  // AI analysis sequence — cycles short status lines, then fills the squad and
+  // continues to the review. Guarded by the confirm step so no accidental click
+  // completes the draft. Timers only (never a direct effect setState).
+  useEffect(() => {
+    if (aiStage !== "running") return;
+    play("advance");
+    const timers = AI_STEPS.map((_, i) => setTimeout(() => setAiStep(i), i * 460));
+    timers.push(setTimeout(() => {
+      completeWithAI(aiPrioritize ? "best" : aiStrategy);
+      play("win");
+      router.push("/squad"); // draftComplete also redirects; this is the belt-and-braces
+    }, AI_STEPS.length * 460 + 320));
+    return () => timers.forEach(clearTimeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiStage]);
+
+  const filledCount = xi.filter(Boolean).length;
+  const remaining = totalSlots - filledCount;
+  // slots grouped by area, in pitch order, for the Squad Progress panel
+  const groupedSlots = GROUP_ORDER.map((g) => ({
+    group: g,
+    slots: formation.slots
+      .map((s, i) => ({ i, pos: s.pos, filled: !!xi[i], name: xi[i]?.name }))
+      .filter((s) => POSITION_GROUP[s.pos] === g),
+  })).filter((g) => g.slots.length > 0);
 
   return (
     <>
@@ -195,24 +242,75 @@ export function DraftRoundView() {
             <div className="order-2 lg:order-2">
               {phase === "choose" && (
                 <div className="glass rounded-2xl p-4">
-                  <div className="mb-2 text-[0.7rem] font-bold uppercase tracking-widest text-muted">Positions to fill</div>
-                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-3">
-                    {emptySlots.map((s) => (
-                      <button key={s.i} onClick={() => { beginRound(s.i); play("select"); scrollToPitch(); }}
-                        className="min-h-[48px] rounded-xl border border-white/15 bg-white/5 py-2 font-display text-sm font-extrabold text-white/90 transition-all hover:border-white/40 hover:bg-white/10 active:scale-95">
-                        {s.pos}
-                      </button>
+                  {/* SQUAD PROGRESS */}
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-[0.7rem] font-bold uppercase tracking-widest" style={{ color: theme.accent }}>Squad Progress</span>
+                    <span className="font-display text-sm font-extrabold text-white">{filledCount}<span className="text-white/40"> / {totalSlots}</span></span>
+                  </div>
+                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10">
+                    <motion.div className="h-full rounded-full" animate={{ width: `${(filledCount / totalSlots) * 100}%` }}
+                      transition={{ type: "spring", stiffness: 120, damping: 20 }}
+                      style={{ background: `linear-gradient(90deg, ${theme.accent}, ${theme.accent}99)`, boxShadow: `0 0 10px ${theme.soft}` }} />
+                  </div>
+                  <div className="mt-1.5 text-[0.66rem] font-semibold text-white/60">
+                    {remaining === 0 ? "Squad complete" : `${remaining} position${remaining > 1 ? "s" : ""} remaining`}
+                  </div>
+
+                  {/* POSITION CHIPS grouped by area */}
+                  <div className="mt-3 space-y-2.5">
+                    {groupedSlots.map(({ group, slots }) => (
+                      <div key={group}>
+                        <div className="mb-1 text-[0.52rem] font-bold uppercase tracking-[0.2em] text-white/40">{GROUP_LABEL[group]}</div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {slots.map((s) => s.filled ? (
+                            <span key={s.i} title={`${POS_NAME[s.pos]} — ${s.name}`}
+                              className="inline-flex min-h-[36px] items-center gap-1 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[0.72rem] font-bold text-white/55">
+                              <span aria-hidden style={{ color: theme.accent }}>✓</span>{s.pos}
+                            </span>
+                          ) : (
+                            <button key={s.i} onClick={() => { beginRound(s.i); play("select"); scrollToPitch(); }}
+                              title={`${POS_NAME[s.pos]} — choose a player`}
+                              aria-label={`Draft a ${POS_NAME[s.pos]}`}
+                              className="group inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border px-2.5 py-1 font-display text-sm font-extrabold text-white transition-all hover:-translate-y-0.5 active:scale-95"
+                              style={{ borderColor: theme.accent, background: theme.soft }}>
+                              {s.pos}
+                              <span className="text-[0.5rem] font-bold uppercase tracking-wider opacity-70" style={{ color: theme.accent }}>Choose</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     ))}
                   </div>
-                  <div className="mt-3 flex flex-col gap-2">
-                    <button className="btn btn-ghost w-full text-xs" onClick={() => { setShowFormation(true); play("click"); }}>
-                      🔁 Formation · {setup.formationName}
+
+                  {/* FORMATION — compact control with a tactical-board glyph */}
+                  <div className="mt-4 flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2">
+                    <div className="min-w-0">
+                      <div className="text-[0.5rem] font-bold uppercase tracking-[0.2em] text-white/40">Formation</div>
+                      <div className="font-display text-sm font-extrabold text-white">{setup.formationName}</div>
+                    </div>
+                    <button className="shrink-0 rounded-lg border border-white/15 px-3 py-1.5 text-[0.62rem] font-bold uppercase tracking-wider text-white/80 transition-colors hover:border-white/40 hover:text-white"
+                      onClick={() => { setShowFormation(true); play("click"); }}>
+                      <span aria-hidden className="mr-1">⊞</span>Change
                     </button>
                   </div>
-                  <p className="mt-2 text-center text-[0.62rem] text-muted">Picks are final — choose carefully.</p>
-                  {setup.difficulty === "hard" && (
-                    <div className="mt-1 text-center text-[0.66rem] text-danger">🔥 Hard · no re-rolls</div>
+
+                  {/* ACTIONS — AI complete assistant (secondary to manual drafting) */}
+                  {remaining > 0 && (
+                    <button
+                      onClick={() => { setAiStage("confirm"); play("click"); }}
+                      className="ai-shine group mt-3 flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border py-2.5 font-display text-sm font-extrabold text-white transition-all hover:-translate-y-0.5 active:scale-[0.98]"
+                      style={{ borderColor: `${theme.accent}88`, background: `linear-gradient(120deg, ${theme.soft}, transparent)` }}>
+                      <span aria-hidden className="text-base">✨</span>
+                      <span className="hidden sm:inline">Complete Squad with AI</span>
+                      <span className="sm:hidden">AI Complete</span>
+                    </button>
                   )}
+
+                  {/* picks-final info row — readable, not dramatic */}
+                  <div className="mt-3 flex items-start gap-2 rounded-lg bg-white/[0.04] px-2.5 py-2 text-[0.66rem] font-semibold text-white/70">
+                    <span aria-hidden className="mt-px" style={{ color: theme.accent }}>ⓘ</span>
+                    <span>Player selections are final after confirmation.{setup.difficulty === "hard" ? " Hard mode — no re-rolls." : ""}</span>
+                  </div>
                 </div>
               )}
 
@@ -305,6 +403,94 @@ export function DraftRoundView() {
           title="Change Formation"
         />
       )}
+
+      {/* AI COMPLETE — confirmation, then the analysis sequence */}
+      <AnimatePresence>
+        {aiStage === "confirm" && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[130] flex items-end justify-center p-4 sm:items-center"
+            style={{ background: "rgba(2,7,20,0.82)" }}
+            onClick={() => setAiStage("hidden")}
+            role="dialog" aria-modal="true" aria-label="Complete squad with AI"
+          >
+            <motion.div
+              initial={{ y: 30, opacity: 0, scale: 0.96 }} animate={{ y: 0, opacity: 1, scale: 1 }} exit={{ y: 20, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 220, damping: 22 }}
+              className="glass w-full max-w-md rounded-2xl p-5" onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-2">
+                <span aria-hidden className="text-xl">✨</span>
+                <h3 className="font-display text-lg font-extrabold text-white">Complete the remaining squad with AI?</h3>
+              </div>
+              <p className="mt-1.5 text-[0.78rem] leading-relaxed text-white/65">
+                The assistant fills all {remaining} open position{remaining > 1 ? "s" : ""} using your formation, the available player pool and squad balance. These selections will be final.
+              </p>
+
+              <div className="mt-4 text-[0.56rem] font-bold uppercase tracking-[0.2em] text-white/45">Strategy</div>
+              <div className="mt-1.5 grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+                {AI_STRATEGIES.map((s) => {
+                  const active = aiStrategy === s.id && !aiPrioritize;
+                  return (
+                    <button key={s.id}
+                      onClick={() => { setAiStrategy(s.id); setAiPrioritize(false); play("click"); }}
+                      aria-pressed={active}
+                      className="min-h-[44px] rounded-xl border px-2 py-1.5 text-left transition-all active:scale-95"
+                      style={active
+                        ? { borderColor: theme.accent, background: theme.soft }
+                        : { borderColor: "rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.03)" }}>
+                      <div className="text-[0.72rem] font-extrabold text-white">{s.label}</div>
+                      <div className="text-[0.54rem] text-white/50">{s.hint}</div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <button
+                onClick={() => { setAiPrioritize((v) => !v); play("click"); }}
+                aria-pressed={aiPrioritize}
+                className="mt-3 flex w-full items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition-colors"
+                style={{ borderColor: aiPrioritize ? theme.accent : "rgba(255,255,255,0.12)", background: aiPrioritize ? theme.soft : "transparent" }}>
+                <span className="grid h-5 w-5 shrink-0 place-items-center rounded-md border" style={{ borderColor: theme.accent, background: aiPrioritize ? theme.accent : "transparent" }}>
+                  {aiPrioritize && <span className="text-[0.6rem] font-black text-[#04101f]">✓</span>}
+                </span>
+                <span className="text-[0.74rem] font-semibold text-white/85">Prioritize strongest available players</span>
+              </button>
+
+              <div className="mt-5 flex gap-2.5">
+                <button className="btn btn-ghost flex-1" onClick={() => { setAiStage("hidden"); play("click"); }}>Cancel</button>
+                <button className="btn btn-gold flex-1" onClick={() => { setAiStep(0); setAiStage("running"); }}>✨ Complete Squad</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {aiStage === "running" && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[135] flex flex-col items-center justify-center p-6 text-center"
+            style={{ background: "radial-gradient(120% 90% at 50% 40%, rgba(8,20,52,0.92), rgba(2,7,20,0.96))" }}
+          >
+            <motion.div aria-hidden className="text-5xl"
+              animate={{ scale: [1, 1.15, 1], rotate: [0, 8, -8, 0] }}
+              transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+              style={{ filter: `drop-shadow(0 0 26px ${theme.soft})` }}>✨</motion.div>
+            <div className="mt-4 cl-heading text-[0.62rem] tracking-[0.4em]" style={{ color: theme.accent }}>AI Squad Assistant</div>
+            <AnimatePresence mode="wait">
+              <motion.div key={aiStep}
+                initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+                className="mt-2 font-display text-xl font-extrabold text-white">
+                {AI_STEPS[aiStep]}
+              </motion.div>
+            </AnimatePresence>
+            <div className="mt-5 h-1 w-56 overflow-hidden rounded-full bg-white/10">
+              <motion.div className="h-full rounded-full" style={{ background: theme.accent }}
+                initial={{ width: "0%" }} animate={{ width: "100%" }} transition={{ duration: 2.6, ease: "easeInOut" }} />
+            </div>
+            <div className="mt-2 text-[0.58rem] uppercase tracking-[0.3em] text-white/40">Using predefined tactical logic — not a live model</div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }

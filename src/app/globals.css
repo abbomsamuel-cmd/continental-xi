@@ -437,6 +437,29 @@ button:focus-visible {
   transform: none;
   filter: none;
 }
+/* AI-complete button — a subtle travelling shine that reads as "assistant" */
+.ai-shine {
+  position: relative;
+  overflow: hidden;
+}
+.ai-shine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(115deg, transparent 38%, rgba(255, 255, 255, 0.18) 50%, transparent 62%);
+  transform: translateX(-130%);
+  animation: ai-shine-sweep 3.4s ease-in-out infinite;
+}
+@keyframes ai-shine-sweep {
+  0% { transform: translateX(-130%); }
+  55%, 100% { transform: translateX(130%); }
+}
+[data-fx="reduced"] .ai-shine::after,
+[data-fx="off"] .ai-shine::after {
+  display: none;
+}
+
 /* grounding shadow grows + softens as the card lifts (physical depth) */
 .pitch-card-shadow {
   transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.18s ease;

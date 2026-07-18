@@ -20,7 +20,17 @@ type SoundName =
   // layered additions
   | "save" | "unlock" | "advance" | "draw" | "kick" | "menu"
   // broadcast cues (Live Match 2.0)
-  | "crossbar" | "sub" | "heartbeat" | "tick" | "var" | "card" | "tackle" | "net";
+  | "crossbar" | "sub" | "heartbeat" | "tick" | "var" | "card" | "tackle" | "net"
+  // immersive stadium palette — crowd reactions, ball physics, woodwork
+  | "post" | "ooh" | "roar" | "chant" | "drum"
+  | "pass" | "cross" | "header" | "clearance" | "shot" | "catch" | "punch";
+
+/** Competition flavour for the crowd bed. */
+export type AmbienceVariant = "cl" | "euro" | "copa";
+
+// tiny per-call variety so the same cue never sounds identical twice
+const rand = (a: number, b: number) => a + Math.random() * (b - a);
+const choose = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
 
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
@@ -157,14 +167,25 @@ function crowd(start: number, dur: number, peak = 0.05, freq = 900) {
 /*  penalties, so the atmosphere carries the story on its own.         */
 /* ---------------------------------------------------------------- */
 
-let amb: { src: AudioBufferSourceNode; gain: GainNode; lfo: OscillatorNode; base: number } | null = null;
+let amb: { src: AudioBufferSourceNode; gain: GainNode; lfo: OscillatorNode; base: number; extra: OscillatorNode[] } | null = null;
 
-export function startAmbience(level = 0.016) {
+// Each competition's stadium has its own voice: a wide elegant European murmur
+// for the CL, a brighter chant-surging terrace for the EURO, a warmer crowd with
+// a samba-drum pulse for Copa América. Tuned via the crowd bed's band-pass and a
+// per-competition rhythm oscillator layered onto the gain.
+const AMB_TUNE: Record<AmbienceVariant, { freq: number; q: number; rhythmHz: number; rhythmDepth: number }> = {
+  cl: { freq: 640, q: 0.5, rhythmHz: 0, rhythmDepth: 0 },
+  euro: { freq: 700, q: 0.6, rhythmHz: 0.5, rhythmDepth: 0.5 },
+  copa: { freq: 540, q: 0.72, rhythmHz: 1.9, rhythmDepth: 0.6 },
+};
+
+export function startAmbience(level = 0.016, variant: AmbienceVariant = "cl") {
   if (!enabled) return;
   const a = ac();
   const out = bus();
   if (!a || !out || amb) return;
   if (a.state === "suspended") a.resume();
+  const tune = AMB_TUNE[variant];
 
   // 2s of noise, looped, band-passed into a distant-crowd murmur
   const buffer = a.createBuffer(1, a.sampleRate * 2, a.sampleRate);
@@ -175,8 +196,8 @@ export function startAmbience(level = 0.016) {
   src.loop = true;
   const bp = a.createBiquadFilter();
   bp.type = "bandpass";
-  bp.frequency.value = 620;
-  bp.Q.value = 0.55;
+  bp.frequency.value = tune.freq;
+  bp.Q.value = tune.q;
   const gain = a.createGain();
   gain.gain.setValueAtTime(0.0001, a.currentTime);
   gain.gain.exponentialRampToValueAtTime(level, a.currentTime + 1.6);
@@ -186,10 +207,32 @@ export function startAmbience(level = 0.016) {
   const lfoDepth = a.createGain();
   lfoDepth.gain.value = level * 0.45;
   lfo.connect(lfoDepth).connect(gain.gain);
+  const extra: OscillatorNode[] = [];
+  // per-competition rhythm: EURO chant surges, Copa's drum pulse
+  if (tune.rhythmHz > 0) {
+    const r = a.createOscillator();
+    r.type = "sine";
+    r.frequency.value = tune.rhythmHz;
+    const rd = a.createGain();
+    rd.gain.value = level * tune.rhythmDepth;
+    r.connect(rd).connect(gain.gain);
+    r.start();
+    extra.push(r);
+  }
   src.connect(bp).connect(gain).connect(out);
   src.start();
   lfo.start();
-  amb = { src, gain, lfo, base: level };
+  amb = { src, gain, lfo, base: level, extra };
+}
+
+/** Raise the resting crowd noise as a match reaches its climax (80'+, 90', ET). */
+export function setAmbienceTension(mult = 1.5) {
+  const a = ctx;
+  if (!a || !amb) return;
+  const target = Math.min(0.06, amb.base * mult);
+  amb.gain.gain.cancelScheduledValues(a.currentTime);
+  amb.gain.gain.setTargetAtTime(target, a.currentTime, 1.4);
+  amb.base = target; // swells and hushes now relax to the tenser baseline
 }
 
 /** The crowd rises for a moment — goals, big saves, late drama, attacks. */
@@ -215,7 +258,7 @@ export function hushAmbience(dur = 2.4) {
 export function stopAmbience(fade = 1.2) {
   const a = ctx;
   if (!a || !amb) return;
-  const { src, gain, lfo } = amb;
+  const { src, gain, lfo, extra } = amb;
   amb = null;
   try {
     gain.gain.cancelScheduledValues(a.currentTime);
@@ -223,8 +266,9 @@ export function stopAmbience(fade = 1.2) {
     gain.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + fade);
     src.stop(a.currentTime + fade + 0.05);
     lfo.stop(a.currentTime + fade + 0.05);
+    extra.forEach((o) => o.stop(a.currentTime + fade + 0.05));
   } catch {
-    try { src.stop(); lfo.stop(); } catch { /* already stopped */ }
+    try { src.stop(); lfo.stop(); extra.forEach((o) => o.stop()); } catch { /* already stopped */ }
   }
 }
 
@@ -261,12 +305,18 @@ export function play(name: SoundName) {
       // sliding challenge — short grassy scrape with a thud
       noise(0, 0.1, 0.05); tone(120, 0.01, 0.09, "sine", 0.05);
       break;
-    case "goal":
-      // crowd erupts under a rising fanfare + the net ripple
-      crowd(0, 0.9, 0.07, 800);
-      noise(0, 0.12, 0.03);
-      tone(392, 0, 0.15, "sawtooth", 0.05); tone(523, 0.12, 0.15, "sawtooth", 0.05); tone(659, 0.24, 0.32, "sawtooth", 0.06);
+    case "goal": {
+      // The stadium erupts — but never the same way twice. Crowd size, pitch of
+      // the roar, the celebration motif and the net ripple all vary per goal.
+      const big = rand(0.5, 1);                 // how loud this end is tonight
+      crowd(0, rand(0.85, 1.35), 0.06 + big * 0.05, rand(680, 1000));
+      noise(0, rand(0.1, 0.18), 0.03);
+      // celebration motif — a rising cheer, rooted differently each time
+      const motifs = [[392, 523, 659], [349, 440, 587], [440, 554, 659], [330, 494, 622], [415, 523, 698]];
+      choose(motifs).forEach((f, i) => tone(f, i * rand(0.09, 0.13), 0.16 + i * 0.06, "sawtooth", 0.048 + big * 0.012));
+      if (Math.random() > 0.4) tone(rand(220, 260), rand(0.03, 0.07), 0.11, "sine", 0.026); // net ripple, sometimes
       break;
+    }
     case "save":
       // a firm denial — punch of noise then a short descending sting
       noise(0, 0.12, 0.05); sweep(520, 180, 0.02, 0.22, "sawtooth", 0.045);
@@ -305,9 +355,59 @@ export function play(name: SoundName) {
       break;
     case "error": tone(196, 0, 0.2, "sawtooth", 0.05); break;
     case "crossbar":
-      // metallic ping — two detuned high partials with a hard noise hit
-      noise(0, 0.05, 0.06); tone(1244, 0, 0.4, "triangle", 0.05); tone(1867, 0.005, 0.32, "sine", 0.03);
-      crowd(0.05, 0.5, 0.04, 700);
+      // the bar — a high metallic ring that echoes, then the crowd's "ohhh"
+      noise(0, 0.05, 0.06); tone(1244, 0, rand(0.42, 0.55), "triangle", 0.05); tone(1867, 0.005, 0.34, "sine", 0.03);
+      tone(1244, 0.16, 0.3, "sine", 0.018); // faint echo tail
+      crowd(0.06, 0.7, 0.05, 560);
+      break;
+    case "post":
+      // the upright — a lower, shorter metallic clank (no long echo), then a groan
+      noise(0, 0.04, 0.06); tone(rand(820, 900), 0, 0.26, "triangle", 0.05); tone(1320, 0.004, 0.18, "sine", 0.026);
+      crowd(0.04, 0.62, 0.048, 520);
+      break;
+    case "ooh":
+      // a collective near-miss gasp — swells up then sighs back down
+      crowd(0, 0.8, 0.05, rand(520, 600)); sweep(300, 190, 0.06, 0.5, "sine", 0.02);
+      break;
+    case "roar":
+      // a big non-goal surge — a save held up, a last-gasp scramble
+      crowd(0, 0.85, 0.06, rand(760, 960)); noise(0, 0.1, 0.025);
+      break;
+    case "chant":
+      // EURO terraces — a short "oh-oh-oh" cadence over the bed
+      [0, 0.2, 0.4].forEach((s) => { tone(rand(190, 210), s, 0.15, "sawtooth", 0.03); crowd(s, 0.17, 0.03, 700); });
+      break;
+    case "drum":
+      // Copa samba — one deep terrace drum
+      tone(rand(84, 96), 0, 0.2, "sine", 0.09); noise(0, 0.05, 0.035);
+      break;
+    case "pass":
+      // a crisp short pass — a soft leather touch
+      noise(0, 0.03, 0.028); tone(rand(280, 340), 0, 0.05, "sine", 0.03);
+      break;
+    case "cross":
+      // a whipped ball into the box
+      noise(0, 0.05, 0.035); sweep(rand(460, 540), rand(720, 820), 0.01, 0.13, "triangle", 0.028);
+      break;
+    case "header":
+      // head meets ball — a dull thud
+      noise(0, 0.05, 0.045); tone(rand(190, 220), 0, 0.06, "sine", 0.042);
+      break;
+    case "clearance":
+      // a big defensive boot upfield
+      noise(0, 0.07, 0.06); tone(rand(130, 155), 0, 0.1, "sine", 0.06); sweep(360, 740, 0.02, 0.17, "triangle", 0.03);
+      break;
+    case "shot":
+      // a struck effort — cleaner and harder than a pass
+      noise(0, 0.05, 0.055); tone(rand(160, 185), 0, 0.08, "sine", 0.058); sweep(rand(480, 540), rand(940, 1040), 0.01, 0.13, "sawtooth", 0.03);
+      break;
+    case "catch":
+      // the keeper gathers — gloves grip the ball
+      noise(0, 0.08, 0.04); tone(rand(150, 175), 0.01, 0.07, "sine", 0.033);
+      break;
+    case "punch":
+      // the keeper punches clear — a firm double contact
+      noise(0, 0.06, 0.055); tone(rand(170, 195), 0, 0.07, "triangle", 0.05);
       break;
     case "sub":
       // board goes up — soft descending then ascending chirp

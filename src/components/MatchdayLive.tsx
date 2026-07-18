@@ -364,7 +364,7 @@ export function MatchdayLive({
       {fixtures === null ? (
         <MatchdayPrep pal={pal} compName={compName} title={title} />
       ) : (
-        <MatchdayShow pal={pal} compName={compName} title={title} fixtures={fixtures} baseTable={baseTable} zones={zones} onDone={onDone} />
+        <MatchdayShow comp={comp} pal={pal} compName={compName} title={title} fixtures={fixtures} baseTable={baseTable} zones={zones} onDone={onDone} />
       )}
     </motion.div>
   );
@@ -403,9 +403,9 @@ function MatchdayPrep({ pal, compName, title }: { pal: (typeof PAL)["cl"]; compN
 }
 
 function MatchdayShow({
-  pal, compName, title, fixtures, baseTable, zones, onDone,
+  comp, pal, compName, title, fixtures, baseTable, zones, onDone,
 }: {
-  pal: (typeof PAL)["cl"]; compName: string; title: string;
+  comp: Comp; pal: (typeof PAL)["cl"]; compName: string; title: string;
   fixtures: MDFixtureView[]; baseTable: MiniRow[];
   zones?: { direct: number; secondary?: number }; onDone: () => void;
 }) {
@@ -428,9 +428,9 @@ function MatchdayShow({
   // ambience + kick-off whistle
   useEffect(() => {
     play("whistle");
-    startAmbience(0.013);
+    startAmbience(0.013, comp);
     return () => stopAmbience(0.5);
-  }, []);
+  }, [comp]);
 
   // audio beats: user goals roar, other results tick softly
   const userGoals = s.goals.filter((g) => g.fixture === userIdx && g.at <= elapsed).length;

@@ -13,7 +13,7 @@ import {
 import { useGame } from "@/lib/store";
 import { useFxLevel } from "@/lib/fx";
 import {
-  play, startAmbience, stopAmbience, swellAmbience, hushAmbience,
+  play, startAmbience, stopAmbience, swellAmbience, hushAmbience, setAmbienceTension,
 } from "@/lib/sound";
 import { useMatchClock, beatHold, type SimSpeed } from "@/lib/match-clock";
 
@@ -97,10 +97,10 @@ const EVENT_STYLE: Record<FeedKind, { icon: string; color: string; big?: boolean
  *  only its most important cue — never a pile-up. */
 const EVENT_SOUND: Partial<Record<FeedKind, Parameters<typeof play>[0]>> = {
   goal: "goal", red: "card", crossbar: "crossbar", save: "save",
-  var: "var", chance: "kick", sub: "sub", yellow: "card",
-  ht: "whistle", secondhalf: "whistle",
+  var: "var", chance: "shot", sub: "sub", yellow: "card",
+  corner: "cross", ht: "whistle", secondhalf: "whistle",
 };
-const SOUND_PRIORITY: FeedKind[] = ["goal", "red", "crossbar", "save", "var", "ht", "secondhalf", "chance", "sub", "yellow"];
+const SOUND_PRIORITY: FeedKind[] = ["goal", "red", "crossbar", "save", "var", "ht", "secondhalf", "chance", "corner", "sub", "yellow"];
 
 const MS_PER_MINUTE = 340; // ~32s for a full match at ×1
 
@@ -919,10 +919,16 @@ export function LiveMatch({
     const here = feed.filter((l) => l.minute === m);
     for (const kind of SOUND_PRIORITY) {
       if (here.some((l) => l.kind === kind)) {
-        const s = EVENT_SOUND[kind];
-        if (s) play(s);
+        // a few beats vary their exact sound so no two feel identical
+        if (kind === "crossbar") play(Math.random() < 0.45 ? "post" : "crossbar");
+        else if (kind === "save") play(Math.random() < 0.3 ? "catch" : Math.random() < 0.4 ? "punch" : "save");
+        else { const s = EVENT_SOUND[kind]; if (s) play(s); }
         break;
       }
+    }
+    // quiet ambient touches on the calmer beats — the ball is always in play
+    if (!here.some((l) => SOUND_PRIORITY.includes(l.kind)) && here.some((l) => l.kind === "midfield" || l.kind === "atmo")) {
+      if (Math.random() < 0.5) play(Math.random() < 0.5 ? "pass" : "clearance");
     }
 
     const goal = r.events.find((e) => e.type === "goal" && e.minute === m);
@@ -931,12 +937,17 @@ export function LiveMatch({
     const sub = r.events.find((e) => e.type === "sub" && e.minute === m);
     const beat = here[0];
 
-    // dynamic crowd — eruptions for goals, a rise for chances/saves, a hush
-    // when the officials go to the monitor
-    if (goal) swellAmbience(0.08, 2.4);
+    // dynamic crowd — the reaction scales with the moment: an explosion for a
+    // goal, a huge "ohhh" off the woodwork, a big rise for a save, a ripple of
+    // anticipation for a half-chance, a hush when the officials go to the monitor
+    if (goal) swellAmbience(0.09, 2.4);
     else if (beat?.kind === "var") hushAmbience(2.2);
-    else if (beat?.kind === "save" || beat?.kind === "crossbar") swellAmbience(0.045, 1.0);
+    else if (beat?.kind === "crossbar") swellAmbience(0.06, 1.3);
+    else if (beat?.kind === "save") swellAmbience(0.05, 1.0);
     else if (beat?.kind === "chance") swellAmbience(0.03, 0.7);
+
+    // the ground tightens as the match reaches its climax
+    if (m === 80 || m === 90) setAmbienceTension(m === 90 ? 2 : 1.5);
 
     // one overlay at a time, by priority (goal > red > VAR > yellow > sub).
     // Setting the cue to null clears whatever was showing, so overlays never stack.
@@ -975,10 +986,10 @@ export function LiveMatch({
 
   // crowd bed: rises after the intro, falls at the whistle
   useEffect(() => {
-    if (introDone && !finished) startAmbience();
+    if (introDone && !finished) startAmbience(0.016, variant);
     if (finished) stopAmbience();
     return () => stopAmbience(0.5);
-  }, [introDone, finished]);
+  }, [introDone, finished, variant]);
 
   // keep the newest commentary in view
   useEffect(() => {

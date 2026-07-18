@@ -49,8 +49,9 @@ export function PenaltyShootout({
     if (k.suddenDeath && mode === "live") play("heartbeat");
     timer.current = setTimeout(() => {
       // sound only once the kick is on screen — never a spoiler.
-      // goal → roar, saved → keeper denial, missed/post → sting.
-      play(k.outcome === "goal" ? "goal" : k.outcome === "saved" ? "save" : "error");
+      // goal → the end erupts, saved → keeper denial, post → the woodwork,
+      // missed → the crowd's collective groan.
+      play(k.outcome === "goal" ? "goal" : k.outcome === "saved" ? "save" : k.outcome === "post" ? "post" : "ooh");
       setShown((s) => s + 1);
     }, step);
     return () => { if (timer.current) clearTimeout(timer.current); };

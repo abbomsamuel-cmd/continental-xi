@@ -240,7 +240,7 @@ function drawXI(ctx: CanvasRenderingContext2D, o: ShareXIOpts, W: number, H: num
     ctx.fillText("CONTINENTAL XI", colW / 2, H - 76);
     ctx.fillStyle = o.accent;
     ctx.font = `600 20px ${FONT}`;
-    ctx.fillText(o.url ?? "continental-xi-snowy.vercel.app", colW / 2, H - 44);
+    ctx.fillText(o.url ?? "continental-xi-wiv1.vercel.app", colW / 2, H - 44);
 
     drawPitchWithXI(ctx, o, colW + 20, 36, W - colW - 60, H - 72);
   } else {
@@ -265,7 +265,7 @@ function drawXI(ctx: CanvasRenderingContext2D, o: ShareXIOpts, W: number, H: num
     ctx.fillText("CONTINENTAL XI", W / 2, H - 52);
     ctx.fillStyle = o.accent;
     ctx.font = `600 22px ${FONT}`;
-    ctx.fillText(o.url ?? "continental-xi-snowy.vercel.app", W / 2, H - 20);
+    ctx.fillText(o.url ?? "continental-xi-wiv1.vercel.app", W / 2, H - 20);
   }
 }
 

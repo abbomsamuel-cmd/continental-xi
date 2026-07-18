@@ -175,7 +175,7 @@ function drawCard(ctx: CanvasRenderingContext2D, opts: TrophyCardOpts) {
   ctx.fillText("CONTINENTAL XI", W / 2, H - 92);
   ctx.fillStyle = accent;
   ctx.font = `600 24px ${sans}`;
-  ctx.fillText("continental-xi-snowy.vercel.app", W / 2, H - 54);
+  ctx.fillText("continental-xi-wiv1.vercel.app", W / 2, H - 54);
 }
 
 /** Render the card and share it (mobile share sheet) or download it as PNG. */

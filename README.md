@@ -6,7 +6,7 @@ legendary players — each rated for one **exact** campaign, not their career �
 build the ultimate XI, then lead it through the **Champions League**, the
 **UEFA EURO**, or the **Copa América** to continental glory.
 
-**Play it:** https://continental-xi-snowy.vercel.app/
+**Play it:** https://continental-xi-wiv1.vercel.app/
 
 > Not affiliated with UEFA, CONMEBOL, FIFA or any club. No official logos,
 > branding or protected assets are used — the visual identity, names and
@@ -67,7 +67,7 @@ build the ultimate XI, then lead it through the **Champions League**, the
   synthesized **Web Audio** sound manager — no external asset files, fully
   mutable.
 - Ships as a fully **static site** (`next build` → `out/`), auto-deployed to
-  **GitHub Pages**. PWA manifest, SEO metadata, `prefers-reduced-motion`
+  **Vercel**. PWA manifest, SEO metadata, `prefers-reduced-motion`
   support, mobile-first responsive layout.
 
 ## Getting started
@@ -96,7 +96,6 @@ src/
     draft.ts chemistry.ts analysis.ts   # core game logic
     store.ts           # Zustand store (draft + tournament + profile)
     achievements.ts sound.ts rng.ts formations.ts
-.github/workflows/deploy.yml   # static export -> GitHub Pages
 ```
 
 ## Adding data (no code changes)
@@ -123,15 +122,12 @@ a dozen short lines, and the same player always expands identically. New clubs
 for the AI opponent pool go in `src/lib/data/clubs.ts`; new partnerships in
 `partnerships.ts`.
 
-## Deploying (GitHub Pages)
+## Deploying (Vercel)
 
 The app is a fully static site with **no backend and no database** — nothing
 about you is stored anywhere but your own browser. `next build` emits static
-files to `out/`, and `.github/workflows/deploy.yml` publishes them to GitHub
-Pages on every push to `main`.
-
-(The repo name is wired via `basePath` in `next.config.ts`, gated on the
-`GITHUB_PAGES` env var so local dev still runs at the root.)
+files to `out/`, and Vercel auto-deploys every push to `main` at
+https://continental-xi-wiv1.vercel.app/.
 
 Rehosting this game or its database elsewhere is not permitted — see
 [LICENSE](LICENSE).

@@ -1,12 +1,13 @@
 "use client";
 
 import { useMemo } from "react";
-import { motion } from "framer-motion";
+import { motion, MotionConfig } from "framer-motion";
 import { useFxLevel } from "@/lib/fx";
 
-/** Scale a particle count by the effective FX level (0 hides the layer). */
+/** Scale a particle count by the effective FX level (0 hides the layer).
+ *  Phone simple mode ("reduced") drops decorative particles entirely. */
 function scaled(full: number, lvl: "full" | "reduced" | "off"): number {
-  return lvl === "off" ? 0 : lvl === "reduced" ? Math.ceil(full / 3) : full;
+  return lvl === "full" ? full : 0;
 }
 
 function frac(n: number): number {
@@ -98,7 +99,9 @@ export function Confetti({
   colors?: string[];
 }) {
   const lvl = useFxLevel();
-  const n = scaled(count, lvl);
+  // confetti is the ONE celebration layer phones keep — a light fall, so a
+  // championship never feels dead on mobile
+  const n = lvl === "off" ? 0 : lvl === "reduced" ? Math.min(24, count) : count;
   const pieces = useMemo(
     () =>
       Array.from({ length: n }, (_, i) => ({
@@ -115,18 +118,22 @@ export function Confetti({
   );
   if (n === 0) return null;
   return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-      {pieces.map((p) => (
-        <motion.div
-          key={p.id}
-          className="absolute top-[-10%]"
-          style={{ left: `${p.x}%`, width: p.size, height: p.size * 1.6, background: p.color, borderRadius: 2 }}
-          initial={{ y: -40, x: 0, rotate: p.rot, opacity: 1 }}
-          animate={{ y: "115vh", x: p.sway, rotate: p.rot + 540, opacity: [1, 1, 0.4] }}
-          transition={{ duration: p.dur, delay: p.delay, repeat: Infinity, ease: "linear" }}
-        />
-      ))}
-    </div>
+    // local override: confetti must still FALL on phones even though the root
+    // MotionGate disables transform animations below the full FX level
+    <MotionConfig reducedMotion="never">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+        {pieces.map((p) => (
+          <motion.div
+            key={p.id}
+            className="absolute top-[-10%]"
+            style={{ left: `${p.x}%`, width: p.size, height: p.size * 1.6, background: p.color, borderRadius: 2 }}
+            initial={{ y: -40, x: 0, rotate: p.rot, opacity: 1 }}
+            animate={{ y: "115vh", x: p.sway, rotate: p.rot + 540, opacity: [1, 1, 0.4] }}
+            transition={{ duration: p.dur, delay: p.delay, repeat: Infinity, ease: "linear" }}
+          />
+        ))}
+      </div>
+    </MotionConfig>
   );
 }
 

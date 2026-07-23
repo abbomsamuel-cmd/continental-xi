@@ -37,7 +37,7 @@ export function Ambience() {
   const lvl = useFxLevel();
   const seg = (pathname ?? "/").split("/").filter(Boolean)[0] ?? "";
   const theme = THEMES[seg] ?? THEMES[""];
-  const moteCount = lvl === "off" ? 0 : lvl === "reduced" ? 6 : 16;
+  const moteCount = lvl === "full" ? 16 : 0;
 
   // one calm field of motes; re-seeded per route so screens feel distinct
   const motes = useMemo(() => {
@@ -58,7 +58,8 @@ export function Ambience() {
     });
   }, [seg, theme.motes, moteCount]);
 
-  if (lvl === "off") return null;
+  // phone simple mode: no decorative layer at all below the full FX level
+  if (lvl !== "full") return null;
   return (
     <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden" aria-hidden>
       {/* two soft spotlights that breathe across the frame — full mode only

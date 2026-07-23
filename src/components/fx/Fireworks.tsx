@@ -23,7 +23,8 @@ export function Fireworks({
   palette?: string[];
 }) {
   const lvl = useFxLevel();
-  const n = lvl === "off" ? 0 : lvl === "reduced" ? Math.ceil(count / 2) : count;
+  // phone simple mode: fireworks are desktop-only — the confetti carries the moment
+  const n = lvl === "full" ? count : 0;
   const shells = useMemo(
     () =>
       Array.from({ length: n }, (_, i) => ({

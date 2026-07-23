@@ -20,7 +20,9 @@ export function StadiumBackground() {
     if (!ctx) return;
 
     const lite = lvl === "reduced";
-    const reduce = lvl === "off" || window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    // phone simple mode: anything below full paints ONE static frame — no
+    // continuous rAF loop draining the battery behind the UI
+    const reduce = lvl !== "full" || window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     let raf = 0;
     let frame = 0;
     let w = 0;

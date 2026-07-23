@@ -273,3 +273,22 @@ export const clubById = (id: string): ClubRef | undefined => {
   return undefined;
 };
 export const ALL_CLUBS: ClubRef[] = LEAGUES.flatMap((l) => l.clubs);
+
+/**
+ * Where a teenager actually starts: a SMALL club — never one the player picks.
+ * Prefer the smallest club(s) in their home country (a believable boyhood club);
+ * if their nation has no league here, they break through at a small club abroad,
+ * exactly as real young talents do. Random within the smallest-tier shortlist so
+ * two identical players don't always land at the same club.
+ */
+export function pickStartingClub(nationality: string): ClubRef {
+  const smallest = Math.min(...ALL_CLUBS.map((c) => c.tier)); // the "low division" floor
+  // home-country small clubs first; but only genuinely small ones — a teenager
+  // never debuts at an elite side. Nations with no small club here (e.g. England,
+  // Italy) start abroad at a small club, just like a real young talent moving.
+  const homeSmall = LEAGUES.filter((l) => l.country === nationality)
+    .flatMap((l) => l.clubs)
+    .filter((c) => c.tier === smallest);
+  const pool = homeSmall.length ? homeSmall : ALL_CLUBS.filter((c) => c.tier === smallest);
+  return pool[Math.floor(Math.random() * pool.length)];
+}

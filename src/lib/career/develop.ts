@@ -11,13 +11,18 @@ export function potentialCeiling(p: CareerPlayer): number {
 
 /** How much a player still grows at a given age (negative = decline). */
 function ageFactor(age: number): number {
+  if (age <= 18) return 1.15;
   if (age <= 20) return 1.0;
-  if (age <= 23) return 0.78;
-  if (age <= 26) return 0.5;
-  if (age <= 29) return 0.28;
-  if (age <= 32) return 0.08;
-  if (age <= 34) return -0.12;
-  return -0.3;
+  if (age <= 23) return 0.72;
+  if (age <= 26) return 0.46;
+  if (age <= 29) return 0.26;
+  if (age <= 31) return 0.08;
+  if (age === 32) return 0.0;
+  if (age === 33) return -0.15;
+  if (age === 34) return -0.32;
+  if (age === 35) return -0.5;
+  if (age === 36) return -0.72;
+  return -0.95;
 }
 
 const TRAIN_ATTR: Record<TrainingFocus, string> = {
@@ -37,16 +42,20 @@ export function developSeason(
 ): { overallFrom: number; overallTo: number; attrDeltas: AttrDelta[] } {
   const ceiling = potentialCeiling(p);
   const af = ageFactor(p.age);
-  const perf = Math.max(0.25, Math.min(1.7, 0.5 + (avgRating - 6.6) * 0.55));
-  const minutes = Math.max(0.3, Math.min(1.15, trust / 65));
+  // performance and playing time both drive growth, but a young talent still
+  // develops just by being in the building — floors are generous, not punishing.
+  const perf = Math.max(0.45, Math.min(1.6, 0.6 + (avgRating - 6.5) * 0.42));
+  const minutes = Math.max(0.45, Math.min(1.2, 0.4 + trust / 90));
 
   let overallDelta: number;
   if (af >= 0) {
-    overallDelta = (ceiling - p.overall) * af * perf * minutes * 0.34;
-    overallDelta = Math.max(0, Math.min(4, overallDelta));
+    overallDelta = (ceiling - p.overall) * af * perf * minutes * 0.24;
+    // teenagers can leap; the cap tightens with age as growth slows toward peak
+    const cap = p.age <= 21 ? 6 : p.age <= 25 ? 4 : 3;
+    overallDelta = Math.max(0, Math.min(cap, overallDelta));
   } else {
-    // decline — worse form/less play accelerates it slightly
-    overallDelta = af * (2 - perf * 0.6);
+    // decline — real drop-off in the mid-30s; poor form accelerates it
+    overallDelta = af * (3.0 - perf * 0.7);
     overallDelta = Math.max(-3, Math.min(0, overallDelta));
   }
   const rounded = Math.round(overallDelta);

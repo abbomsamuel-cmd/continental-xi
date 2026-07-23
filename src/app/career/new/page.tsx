@@ -1,17 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { play } from "@/lib/sound";
 import { useC } from "@/lib/career/copy";
 import {
-  ARCHETYPES, LEAGUES, NATIONALITIES, POSITIONS, positionById,
+  ARCHETYPES, NATIONALITIES, POSITIONS, positionById,
 } from "@/lib/career/data";
 import { useCareer, WORLD_START_YEAR } from "@/lib/career/store";
 import type { CareerPositionId, Foot } from "@/lib/career/types";
 import { CountryFlag } from "@/components/career/CountryFlag";
-import { ClubCrest } from "@/components/career/ClubCrest";
 
 const BIRTH_YEARS = [WORLD_START_YEAR - 16, WORLD_START_YEAR - 17, WORLD_START_YEAR - 18];
 
@@ -20,7 +19,7 @@ export default function NewCareerPage() {
   const c = useC();
   const createCareer = useCareer((s) => s.createCareer);
 
-  const [step, setStep] = useState(0); // 0..3
+  const [step, setStep] = useState(0); // 0..2
   const [name, setName] = useState("");
   const [nationality, setNationality] = useState("");
   const [birthYear, setBirthYear] = useState(BIRTH_YEARS[0]);
@@ -28,30 +27,28 @@ export default function NewCareerPage() {
   const [shirt, setShirt] = useState(10);
   const [position, setPosition] = useState<CareerPositionId | null>(null);
   const [archetypeId, setArchetypeId] = useState<string | null>(null);
-  const [leagueId, setLeagueId] = useState<string | null>(null);
-  const [clubId, setClubId] = useState<string | null>(null);
 
+  const LAST = 2;
   const titles = [
     c("Who are you?", "¿Quién eres?"),
     c("Choose your position", "Elige tu posición"),
     c("Define your style", "Define tu estilo"),
-    c("Where it begins", "Donde todo empieza"),
   ];
 
   const valid = [
     name.trim().length >= 2 && !!nationality && shirt >= 1 && shirt <= 99,
     !!position,
     !!archetypeId,
-    !!clubId,
   ];
 
-  const next = () => { if (valid[step]) { play("select"); setStep((s) => Math.min(3, s + 1)); } };
+  const next = () => { if (valid[step]) { play("select"); setStep((s) => Math.min(LAST, s + 1)); } };
   const back = () => { play("click"); if (step === 0) router.push("/career"); else setStep((s) => s - 1); };
 
   const finish = () => {
-    if (!valid.every(Boolean) || !position || !archetypeId || !clubId) return;
+    if (!valid.every(Boolean) || !position || !archetypeId) return;
     play("whistle");
-    createCareer({ name, nationality, birthYear, foot, shirtNumber: shirt, position, archetypeId, clubId });
+    // No club pick — a small/home club is assigned; the dashboard reveals it.
+    createCareer({ name, nationality, birthYear, foot, shirtNumber: shirt, position, archetypeId });
     router.push("/career");
   };
 
@@ -61,7 +58,7 @@ export default function NewCareerPage() {
       <div className="mb-6">
         <div className="flex items-center justify-between">
           <div className="text-[0.6rem] font-bold uppercase tracking-[0.3em] text-gold/80">
-            {c("Step", "Paso")} {step + 1} {c("of", "de")} 4
+            {c("Step", "Paso")} {step + 1} {c("of", "de")} 3
           </div>
           <button onClick={back} className="text-[0.68rem] font-semibold text-white/45 hover:text-white">
             ← {step === 0 ? c("Exit", "Salir") : c("Back", "Atrás")}
@@ -69,7 +66,7 @@ export default function NewCareerPage() {
         </div>
         <h1 className="mt-1 font-display text-2xl font-black text-white sm:text-3xl">{titles[step]}</h1>
         <div className="mt-3 flex gap-1.5">
-          {[0, 1, 2, 3].map((i) => (
+          {[0, 1, 2].map((i) => (
             <span key={i} className="h-1 flex-1 rounded-full transition-colors"
               style={{ background: i <= step ? "#d4af37" : "rgba(255,255,255,0.12)" }} />
           ))}
@@ -81,9 +78,14 @@ export default function NewCareerPage() {
           <IdentityStep {...{ name, setName, nationality, setNationality, birthYear, setBirthYear, foot, setFoot, shirt, setShirt, c }} />
         )}
         {step === 1 && <PositionStep value={position} onPick={(p) => { setPosition(p); setArchetypeId(null); }} c={c} />}
-        {step === 2 && position && <ArchetypeStep position={position} value={archetypeId} onPick={setArchetypeId} />}
-        {step === 3 && (
-          <ClubStep {...{ leagueId, setLeagueId, clubId, setClubId, c }} />
+        {step === 2 && position && (
+          <>
+            <ArchetypeStep position={position} value={archetypeId} onPick={setArchetypeId} />
+            <p className="mt-4 rounded-xl border border-white/8 bg-white/[0.03] px-4 py-3 text-center text-[0.78rem] text-white/45">
+              {c("You'll start at a small club and earn your move up. Your first club is revealed next.",
+                 "Empezarás en un club modesto y te ganarás el ascenso. Tu primer club se revela a continuación.")}
+            </p>
+          </>
         )}
       </motion.div>
 
@@ -91,7 +93,7 @@ export default function NewCareerPage() {
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-[#070b16]/95 px-4 py-3 backdrop-blur">
         <div className="mx-auto flex max-w-4xl items-center justify-between gap-3">
           <button onClick={back} className="btn btn-ghost">{step === 0 ? c("Exit", "Salir") : c("Back", "Atrás")}</button>
-          {step < 3 ? (
+          {step < LAST ? (
             <button onClick={next} disabled={!valid[step]}
               className={`btn ${valid[step] ? "btn-gold" : "btn-secondary opacity-50"}`}>
               {c("Continue", "Continuar")} →
@@ -225,54 +227,6 @@ function ArchetypeStep({ position, value, onPick }: { position: CareerPositionId
           <p className="mt-1.5 text-[0.8rem] leading-relaxed text-white/60">{a.desc}</p>
         </button>
       ))}
-    </div>
-  );
-}
-
-/* ---------------- Step 4 · League → Club ---------------- */
-function ClubStep({
-  leagueId, setLeagueId, clubId, setClubId, c,
-}: {
-  leagueId: string | null; setLeagueId: (v: string) => void;
-  clubId: string | null; setClubId: (v: string) => void;
-  c: (en: string, es: string) => string;
-}) {
-  const league = useMemo(() => LEAGUES.find((l) => l.id === leagueId) ?? null, [leagueId]);
-  return (
-    <div className="space-y-5">
-      <div>
-        <div className="mb-2 text-[0.55rem] font-bold uppercase tracking-widest text-white/40">{c("Choose a league", "Elige una liga")}</div>
-        <div className="flex flex-wrap gap-2">
-          {LEAGUES.map((l) => (
-            <button key={l.id} onClick={() => { setLeagueId(l.id); setClubId(""); play("hover"); }}
-              className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-[0.78rem] font-semibold transition-colors ${
-                leagueId === l.id ? "border-gold/60 bg-gold/12 text-gold" : "border-white/12 text-white/65 hover:border-white/25"}`}>
-              <CountryFlag country={l.country} size={15} /> {l.name}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {league && (
-        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-          <div className="mb-2 text-[0.55rem] font-bold uppercase tracking-widest text-white/40">
-            {c("Clubs interested in you", "Clubes interesados en ti")}
-          </div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {league.clubs.map((club) => (
-              <button key={club.id} onClick={() => { setClubId(club.id); play("select"); }}
-                className={`flex items-center gap-2.5 rounded-xl border p-3 text-left transition-all ${
-                  clubId === club.id ? "border-gold/60 bg-gold/12" : "border-white/12 bg-[#0b1122] hover:border-white/25 hover:-translate-y-0.5"}`}>
-                <ClubCrest short={club.short} colors={club.colors} size={34} />
-                <div className="min-w-0">
-                  <div className={`truncate text-[0.82rem] font-bold ${clubId === club.id ? "text-gold" : "text-white"}`}>{club.name}</div>
-                  <div className="text-[0.6rem] text-white/40">{"★".repeat(club.tier)}{"·".repeat(5 - club.tier)}</div>
-                </div>
-              </button>
-            ))}
-          </div>
-        </motion.div>
-      )}
     </div>
   );
 }

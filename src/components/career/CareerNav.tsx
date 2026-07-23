@@ -11,8 +11,7 @@ export interface CareerNavItem { id: string; href: string; en: string; es: strin
  *  shortcuts all read from this. `primary` marks the five that fit the phone bar. */
 export const CAREER_NAV: CareerNavItem[] = [
   { id: "overview", href: "/career", en: "Overview", es: "Resumen", icon: "◎", primary: true },
-  { id: "season", href: "/career/season", en: "Season", es: "Temporada", icon: "◷" },
-  { id: "transfers", href: "/career/transfers", en: "Transfers", es: "Fichajes", icon: "⇄", primary: true },
+  { id: "season", href: "/career/season", en: "Season", es: "Temporada", icon: "◷", primary: true },
   { id: "timeline", href: "/career/timeline", en: "Career Timeline", es: "Trayectoria", icon: "≡", primary: true },
   { id: "national", href: "/career/national", en: "National Team", es: "Selección", icon: "⚑" },
   { id: "awards", href: "/career/awards", en: "Awards", es: "Premios", icon: "★" },

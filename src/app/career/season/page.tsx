@@ -18,8 +18,8 @@ import { CareerMomentModal } from "@/components/career/CareerMomentModal";
 import { CountryFlag } from "@/components/career/CountryFlag";
 import { ClubCrest } from "@/components/career/ClubCrest";
 
-/** Months (0=Aug) advanced per real second at 1× — a full season in ~33s. */
-const MONTHS_PER_SEC = 0.3;
+/** Months (0=Aug) advanced per real second at 1× — a full season in ~20s. */
+const MONTHS_PER_SEC = 0.5;
 type Speed = 1 | 2 | 3;
 
 export default function SeasonPage() {
@@ -205,7 +205,9 @@ function SeasonRunner({ player }: { player: CareerPlayer }) {
           {hud.map(([k, v, col]) => (
             <div key={k} className="rounded-xl border border-white/8 bg-[#0b1122] px-2.5 py-2">
               <div className="text-[0.48rem] font-bold uppercase tracking-widest text-white/35">{k}</div>
-              <div className="mt-0.5 truncate font-display text-base font-extrabold" style={{ color: col ?? "#fff" }}>{v}</div>
+              <div className="mt-0.5 truncate font-display text-base font-extrabold" style={{ color: col ?? "#fff" }}>
+                <motion.span key={String(v)} initial={{ scale: 1.3, opacity: 0.55 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.26 }} className="inline-block">{v}</motion.span>
+              </div>
             </div>
           ))}
         </div>

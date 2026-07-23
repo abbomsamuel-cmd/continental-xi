@@ -1,5 +1,5 @@
-import { ALL_CLUBS, clubById } from "./data";
-import { developSeason } from "./develop";
+import { ALL_CLUBS, clubById, leagueById } from "./data";
+import { developSeason, potentialCeiling } from "./develop";
 import { eligibleMoments, momentById, type MomentEffects } from "./moments";
 import type {
   CareerPlayer, CareerPositionId, CareerSeason, FormTier,
@@ -65,9 +65,12 @@ function baseSeason(p: CareerPlayer, rng: () => number): BaseOutcome {
   const scored = Math.round(apps * GOAL_RATE[p.position] * (p.overall / 78) * fm * (0.85 + rng() * 0.4));
   const goals = Math.max(0, scored);
   const assists = Math.max(0, Math.round(apps * ASSIST_RATE[p.position] * (p.overall / 80) * fm * (0.85 + rng() * 0.4)));
-  let avg = 6.35 + (p.overall - 72) * 0.028 + (FORM_MULT[p.form] - 1) * 0.7 + (rng() - 0.5) * 0.3;
-  if (p.position === "ST" || p.position === "RW" || p.position === "LW") avg += Math.min(0.35, goals * 0.012);
-  const avgRating = Math.max(5.6, Math.min(8.5, Math.round(avg * 10) / 10));
+  // Rating reflects OUTPUT, not just ability — a teenager banging in goals at a
+  // small club is not "terrible". Gentle overall term, real lift from returns.
+  let avg = 6.55 + (p.overall - 68) * 0.02 + (FORM_MULT[p.form] - 1) * 0.8 + (rng() - 0.5) * 0.28;
+  const contribution = (goals + assists * 0.6) / Math.max(8, apps);
+  avg += Math.min(0.55, contribution * 1.5);
+  const avgRating = Math.max(5.6, Math.min(8.6, Math.round(avg * 10) / 10));
   // league finish from club stature + form
   const centre = [0, 15, 11, 7, 4, 2][tier] ?? 10;
   const pos = Math.round(centre - (fm - 1) * 6 + (rng() - 0.5) * 6);
@@ -85,35 +88,87 @@ export function buildPlan(p: CareerPlayer): SeasonPlan {
   const rng = mulberry32(seed);
   const base = baseSeason(p, rng);
 
-  // moments: training first, then 1–3 eligible others, on unique months
-  const others = shuffle(eligibleMoments(p), rng).slice(0, ri(rng, 1, 3));
+  // moments: training first, then just 1–2 eligible others — fewer forced
+  // pauses keeps a 20-second season flowing.
+  const others = shuffle(eligibleMoments(p), rng).slice(0, ri(rng, 1, 2));
   const momentIds = ["training", ...others.map((m) => m.id)];
-  const monthSlots = shuffle([2, 3, 4, 6, 7, 8], rng);
+  const monthSlots = shuffle([2, 4, 6, 8], rng);
   const beats: SeasonBeat[] = [{ month: 0, kind: "kickoff", icon: "◎", en: `The ${p.currentYear}–${(p.currentYear + 1) % 100} season kicks off at ${p.currentClubName}.`, es: `Arranca la temporada ${p.currentYear}–${(p.currentYear + 1) % 100} en ${p.currentClubName}.` }];
   beats.push({ month: 1, kind: "moment", momentId: "training" });
   others.forEach((m, i) => beats.push({ month: monthSlots[i] ?? 5, kind: "moment", momentId: m.id }));
 
-  // narrative flavour from the outcome, on the remaining months
-  const usedMonths = new Set(beats.map((b) => b.month));
-  const freeMonth = () => { for (const m of [2, 3, 4, 5, 6, 7, 8]) if (!usedMonths.has(m)) { usedMonths.add(m); return m; } return 5; };
-  const ev = (en: string, esT: string, icon: string) => beats.push({ month: freeMonth(), kind: "event", icon, en, es: esT });
-  if (base.goals >= 12) ev("Hat-trick! You're on fire in front of goal.", "¡Hat-trick! Estás imparable de cara al gol.", "⚽");
-  if (base.avgRating >= 7.2) ev("Player of the Month — a standout run.", "Jugador del Mes — una racha brillante.", "★");
-  if (base.avgRating < 6.4) ev("A quiet spell — the goals dry up for a while.", "Una mala racha — los goles no llegan.", "▽");
-  if (base.honours.includes("League") || base.leaguePosition <= 3) ev("Right in the title race as the run-in nears.", "En plena pelea por el título en la recta final.", "▲");
-  else ev("A steady mid-season — heads-down, hard work.", "Media temporada estable — a trabajar en silencio.", "◇");
+  // A living season — match-day results stream through the feed so the sim is
+  // full of football, not just the occasional headline. Scorelines vs real
+  // league rivals; "you scored" surfaces where goals actually fell.
+  const rivals = (leagueById(clubById(p.currentClubId)?.leagueId ?? "")?.clubs ?? []).filter((cl) => cl.id !== p.currentClubId);
+  const myTier = clubById(p.currentClubId)?.tier ?? 2;
+  const fm2 = FORM_MULT[p.form];
+  const goalsByMonth: Record<number, number> = {};
+  for (let g = 0; g < base.goals; g++) { const m = ri(rng, 0, 9); goalsByMonth[m] = (goalsByMonth[m] ?? 0) + 1; }
+  const isGk = p.position === "GK";
+  const matchMonths = shuffle([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], rng).slice(0, 6).sort((a, b) => a - b);
+  for (const m of matchMonths) {
+    const rival = rivals.length ? rivals[ri(rng, 0, rivals.length - 1)] : null;
+    const rn = rival?.name ?? (p.currentClubCountry === "—" ? "rivals" : "the visitors");
+    const edge = (myTier - (rival?.tier ?? 3)) * 0.11 + (fm2 - 1) * 0.5 + (rng() - 0.5) * 0.8;
+    const gf = Math.max(0, Math.round(1.35 + edge * 1.5 + rng() * 0.6));
+    const ga = Math.max(0, Math.round(1.35 - edge * 1.5 + rng() * 0.6));
+    const scored = !isGk && (goalsByMonth[m] ?? 0) > 0;
+    const cleanSheet = isGk && ga === 0;
+    const res = gf > ga ? "win" : gf < ga ? "loss" : "draw";
+    const icon = scored ? "⚽" : cleanSheet ? "🧤" : res === "win" ? "✅" : res === "loss" ? "🔻" : "▪";
+    const tail = scored ? " · you scored" : cleanSheet ? " · clean sheet" : "";
+    const tailEs = scored ? " · marcaste" : cleanSheet ? " · portería a cero" : "";
+    const verbEn = res === "win" ? "beat" : res === "loss" ? "lost to" : "drew with";
+    const verbEs = res === "win" ? "vencen a" : res === "loss" ? "pierden ante" : "empatan con";
+    beats.push({ month: m, kind: "event", icon, en: `${gf}–${ga} · ${verbEn} ${rn}${tail}.`, es: `${gf}–${ga} · ${verbEs} ${rn}${tailEs}.` });
+  }
+
+  // one outcome-shaped headline near the run-in for colour
+  if (base.honours.includes("League") || base.leaguePosition <= 3) beats.push({ month: 8, kind: "event", icon: "▲", en: "Right in the title race as the run-in nears.", es: "En plena pelea por el título en la recta final." });
+  else if (base.avgRating >= 7.2) beats.push({ month: 7, kind: "event", icon: "★", en: "Named in the Team of the Month.", es: "Incluido en el Once del Mes." });
 
   beats.sort((a, b) => a.month - b.month);
   beats.push({ month: 9, kind: "final", icon: "◍", en: "The season is complete.", es: "La temporada ha terminado." });
   return { seed, year: p.currentYear, base, beats, momentIds };
 }
 
-/* ---------------- market value ---------------- */
-function marketValue(overall: number, age: number, goals: number, tier: number, rep: ReputationTier): number {
-  const repMult = 1 + REP_LADDER.indexOf(rep) * 0.14;
-  const ageMult = age <= 24 ? 1.25 : age <= 28 ? 1.0 : age <= 31 ? 0.62 : 0.32;
-  const base = Math.pow(Math.max(1, overall - 55), 2.05) * 26_000 * repMult * ageMult * (1 + tier * 0.08) + goals * 350_000;
-  return Math.round(base / 250_000) * 250_000;
+/* ---------------- market value ----------------
+ * The market pays for what a player IS *and* what he'll become. For the young,
+ * potential dominates — a 16-year-old rated 55 with a 93 ceiling is a valuable
+ * asset, not a €0 punt — while for veterans it's all current level, discounted
+ * hard by age. The SAME function seeds a new player and revalues him each
+ * season, so a good year always moves the number the right way (never a crater
+ * after 10 goals). Anchored so eff≈72 → ~€10M and eff≈90 → ~€120M.
+ */
+function agePotentialWeight(age: number): number {
+  if (age <= 18) return 0.35;
+  if (age <= 21) return 0.32;
+  if (age <= 24) return 0.24;
+  if (age <= 27) return 0.14;
+  if (age <= 30) return 0.05;
+  return 0;
+}
+function ageValueMult(age: number): number {
+  if (age <= 29) return 1;
+  if (age === 30) return 0.9;
+  if (age === 31) return 0.78;
+  if (age === 32) return 0.62;
+  if (age === 33) return 0.46;
+  if (age === 34) return 0.32;
+  if (age === 35) return 0.2;
+  return 0.12;
+}
+export function computeMarketValue(
+  overall: number, ceiling: number, age: number, rep: ReputationTier, avgRating: number,
+): number {
+  const eff = overall + agePotentialWeight(age) * Math.max(0, ceiling - overall);
+  const raw = Math.pow(Math.max(1, eff - 44), 5) * 0.581;
+  const repMult = 0.92 + REP_LADDER.indexOf(rep) * 0.02;
+  const perfMult = 1 + Math.max(-0.12, Math.min(0.18, (avgRating - 6.8) * 0.06));
+  const value = Math.max(150_000, raw * ageValueMult(age) * repMult * perfMult);
+  const step = value < 5_000_000 ? 100_000 : 250_000;
+  return Math.round(value / step) * step;
 }
 
 /* ---------------- transfer offers ---------------- */
@@ -165,9 +220,16 @@ export function finalizeSeason(p: CareerPlayer, plan: SeasonPlan, decisions: Rec
   const goals = Math.round(b.goals * ratio);
   const assists = Math.round(b.assists * ratio);
 
-  // trust: performance vs the club's expectation (its tier) + moment effects
+  // trust: earned by output and ratings first, tempered by the club's league
+  // expectation. A youngster who scores wins a place regardless of the table.
   const expectation = [0, 14, 10, 6, 3, 2][tier] ?? 8;
-  const perfTrust = Math.round((b.avgRating - 6.7) * 12 + (expectation - b.leaguePosition) * 0.8);
+  const isAttacker = ["ST", "RW", "LW", "CAM"].includes(p.position);
+  // attackers earn trust with output; everyone else with ratings + reliability
+  // (a defender who plays a full season proves himself even without goals).
+  const outputTrust = isAttacker
+    ? Math.min(15, goals * 1.0 + assists * 0.5)
+    : Math.min(11, Math.max(0, (b.avgRating - 6.45) * 9 + apps * 0.14));
+  const perfTrust = Math.round((b.avgRating - 6.6) * 10 + outputTrust + (expectation - b.leaguePosition) * 0.5);
   const trust = Math.max(5, Math.min(100, p.trust + perfTrust + (eff.trust ?? 0)));
   const role = roleFromTrust(trust);
 
@@ -181,9 +243,9 @@ export function finalizeSeason(p: CareerPlayer, plan: SeasonPlan, decisions: Rec
   if (b.leaguePosition >= 17) repShift -= 1;
   const reputation = shiftReputation(p.reputation, repShift);
 
-  // market value
-  let mv = marketValue(dev.overallTo, p.age, goals, tier, reputation);
-  if (eff.marketPct) mv = Math.round((mv * (1 + eff.marketPct / 100)) / 250_000) * 250_000;
+  // market value — potential/age aware, using the grown overall & this season's rating
+  let mv = computeMarketValue(dev.overallTo, potentialCeiling(p), p.age, reputation, b.avgRating);
+  if (eff.marketPct) mv = Math.round((mv * (1 + eff.marketPct / 100)) / 100_000) * 100_000;
 
   // national team
   const national = { ...p.national };

@@ -148,7 +148,8 @@ export interface CareerSave {
   updatedAt: number;
 }
 
-/** Everything the creation wizard collects before a career is seeded. */
+/** Everything the creation wizard collects before a career is seeded. The
+ * starting club is NOT chosen — it is auto-assigned (a small/home club). */
 export interface CareerCreationInput {
   name: string;
   nationality: string;
@@ -157,5 +158,4 @@ export interface CareerCreationInput {
   shirtNumber: number;
   position: CareerPositionId;
   archetypeId: string;
-  clubId: string;
 }

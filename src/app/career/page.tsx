@@ -85,7 +85,6 @@ function Dashboard({ player }: { player: CareerPlayer }) {
             <div className="text-[0.52rem] font-bold uppercase tracking-widest text-white/35">{c("Market Value", "Valor de Mercado")}</div>
             <div className="font-display text-lg font-extrabold text-white">{fmtMoney(player.marketValue)}</div>
           </div>
-          <Link href="/career/transfers" onClick={() => play("hover")} className="btn btn-ghost mt-3 w-full text-sm">{c("Preview offers", "Ver ofertas")}</Link>
         </Panel>
 
         <Panel title={c("Objectives", "Objetivos")}>

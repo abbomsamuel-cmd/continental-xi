@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useLang } from "@/lib/i18n";
 import { useHydrated } from "@/lib/useHydrated";
 import { play } from "@/lib/sound";
-import { useC, roleLabel } from "@/lib/career/copy";
+import { useC, formAccent, formLabel, roleLabel } from "@/lib/career/copy";
 import { useCareer, useCurrentPlayer } from "@/lib/career/store";
 import { fmtMoney, seasonLabel } from "@/lib/career/util";
 import type { CareerPlayer } from "@/lib/career/types";
@@ -69,10 +69,13 @@ function Dashboard({ player }: { player: CareerPlayer }) {
       {/* bottom — current season · transfer · objectives */}
       <div className="mt-6 grid gap-4 lg:grid-cols-3">
         <Panel title={c("Current Season", "Temporada Actual")}>
-          <div className="font-display text-2xl font-black text-white">{seasonLabel(player.startYear)}</div>
+          <div className="font-display text-2xl font-black text-white">{seasonLabel(player.currentYear)}</div>
           <div className="mt-0.5 text-sm text-white/55">{player.currentClubName}</div>
-          <div className="mt-3 inline-flex rounded-full bg-white/8 px-2.5 py-0.5 text-[0.62rem] font-bold uppercase tracking-wider text-white/60">{c("Pre-season", "Pretemporada")}</div>
-          <button onClick={() => { play("click"); router.push("/career/season"); }} className="btn btn-secondary mt-4 w-full text-sm">{c("Enter Season", "Entrar a la Temporada")} →</button>
+          <div className="mt-3 flex flex-wrap gap-1.5 text-[0.62rem] font-bold uppercase tracking-wider">
+            <span className="rounded-full bg-white/8 px-2.5 py-0.5 text-white/60">{c("Pre-season", "Pretemporada")}</span>
+            <span className="rounded-full px-2.5 py-0.5" style={{ background: `${formAccent[player.form]}1a`, color: formAccent[player.form] }}>{c("Form", "Forma")}: {formLabel(player.form, lang)}</span>
+          </div>
+          <button onClick={() => { play("select"); router.push("/career/season"); }} className="btn btn-gold mt-4 w-full text-sm">▶ {c("Play Season", "Jugar Temporada")}</button>
         </Panel>
 
         <Panel title={c("Transfer Status", "Estado de Fichajes")}>
@@ -98,10 +101,6 @@ function Dashboard({ player }: { player: CareerPlayer }) {
         </Panel>
       </div>
 
-      <p className="mt-8 text-center text-[0.68rem] text-white/25">
-        {c("The season engine — playing out each campaign, development and career moments — arrives in the next update.",
-          "El motor de temporada — jugar cada campaña, desarrollo y momentos de carrera — llega en la próxima actualización.")}
-      </p>
     </div>
   );
 }

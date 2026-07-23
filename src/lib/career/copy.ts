@@ -2,7 +2,7 @@
 
 import { useCallback } from "react";
 import { useLang, type Lang } from "@/lib/i18n";
-import type { PotentialTier, ReputationTier, RoleTier } from "./types";
+import type { FormTier, PotentialTier, ReputationTier, RoleTier } from "./types";
 
 /**
  * Career Mode keeps its (large, growing) copy local instead of bloating the
@@ -45,6 +45,19 @@ const POTENTIAL: Record<PotentialTier, Bi> = {
   elite: { en: "Elite Prospect", es: "Promesa de Élite" },
   wonderkid: { en: "Wonderkid", es: "Joven Maravilla" },
   unknown: { en: "Unknown Potential", es: "Potencial Desconocido" },
+};
+
+const FORM: Record<FormTier, Bi> = {
+  terrible: { en: "Terrible", es: "Pésima" },
+  poor: { en: "Poor", es: "Mala" },
+  average: { en: "Average", es: "Normal" },
+  good: { en: "Good", es: "Buena" },
+  excellent: { en: "Excellent", es: "Excelente" },
+  worldClass: { en: "World Class", es: "Estelar" },
+};
+export const formLabel = (f: FormTier, lang: Lang) => pick(FORM[f], lang);
+export const formAccent: Record<FormTier, string> = {
+  terrible: "#ff6b6b", poor: "#f5a15a", average: "#cfd6e6", good: "#7ee081", excellent: "#2ee6a6", worldClass: "#f2d472",
 };
 
 export const roleLabel = (r: RoleTier, lang: Lang) => pick(ROLE[r], lang);

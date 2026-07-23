@@ -20,6 +20,14 @@ export type RoleTier =
   | "notSelected" | "reserve" | "rotation" | "starter"
   | "important" | "star" | "captain";
 
+/** Seasonal form band. */
+export type FormTier = "terrible" | "poor" | "average" | "good" | "excellent" | "worldClass";
+
+/** What a player trains hardest at over a season. */
+export type TrainingFocus =
+  | "finishing" | "passing" | "pace" | "strength" | "dribbling"
+  | "defending" | "weakFoot" | "leadership" | "goalkeeping";
+
 export interface ClubRef {
   id: string;
   name: string;
@@ -78,10 +86,59 @@ export interface CareerPlayer {
   reputation: ReputationTier;
   traits: string[];
 
+  // ---- Part 2 · living career state ----
+  /** Year of the season about to be played (the résumé's next chapter). */
+  currentYear: number;
+  form: FormTier;
+  /** Manager trust 0–100, drives role. */
+  trust: number;
+  trainingFocus: TrainingFocus | null;
+  seasonsAtClub: number;
+  peakOverall: number;
+  national: { calledUp: boolean; caps: number; goals: number; captain: boolean };
+  retired: boolean;
+
   // ---- the résumé ----
   seasons: CareerSeason[];
   /** The season year the career began — timeline anchor. */
   startYear: number;
+}
+
+/** A club's interest at the transfer window (Part 2 — a real, actionable offer). */
+export interface TransferOffer {
+  clubId: string;
+  wage: number;
+  years: number;
+  role: RoleTier;
+  developmentStars: number; // 1–5
+}
+
+/** One attribute movement in a development report. */
+export interface AttrDelta { label: string; delta: number }
+
+/** The full outcome of a played season. */
+export interface SeasonResult {
+  season: CareerSeason;
+  overallFrom: number;
+  overallTo: number;
+  attrDeltas: AttrDelta[];
+  form: FormTier;
+  trust: number;
+  role: RoleTier;
+  reputation: ReputationTier;
+  marketValueFrom: number;
+  marketValueTo: number;
+  avgRating: number;
+  leaguePosition: number;
+  objectives: { text: string; met: boolean }[];
+  media: string[];
+  offers: TransferOffer[];
+  contractExpiring: boolean;
+  seasonsAtClub: number;
+  national: { calledUp: boolean; caps: number; goals: number; captain: boolean };
+  age: number;
+  traitUnlocks: string[];
+  positionChange: CareerPositionId | null;
 }
 
 export interface CareerSave {

@@ -3,10 +3,21 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { clubById } from "./data";
+import { roleFromTrust } from "./engine";
 import type {
-  CareerCreationInput, CareerPlayer, CareerSave, CareerSeason,
-  PotentialTier, ReputationTier, RoleTier,
+  CareerCreationInput, CareerPlayer, CareerSave,
+  PotentialTier, ReputationTier, RoleTier, SeasonResult, TransferOffer,
 } from "./types";
+
+/** How a season is closed out at the transfer window. */
+export type CommitAction =
+  | { type: "stay" }
+  | { type: "renew" }
+  | { type: "transfer"; offer: TransferOffer };
+
+const TRUST_FOR_ROLE: Record<string, number> = {
+  captain: 82, star: 78, important: 66, starter: 50, rotation: 38, reserve: 26, notSelected: 14,
+};
 
 /** The career world's "now". A season starting here reads as its campaign. */
 export const WORLD_START_YEAR = 2026;
@@ -38,21 +49,9 @@ function seedPlayer(input: CareerCreationInput): CareerPlayer {
   const marketValue = Math.round((valueBase * 1_000_000) / 250_000) * 250_000;
   const wage = Math.round((3_000 + (overall - 55) * 900 + tier * 1_400) / 500) * 500;
 
+  const trust = overall >= 64 ? 40 : 28;
   const role: RoleTier = overall >= 64 ? "rotation" : "reserve";
   const reputation: ReputationTier = potentialTier === "wonderkid" ? "wonderkid" : "prospect";
-
-  const debut: CareerSeason = {
-    year: WORLD_START_YEAR,
-    age,
-    clubId: input.clubId,
-    clubName: club?.name ?? "Free Agent",
-    clubShort: club?.short ?? "FA",
-    clubColors: colors,
-    clubCountry: club?.country ?? "—",
-    overall,
-    apps: 0, goals: 0, assists: 0,
-    honours: [],
-  };
 
   return {
     id: uid(),
@@ -78,7 +77,15 @@ function seedPlayer(input: CareerCreationInput): CareerPlayer {
     role,
     reputation,
     traits: [],
-    seasons: [debut],
+    currentYear: WORLD_START_YEAR,
+    form: "average",
+    trust,
+    trainingFocus: null,
+    seasonsAtClub: 0,
+    peakOverall: overall,
+    national: { calledUp: false, caps: 0, goals: 0, captain: false },
+    retired: false,
+    seasons: [],
     startYear: WORLD_START_YEAR,
   };
 }
@@ -90,6 +97,8 @@ interface CareerState {
   deleteCareer: (id: string) => void;
   setCurrent: (id: string | null) => void;
   renameCareer: (id: string, name: string) => void;
+  commitSeason: (result: SeasonResult, action: CommitAction) => void;
+  retireCareer: (id: string) => void;
 }
 
 export const useCareer = create<CareerState>()(
@@ -119,12 +128,81 @@ export const useCareer = create<CareerState>()(
             x.id === id ? { ...x, player: { ...x.player, name: name.trim() || x.player.name }, updatedAt: Date.now() } : x,
           ),
         })),
+
+      commitSeason: (result, action) =>
+        set((s) => {
+          const save = s.saves.find((x) => x.id === s.currentId);
+          if (!save) return {};
+          const p = save.player;
+          let np: CareerPlayer = {
+            ...p,
+            overall: result.overallTo,
+            peakOverall: Math.max(p.peakOverall, result.overallTo),
+            form: result.form,
+            trust: result.trust,
+            role: result.role,
+            reputation: result.reputation,
+            marketValue: result.marketValueTo,
+            age: p.age + 1,
+            currentYear: p.currentYear + 1,
+            seasonsAtClub: result.seasonsAtClub,
+            national: result.national,
+            traits: [...p.traits, ...result.traitUnlocks.filter((t) => !p.traits.includes(t))],
+            position: result.positionChange ?? p.position,
+            seasons: [...p.seasons, result.season],
+          };
+          if (action.type === "renew") {
+            np.contractUntil = np.currentYear + 4;
+            np.wage = Math.round((np.wage * 1.15) / 500) * 500;
+          } else if (action.type === "transfer") {
+            const cl = clubById(action.offer.clubId);
+            if (cl) {
+              const trust = TRUST_FOR_ROLE[action.offer.role] ?? 45;
+              np = {
+                ...np,
+                currentClubId: cl.id, currentClubName: cl.name, currentClubShort: cl.short,
+                currentClubColors: cl.colors, currentClubCountry: cl.country,
+                wage: action.offer.wage, contractUntil: np.currentYear + action.offer.years,
+                seasonsAtClub: 0, trust, role: roleFromTrust(trust),
+              };
+            }
+          }
+          return { saves: s.saves.map((x) => (x.id === save.id ? { ...x, player: np, updatedAt: Date.now() } : x)) };
+        }),
+
+      retireCareer: (id) =>
+        set((s) => ({
+          saves: s.saves.map((x) => (x.id === id ? { ...x, player: { ...x.player, retired: true }, updatedAt: Date.now() } : x)),
+        })),
     }),
     {
       // Its OWN key — Career saves never touch the Tournament save.
       name: "continentalxi-career-v1",
-      version: 1,
+      version: 2,
       partialize: (s) => ({ saves: s.saves, currentId: s.currentId }),
+      // v2 added the living-career fields (form, trust, currentYear, national…).
+      // Backfill them for any Part-1 save and drop the unplayed debut row.
+      migrate: (persisted, version) => {
+        const s = (persisted ?? {}) as { saves?: CareerSave[]; currentId?: string | null };
+        if (version >= 2) return s as { saves: CareerSave[]; currentId: string | null };
+        const saves = (s.saves ?? []).map((sv) => {
+          const p = sv.player as unknown as Record<string, unknown>;
+          const rawSeasons = (p.seasons as { apps?: number; goals?: number; assists?: number; overall?: number }[] | undefined) ?? [];
+          const seasons = rawSeasons.filter((x) => (x.apps ?? 0) + (x.goals ?? 0) + (x.assists ?? 0) > 0);
+          const overall = (p.overall as number) ?? 60;
+          p.seasons = seasons;
+          p.currentYear = ((p.startYear as number) ?? 2026) + seasons.length;
+          p.form = p.form ?? "average";
+          p.trust = p.trust ?? (TRUST_FOR_ROLE[(p.role as string) ?? "reserve"] ?? 30);
+          p.trainingFocus = p.trainingFocus ?? null;
+          p.seasonsAtClub = p.seasonsAtClub ?? seasons.length;
+          p.peakOverall = p.peakOverall ?? Math.max(overall, ...seasons.map((x) => x.overall ?? 0), overall);
+          p.national = p.national ?? { calledUp: false, caps: 0, goals: 0, captain: false };
+          p.retired = p.retired ?? false;
+          return { ...sv, player: p as unknown as CareerPlayer };
+        });
+        return { saves, currentId: s.currentId ?? null };
+      },
     },
   ),
 );

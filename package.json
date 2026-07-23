@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "simtest": "tsx scripts/simtest.ts",
-    "tacticstest": "tsx scripts/tactics-check.ts"
+    "tacticstest": "tsx scripts/tactics-check.ts",
+    "deploy": "next build && wrangler pages deploy out --project-name=continentalxi --branch main --commit-dirty=true"
   },
   "dependencies": {
     "framer-motion": "^12.42.2",

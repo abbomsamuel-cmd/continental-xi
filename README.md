@@ -6,7 +6,7 @@ legendary players — each rated for one **exact** campaign, not their career �
 build the ultimate XI, then lead it through the **Champions League**, the
 **UEFA EURO**, or the **Copa América** to continental glory.
 
-**Play it:** https://continentalxi.vercel.app/
+**Play it:** https://continentalxi.pages.dev/
 
 > Not affiliated with UEFA, CONMEBOL, FIFA or any club. No official logos,
 > branding or protected assets are used — the visual identity, names and
@@ -122,12 +122,13 @@ a dozen short lines, and the same player always expands identically. New clubs
 for the AI opponent pool go in `src/lib/data/clubs.ts`; new partnerships in
 `partnerships.ts`.
 
-## Deploying (Vercel)
+## Deploying (Cloudflare Pages)
 
 The app is a fully static site with **no backend and no database** — nothing
 about you is stored anywhere but your own browser. `next build` emits static
-files to `out/`, and Vercel auto-deploys every push to `main` at
-https://continentalxi.vercel.app/.
+files to `out/`, deployed to **Cloudflare Pages** at
+https://continentalxi.pages.dev/ (`wrangler pages deploy out`, or auto-deploy
+on push once the repo is connected in the Cloudflare dashboard).
 
 Rehosting this game or its database elsewhere is not permitted — see
 [LICENSE](LICENSE).

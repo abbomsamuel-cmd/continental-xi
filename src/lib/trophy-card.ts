@@ -1,5 +1,7 @@
 "use client";
 
+import { SITE_HOST } from "./site";
+
 /**
  * Shareable trophy card: renders the champion XI + score onto a canvas and
  * hands it to the native share sheet (mobile) or downloads it as a PNG.
@@ -175,7 +177,7 @@ function drawCard(ctx: CanvasRenderingContext2D, opts: TrophyCardOpts) {
   ctx.fillText("CONTINENTAL XI", W / 2, H - 92);
   ctx.fillStyle = accent;
   ctx.font = `600 24px ${sans}`;
-  ctx.fillText("continental-xi-wiv1.vercel.app", W / 2, H - 54);
+  ctx.fillText(SITE_HOST, W / 2, H - 54);
 }
 
 /** Render the card and share it (mobile share sheet) or download it as PNG. */

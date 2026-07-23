@@ -8,6 +8,7 @@ import { SiteCredit } from "@/components/SiteCredit";
 import { EggToast } from "@/components/EggToast";
 import { MotionGate } from "@/components/MotionGate";
 import { LangProvider } from "@/lib/i18n";
+import { SITE_URL } from "@/lib/site";
 
 const display = Sora({
   subsets: ["latin"],
@@ -21,16 +22,25 @@ const sans = Manrope({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: "Continental XI — Champions Draft & Tournament Simulator",
   description:
     "Draft legendary footballers from every European Cup era, build the ultimate XI, and lead your squad through the modern 36-team league phase to continental glory.",
   keywords: ["football draft", "champions league simulator", "ultimate team", "tournament simulator"],
   applicationName: "Continental XI",
   authors: [{ name: "Continental XI" }],
+  alternates: { canonical: "/" },
   openGraph: {
     title: "Continental XI — Champions Draft Simulator",
     description: "Build the greatest European XI ever and win the modern league-phase tournament.",
     type: "website",
+    url: SITE_URL,
+    siteName: "Continental XI",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Continental XI — Champions Draft Simulator",
+    description: "Build the greatest European XI ever and win the modern league-phase tournament.",
   },
 };
 

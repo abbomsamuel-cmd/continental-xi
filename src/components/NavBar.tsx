@@ -30,6 +30,7 @@ const PLAY: Group = {
 const CAREER: Group = {
   id: "career", key: "nav.career", hintKey: "nav.group.career.hint",
   items: [
+    { href: "/career", key: "nav.career.mode", emoji: "⚽" },
     { href: "/tournament", key: "nav.career.tournament", emoji: "🏟️" },
     { href: "/history", key: "nav.career.history", emoji: "📜" },
     { href: "/stats", key: "nav.career.profile", emoji: "👔" },

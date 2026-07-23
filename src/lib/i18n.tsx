@@ -55,6 +55,7 @@ const DICT: Record<string, Entry> = {
   "nav.play.euro": { en: "UEFA EURO", es: "Eurocopa" },
   "nav.play.copa": { en: "Copa América", es: "Copa América" },
   "nav.play.continue": { en: "Continue Campaign", es: "Continuar Campaña" },
+  "nav.career.mode": { en: "Career Mode", es: "Modo Carrera" },
   "nav.career.tournament": { en: "Tournament", es: "Torneo" },
   "nav.career.history": { en: "Match History", es: "Historial de Partidos" },
   "nav.career.profile": { en: "Profile", es: "Perfil" },

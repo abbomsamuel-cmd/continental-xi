@@ -42,11 +42,18 @@ export function clubsInCountry(country: string): WorldClub[] {
  * `rand` is injected so callers can keep it deterministic.
  */
 export function startingClubsFor(nationality: string, maxReputation = 58): WorldClub[] {
-  const home = clubsInCountry(nationality).filter((c) => c.reputation <= maxReputation);
-  if (home.length) return home;
+  // A teenager breaks through at a small club AT HOME whenever his nation has a
+  // league here — the smallest sides in it, even if the league itself is strong
+  // (so a Brazilian starts in Brazil, not abroad).
+  const home = clubsInCountry(nationality);
+  if (home.length) {
+    const minRep = Math.min(...home.map((c) => c.reputation));
+    const small = home.filter((c) => c.reputation <= Math.max(maxReputation, minRep + 8));
+    return small.length ? small : home;
+  }
 
-  // No home league (or no small club in it) — fall back to the nation's
-  // football affinities before going fully global.
+  // No home league — the nation's football affinities, then a small club abroad,
+  // exactly as a young talent from a smaller nation actually moves.
   const affinity = nationByName(nationality)?.affinity ?? [];
   const affine = affinity
     .flatMap((id) => worldLeagueById(id)?.clubs ?? [])

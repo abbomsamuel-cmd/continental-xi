@@ -9,12 +9,12 @@ export interface CareerNavItem { id: string; href: string; en: string; es: strin
 
 /** One source of truth — the desktop sidebar, the mobile bar, and dashboard
  *  shortcuts all read from this. `primary` marks the five that fit the phone bar. */
+// Career Mode is one screen now — the hub (Overview) holds the player, the
+// chapter loop, the trophy cabinet and the national record. Only genuinely
+// separate destinations stay in the nav.
 export const CAREER_NAV: CareerNavItem[] = [
-  { id: "overview", href: "/career", en: "Overview", es: "Resumen", icon: "◎", primary: true },
-  { id: "season", href: "/career/season", en: "Season", es: "Temporada", icon: "◷", primary: true },
-  { id: "timeline", href: "/career/timeline", en: "Career Timeline", es: "Trayectoria", icon: "≡", primary: true },
-  { id: "national", href: "/career/national", en: "National Team", es: "Selección", icon: "⚑" },
-  { id: "awards", href: "/career/awards", en: "Awards", es: "Premios", icon: "★" },
+  { id: "overview", href: "/career", en: "Career", es: "Carrera", icon: "◎", primary: true },
+  { id: "timeline", href: "/career/timeline", en: "Timeline", es: "Trayectoria", icon: "≡", primary: true },
   { id: "stats", href: "/career/stats", en: "Statistics", es: "Estadísticas", icon: "▦", primary: true },
   { id: "saves", href: "/career/saves", en: "Save Slots", es: "Partidas", icon: "❏", primary: true },
   { id: "settings", href: "/career/settings", en: "Settings", es: "Ajustes", icon: "⚙" },

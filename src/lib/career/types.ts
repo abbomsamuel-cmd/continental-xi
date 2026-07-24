@@ -55,6 +55,8 @@ export interface CareerSeason {
   assists: number;
   /** Honour labels won that season (e.g. "League", "Champions League"). */
   honours: string[];
+  /** Individual award trophy-ids won that season (e.g. "golden-boot"). */
+  awards?: string[];
 }
 
 export interface CareerPlayer {
@@ -98,10 +100,32 @@ export interface CareerPlayer {
   national: { calledUp: boolean; caps: number; goals: number; captain: boolean };
   retired: boolean;
 
+  /** Full international résumé (Part 2). Optional so pre-Part-2 saves still load;
+   *  read it as `player.intl ?? emptyIntlState(player.nationality)`. */
+  intl?: IntlStateLike;
+  /** Ids of once-only events already fired, so turning points never repeat. */
+  firedEvents?: string[];
+  /** Ids of injuries the player has suffered — feeds recurrence + injury-prone. */
+  injuryHistory?: string[];
+
   // ---- the résumé ----
   seasons: CareerSeason[];
   /** The season year the career began — timeline anchor. */
   startYear: number;
+}
+
+/** Shape of the persisted international state (see international.ts IntlState). */
+export interface IntlStateLike {
+  nation: string;
+  calledUp: boolean;
+  debutYear: number | null;
+  caps: number;
+  goals: number;
+  assists: number;
+  captain: boolean;
+  retired: boolean;
+  tournaments: string[];
+  majorHonours: string[];
 }
 
 /** A club's interest at the transfer window — a real, actionable offer. */

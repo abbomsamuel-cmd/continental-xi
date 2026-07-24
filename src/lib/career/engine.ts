@@ -419,6 +419,7 @@ export function finalizeSeason(p: CareerPlayer, plan: SeasonPlan, decisions: Rec
     year: p.currentYear, age: p.age, clubId: p.currentClubId, clubName: p.currentClubName,
     clubShort: p.currentClubShort, clubColors: p.currentClubColors, clubCountry: p.currentClubCountry,
     overall: dev.overallTo, apps, goals, assists, honours: b.honours,
+    awards: computeAwards(p, dev.overallTo, b, goals),
   };
 
   const offers = makeOffers(p, dev.overallTo, reputation, transferPush, b.avgRating, potentialCeiling(p));
@@ -430,6 +431,22 @@ export function finalizeSeason(p: CareerPlayer, plan: SeasonPlan, decisions: Rec
     contractExpiring: p.contractUntil - p.currentYear <= 1, seasonsAtClub: p.seasonsAtClub + 1,
     national, age: p.age, traitUnlocks, positionChange,
   };
+}
+
+/**
+ * Individual awards won in a season, as trophy-ids. Kept deliberately hard —
+ * they should feel earned, so the cabinet fills with them only in the peak years.
+ */
+function computeAwards(p: CareerPlayer, overall: number, b: BaseOutcome, goals: number): string[] {
+  const out: string[] = [];
+  const attacker = ["ST", "RW", "LW", "CAM"].includes(p.position);
+  const wonBig = b.honours.includes("League") || b.honours.includes("Champions League");
+  if (attacker && goals >= 24) out.push("golden-boot");
+  if (overall >= 88 && b.avgRating >= 7.7 && wonBig) out.push("ballon-dor");
+  else if (overall >= 84 && b.avgRating >= 7.6 && b.honours.includes("League")) out.push("league-mvp");
+  if (p.age <= 21 && overall >= 78 && b.avgRating >= 7.3) out.push("young-player");
+  if (p.position === "GK" && b.avgRating >= 7.4 && b.leaguePosition <= 6) out.push("goalkeeper-of-year");
+  return out;
 }
 
 function buildObjectives(p: CareerPlayer, b: BaseOutcome, goals: number): { text: string; met: boolean }[] {

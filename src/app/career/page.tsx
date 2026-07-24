@@ -207,14 +207,11 @@ function Career({ player }: { player: CareerPlayer }) {
 
         {/* ============ RIGHT — the age ladder ============ */}
         <div className="rounded-2xl border border-white/10 bg-[#0a0e1c] p-3 sm:p-4">
-          <div className="mb-2 grid grid-cols-[auto_1fr_auto_auto_auto_auto] gap-2 px-2 text-[0.5rem] font-bold uppercase tracking-widest text-white/25">
-            <span>{c("Age", "Edad")}</span><span>{c("Club", "Club")}</span>
-            <span className="text-right">OVR</span>
-            <span className="w-8 text-right">{c("APPS", "PJ")}</span>
-            <span className="w-8 text-right">{c("GLS", "G")}</span>
-            <span className="w-8 text-right">{c("AST", "A")}</span>
+          <div className="mb-2.5 flex items-center justify-between px-1">
+            <span className="font-display text-sm font-black uppercase tracking-wider text-white/70">{c("Career", "Trayectoria")}</span>
+            <span className="text-[0.6rem] font-bold uppercase tracking-widest text-white/30">{c("Age chapters", "Capítulos por edad")}</span>
           </div>
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             {buildLadder(chapters, player).map((slot) => (
               <LadderRow key={slot.age} slot={slot} peak={totals.peakOverall}
                 playing={(simming || !!run) && slot.state === "current"} simming={simming && slot.state === "current"} />
@@ -588,6 +585,13 @@ function buildLadder(chapters: TimelineChapter[], player: CareerPlayer): Slot[] 
   return out;
 }
 
+function ratingColor(r: number): string {
+  if (r >= 7.5) return "#7ee081";
+  if (r >= 7.0) return "#b6e36a";
+  if (r >= 6.6) return "#f2d472";
+  return "#ffa657";
+}
+
 function LadderRow({ slot, peak, playing, simming }: { slot: Slot; peak: number; playing: boolean; simming: boolean }) {
   const c = useC();
   const { chapter: ch, state } = slot;
@@ -597,15 +601,14 @@ function LadderRow({ slot, peak, playing, simming }: { slot: Slot; peak: number;
     // current (up next / playing) or a faded future slot
     return (
       <motion.div initial={false}
-        className={`grid grid-cols-[auto_1fr_auto_auto_auto_auto] items-center gap-2 rounded-xl border px-2.5 py-2 ${
-          state === "current" ? "border-gold/40 bg-gold/[0.06]" : "border-white/5 bg-white/[0.015] opacity-45"}`}>
-        <motion.span animate={simming ? { scale: [1, 1.08, 1] } : {}} transition={{ duration: 0.9, repeat: Infinity }}
-          className="grid h-8 w-8 place-items-center rounded-lg font-display text-[0.82rem] font-black text-white/70"
+        className={`flex items-center gap-3 rounded-2xl border px-3 py-3.5 ${
+          state === "current" ? "border-gold/40 bg-gold/[0.06]" : "border-white/5 bg-white/[0.015] opacity-40"}`}>
+        <motion.span animate={simming ? { scale: [1, 1.1, 1] } : {}} transition={{ duration: 0.9, repeat: Infinity }}
+          className="grid h-12 w-12 shrink-0 place-items-center rounded-xl font-display text-lg font-black text-white/70"
           style={{ background: state === "current" ? "#d4af3733" : "#ffffff0d" }}>{slot.age}</motion.span>
-        <span className="text-[0.8rem] font-semibold text-white/45">
+        <span className="text-[0.95rem] font-bold text-white/50">
           {state === "current" ? (simming ? c("Simulating…", "Simulando…") : playing ? c("Playing…", "Jugando…") : c("Up next", "A continuación")) : "—"}
         </span>
-        <span /><span /><span /><span />
       </motion.div>
     );
   }
@@ -613,40 +616,59 @@ function LadderRow({ slot, peak, playing, simming }: { slot: Slot; peak: number;
   const delta = ch.overallTo - ch.overallFrom;
   const best = ch.overallTo >= peak && peak > 0;
   const trophies = ch.seasons.flatMap((s) => seasonTrophies(s));
-  const yearLabel = `${ch.seasons[0].year}–${String((ch.seasons[ch.seasons.length - 1].year + 1) % 100).padStart(2, "0")}`;
   return (
-    <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}
-      className={`grid grid-cols-[auto_1fr_auto_auto_auto_auto] items-center gap-2 rounded-xl border px-2.5 py-2 transition-colors hover:bg-white/[0.03] ${
-        best ? "border-gold/25 bg-gold/[0.04]" : delta < 0 ? "border-red-400/15 bg-[#0b1122]" : "border-white/8 bg-[#0b1122]"}`}>
-      <span className="grid h-9 w-9 place-items-center rounded-lg font-display text-[0.82rem] font-black text-white"
-        style={{ background: `linear-gradient(135deg, ${clubColor}, ${clubColor}bb)` }}>{ch.fromAge}</span>
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}
+      className={`flex items-center gap-3 overflow-hidden rounded-2xl border-l-[5px] border-y border-r px-3 py-3 transition-colors hover:bg-white/[0.04] ${
+        best ? "border-y-gold/25 border-r-gold/25 bg-gold/[0.05]" : delta < 0 ? "border-y-red-400/15 border-r-red-400/15 bg-[#0b1122]" : "border-y-white/8 border-r-white/8 bg-[#0b1122]"}`}
+      style={{ borderLeftColor: clubColor }}>
+      {/* age */}
+      <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl font-display text-lg font-black text-white shadow-inner"
+        style={{ background: `linear-gradient(135deg, ${clubColor}, ${clubColor}aa)` }}>{ch.fromAge}</span>
 
-      <div className="min-w-0">
+      {/* club + trophies */}
+      <div className="min-w-0 flex-1">
         <div className="flex min-w-0 items-center gap-1.5">
-          {ch.transferred && <span className="shrink-0 text-[0.68rem] text-cyan-300" title={c("Transfer", "Traspaso")}>⇄</span>}
-          <ClubCrest short={ch.clubShort} colors={ch.clubColors} size={17} />
-          <CountryFlag country={ch.clubCountry} size={11} />
-          <span className="truncate text-[0.82rem] font-semibold text-white/90">{ch.clubName}</span>
-          {ch.injured && <span className="shrink-0 text-[0.66rem]" title={c("Injured this spell", "Lesionado en esta etapa")}>🩺</span>}
-          {trophies.slice(0, 5).map((h, i) => <TrophyArt key={i} id={h.id} size={14} title={h.en} />)}
+          <ClubCrest short={ch.clubShort} colors={ch.clubColors} size={26} />
+          <span className="truncate font-display text-[0.98rem] font-extrabold text-white">{ch.clubName}</span>
+          <CountryFlag country={ch.clubCountry} size={12} />
+          {ch.transferred && <span className="shrink-0 text-sm text-cyan-300" title={c("Transfer", "Traspaso")}>⇄</span>}
+          {ch.injured && <span className="shrink-0 text-sm" title={c("Injured this spell", "Lesionado en esta etapa")}>🩺</span>}
         </div>
-        <div className="flex items-center gap-1.5 text-[0.58rem] tabular-nums text-white/30">
-          <span>{yearLabel}</span>
-          <span className="truncate">· {ch.leagueName}</span>
-          {ch.avgRating > 0 && <span className="shrink-0 rounded bg-white/[0.06] px-1 font-bold text-emerald-300/70" title={c("Avg rating", "Nota media")}>{ch.avgRating.toFixed(1)}</span>}
-          {ch.marketValue > 0 && <span className="shrink-0 text-white/35">{fmtMoney(ch.marketValue)}</span>}
+        <div className="mt-1 flex items-center gap-2">
+          {ch.avgRating > 0 && (
+            <span className="rounded-md px-1.5 py-0.5 font-display text-[0.72rem] font-black" style={{ background: `${ratingColor(ch.avgRating)}22`, color: ratingColor(ch.avgRating) }}>
+              {ch.avgRating.toFixed(1)}
+            </span>
+          )}
+          {ch.marketValue > 0 && <span className="text-[0.72rem] font-bold text-white/45">{fmtMoney(ch.marketValue)}</span>}
+          <div className="flex items-center gap-0.5">
+            {trophies.slice(0, 6).map((h, i) => <TrophyArt key={i} id={h.id} size={19} title={h.en} />)}
+          </div>
         </div>
       </div>
 
-      <span className="flex items-center gap-1">
-        <OvrBadge value={ch.overallTo} size={26} />
-        {delta !== 0 && <span className="text-[0.58rem] font-bold" style={{ color: delta > 0 ? "#7ee081" : "#ff6b6b" }}>{delta > 0 ? "▲" : "▼"}{Math.abs(delta)}</span>}
-      </span>
+      {/* OVR */}
+      <div className="flex shrink-0 flex-col items-center">
+        <OvrBadge value={ch.overallTo} size={36} />
+        {delta !== 0 && <span className="mt-0.5 text-[0.66rem] font-black" style={{ color: delta > 0 ? "#7ee081" : "#ff6b6b" }}>{delta > 0 ? "▲" : "▼"}{Math.abs(delta)}</span>}
+      </div>
 
-      <span className="w-8 text-right text-[0.74rem] tabular-nums text-white/55">{ch.apps}</span>
-      <span className="w-8 text-right text-[0.74rem] font-bold tabular-nums text-white/85">{ch.goals}</span>
-      <span className="w-8 text-right text-[0.74rem] tabular-nums text-white/55">{ch.assists}</span>
+      {/* stats — big numbers, tiny labels */}
+      <div className="flex shrink-0 gap-3 text-center">
+        <StatCell n={ch.apps} k="PJ" />
+        <StatCell n={ch.goals} k="G" gold />
+        <StatCell n={ch.assists} k="A" />
+      </div>
     </motion.div>
+  );
+}
+
+function StatCell({ n, k, gold }: { n: number; k: string; gold?: boolean }) {
+  return (
+    <div className="w-8">
+      <div className={`font-display text-lg font-black tabular-nums ${gold ? "text-gold" : "text-white"}`}>{n}</div>
+      <div className="text-[0.5rem] font-bold uppercase tracking-widest text-white/30">{k}</div>
+    </div>
   );
 }
 

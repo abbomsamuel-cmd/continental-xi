@@ -97,6 +97,8 @@ interface CareerState {
   saves: CareerSave[];
   currentId: string | null;
   createCareer: (input: CareerCreationInput) => string;
+  /** Persist a whole age chapter (both seasons) plus the move that closes it. */
+  commitChapter: (playerAfter: CareerPlayer, action: CommitAction) => void;
   deleteCareer: (id: string) => void;
   setCurrent: (id: string | null) => void;
   renameCareer: (id: string, name: string) => void;
@@ -116,6 +118,31 @@ export const useCareer = create<CareerState>()(
         set((s) => ({ saves: [save, ...s.saves].slice(0, 12), currentId: save.id }));
         return save.id;
       },
+
+      // The chapter engine already advanced the player through both seasons —
+      // this only persists the result and applies the move that closes it.
+      commitChapter: (playerAfter, action) =>
+        set((s) => {
+          const save = s.saves.find((x) => x.id === s.currentId);
+          if (!save) return {};
+          let np: CareerPlayer = playerAfter;
+          if (action.type === "renew") {
+            np = { ...np, contractUntil: np.currentYear + 3, wage: Math.round((np.wage * 1.15) / 500) * 500 };
+          } else if (action.type === "transfer") {
+            const cl = clubById(action.offer.clubId);
+            if (cl) {
+              const trust = TRUST_FOR_ROLE[action.offer.role] ?? 45;
+              np = {
+                ...np,
+                currentClubId: cl.id, currentClubName: cl.name, currentClubShort: cl.short,
+                currentClubColors: cl.colors, currentClubCountry: cl.country,
+                wage: action.offer.wage, contractUntil: np.currentYear + action.offer.years,
+                seasonsAtClub: 0, trust, role: roleFromTrust(trust),
+              };
+            }
+          }
+          return { saves: s.saves.map((x) => (x.id === save.id ? { ...x, player: np, updatedAt: Date.now() } : x)) };
+        }),
 
       deleteCareer: (id) =>
         set((s) => {

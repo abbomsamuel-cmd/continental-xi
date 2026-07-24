@@ -1,5 +1,8 @@
-import { ALL_CLUBS, clubById, leagueById } from "./data";
+import { clubById, leagueById, positionById } from "./data";
 import { developSeason, potentialCeiling } from "./develop";
+import { nationByName } from "./nations";
+import { clubsInReputationBand, playerLevel } from "./world";
+import type { WorldClub } from "./world-types";
 import { eligibleMoments, momentById, type MomentEffects } from "./moments";
 import type {
   CareerPlayer, CareerPositionId, CareerSeason, FormTier,
@@ -62,7 +65,12 @@ function baseSeason(p: CareerPlayer, rng: () => number): BaseOutcome {
   const tier = clubById(p.currentClubId)?.tier ?? 2;
   const fm = FORM_MULT[p.form];
   const apps = Math.max(6, Math.min(52, Math.round((p.trust / 100) * 38 + 10 + (rng() - 0.5) * 8)));
-  const scored = Math.round(apps * GOAL_RATE[p.position] * (p.overall / 78) * fm * (0.85 + rng() * 0.4));
+  // Ability and form both lift the strike rate, but they must not compound into
+  // fantasy — capped so even an all-time great tops out around a real-world
+  // record season rather than 50 league goals a year.
+  const rawRate = GOAL_RATE[p.position] * (0.8 + (p.overall - 62) / 80) * fm;
+  const rate = Math.min(rawRate, GOAL_RATE[p.position] * 1.25);
+  const scored = Math.round(apps * rate * (0.85 + rng() * 0.4));
   const goals = Math.max(0, scored);
   const assists = Math.max(0, Math.round(apps * ASSIST_RATE[p.position] * (p.overall / 80) * fm * (0.85 + rng() * 0.4)));
   // Rating reflects OUTPUT, not just ability — a teenager banging in goals at a
@@ -171,19 +179,163 @@ export function computeMarketValue(
   return Math.round(value / step) * step;
 }
 
-/* ---------------- transfer offers ---------------- */
-function makeOffers(p: CareerPlayer, overall: number, rep: ReputationTier, push: number): TransferOffer[] {
+/* ---------------- transfer offers ----------------
+ * Clubs scout; they do not roll dice. A club only opens a conversation when the
+ * player sits inside the reputation band it actually shops in AND matches how
+ * it recruits — which is precisely what stops a 70-rated 30-year-old from
+ * fielding calls from Barcelona, and sends him to the Championship, Turkey or
+ * MLS instead. Every offer carries the reason it exists.
+ */
+interface OfferFit { club: WorldClub; score: number; reasonEn: string; reasonEs: string }
+
+/** How well a club's recruitment philosophy matches this player. 0 = no interest. */
+function recruitmentFit(
+  cl: WorldClub, p: CareerPlayer, overall: number, ceiling: number, avgRating: number,
+): { score: number; reasonEn: string; reasonEs: string } | null {
+  const age = p.age;
+  const gap = overall - cl.squadQuality; // + = better than their XI
+  const upside = Math.max(0, ceiling - overall);
+  const needsPosition = cl.positionalNeeds.includes(p.position);
+  const homeClub = cl.country === p.nationality;
+  const nation = nationByName(p.nationality);
+  const affine = nation?.affinity.includes(cl.leagueId) ?? false;
+
+  const posEn = positionById(p.position).name.toLowerCase();
+  let score = 0;
+  let reasonEn = "";
+  let reasonEs = "";
+
+  switch (cl.recruitment) {
+    case "elite": {
+      // World-class only, or a generational teenager. Nothing else gets a look.
+      const worldClass = overall >= 80 && age >= 21 && age <= 28;
+      const generational = age <= 21 && ceiling >= 88 && overall >= 72;
+      if (!worldClass && !generational) return null;
+      score = 60 + gap * 2 + (generational ? 14 : 0);
+      reasonEn = generational
+        ? `They see you as a generational talent worth building around.`
+        : `They want a proven ${posEn} to start in the biggest matches.`;
+      reasonEs = generational
+        ? `Te ven como un talento generacional sobre el que construir.`
+        : `Buscan un ${posEn} contrastado para los grandes partidos.`;
+      break;
+    }
+    case "development": {
+      if (age > 24 || upside < 4) return null;
+      score = 46 + upside * 2.2 + Math.max(0, 24 - age) * 1.5;
+      reasonEn = `A development club — they buy young, play you, and sell you on.`;
+      reasonEs = `Un club formador — fichan joven, te dan minutos y luego te venden.`;
+      break;
+    }
+    case "midTable": {
+      if (age < 20 || age > 32) return null;
+      if (gap < -8) return null;
+      score = 40 + gap * 2.2;
+      reasonEn = `They need a dependable ${posEn} to hold down a starting place.`;
+      reasonEs = `Necesitan un ${posEn} fiable para asentarse en el once.`;
+      break;
+    }
+    case "promotion": {
+      if (age < 23 || age > 35) return null;
+      if (gap < -6) return null;
+      score = 38 + gap * 2 + (age >= 27 ? 8 : 0);
+      reasonEn = `Chasing promotion — they want experience that can win them games now.`;
+      reasonEs = `Pelean por el ascenso — quieren experiencia que gane partidos ya.`;
+      break;
+    }
+    case "survival": {
+      if (age < 22 || age > 36) return null;
+      if (gap < -5) return null;
+      score = 36 + gap * 2.4 + (age >= 28 ? 6 : 0);
+      reasonEn = `Fighting relegation — they need an immediate contributor.`;
+      reasonEs = `Luchan por la permanencia — necesitan un refuerzo inmediato.`;
+      break;
+    }
+    case "showcase": {
+      // MLS / Saudi: they pay for a NAME, and they pay late-career. Merely
+      // "established" is not a name — that is what made this branch too loose.
+      const known = REP_LADDER.indexOf(p.reputation) >= 5;
+      if (!known && overall < 76) return null;
+      score = 30 + (age >= 29 ? 22 : 4) + REP_LADDER.indexOf(p.reputation) * 3;
+      reasonEn = `A marquee move — big wages for a recognisable name.`;
+      reasonEs = `Un fichaje estrella — salario alto por un nombre reconocible.`;
+      break;
+    }
+    case "domestic": {
+      if (!homeClub && !affine && age < 30) return null;
+      score = 30 + (homeClub ? 22 : 8) + (age >= 30 ? 12 : 0);
+      reasonEn = homeClub
+        ? `A move home — they want you back where it started.`
+        : `They recruit from your part of the world and know your game.`;
+      reasonEs = homeClub
+        ? `Volver a casa — te quieren donde todo empezó.`
+        : `Fichan en tu región y conocen bien tu juego.`;
+      break;
+    }
+  }
+
+  // Shared modifiers: real need, home comfort, current form.
+  if (needsPosition) {
+    score += 14;
+    reasonEn = `Short at ${p.position}. ${reasonEn}`;
+    reasonEs = `Cortos en ${p.position}. ${reasonEs}`;
+  }
+  if (homeClub) score += 6;
+  else if (affine) score += 4;
+  score += (avgRating - 6.8) * 8;
+
+  return score > 0 ? { score, reasonEn, reasonEs } : null;
+}
+
+function makeOffers(
+  p: CareerPlayer, overall: number, rep: ReputationTier, push: number, avgRating: number, ceiling: number,
+): TransferOffer[] {
   const rng = mulberry32(hash(`${p.id}:offers:${p.currentYear}`));
-  const curTier = clubById(p.currentClubId)?.tier ?? 2;
-  const desirability = REP_LADDER.indexOf(rep) + (overall - 70) / 4 + push * 2;
-  let n = Math.max(0, Math.min(4, Math.round(desirability / 3 + (rng() - 0.3))));
-  if (p.contractUntil - p.currentYear <= 0) n = Math.min(4, n + 1);
-  const pool = ALL_CLUBS.filter((cl) => cl.id !== p.currentClubId && cl.tier >= Math.max(1, curTier - 1) && cl.tier <= Math.min(5, curTier + 1 + (push > 0 ? 1 : 0)));
-  return shuffle(pool, rng).slice(0, n).map((cl) => {
-    const up = cl.tier - curTier;
-    const role: RoleTier = up > 0 ? "rotation" : up < 0 ? "important" : "starter";
-    const wage = Math.round((p.wage * (1.2 + up * 0.4 + rng() * 0.3)) / 500) * 500;
-    return { clubId: cl.id, wage, years: 3 + Math.floor(rng() * 3), role, developmentStars: Math.max(2, Math.min(5, 5 - up + (rng() < 0.5 ? 1 : 0))) };
+  const contractExpiring = p.contractUntil - p.currentYear <= 0;
+  const pull = push + (contractExpiring ? 0.6 : 0);
+
+  const level = playerLevel({
+    overall, age: p.age, ceiling, avgRating,
+    reputationIndex: REP_LADDER.indexOf(rep),
+  });
+
+  const fits: OfferFit[] = [];
+  for (const cl of clubsInReputationBand(level, pull)) {
+    if (cl.id === p.currentClubId) continue;
+    if (cl.wageCapacity < p.wage * 0.8) continue; // simply cannot afford him
+    const fit = recruitmentFit(cl, p, overall, ceiling, avgRating);
+    if (!fit) continue;
+    // A little noise so the same career doesn't always produce the same shortlist.
+    fits.push({ club: cl, score: fit.score + rng() * 12, reasonEn: fit.reasonEn, reasonEs: fit.reasonEs });
+  }
+  fits.sort((a, b) => b.score - a.score);
+
+  // How many clubs actually move. Interest is earned, not guaranteed.
+  const appeal = REP_LADDER.indexOf(rep) + (avgRating - 6.7) * 3 + pull * 2;
+  const n = Math.max(0, Math.min(3, Math.round(appeal / 3.2)));
+
+  return fits.slice(0, n).map(({ club, reasonEn, reasonEs }) => {
+    const gap = overall - club.squadQuality;
+    const role: RoleTier =
+      gap >= 6 ? "star" : gap >= 2 ? "important" : gap >= -3 ? "starter" : gap >= -8 ? "rotation" : "reserve";
+    const apps: Record<RoleTier, [number, number]> = {
+      captain: [32, 38], star: [30, 36], important: [26, 34], starter: [22, 30],
+      rotation: [14, 24], reserve: [6, 14], notSelected: [0, 6],
+    };
+    // What a club pays scales with how badly it wants you and what it can afford,
+    // so a Saudi offer dwarfs a Championship one for the same player.
+    const share = 0.22 + Math.max(0, Math.min(0.55, (gap + 8) * 0.045));
+    const wageTarget = Math.max(p.wage * 1.08, club.wageCapacity * share);
+    const wage = Math.round(Math.min(club.wageCapacity, wageTarget) / 500) * 500;
+    // Older players get short deals; the young get tied down.
+    const years = p.age >= 33 ? 1 : p.age >= 30 ? 2 : 3 + Math.floor(rng() * 2);
+    const stars = Math.max(1, Math.min(5, Math.round(
+      3 + (club.recruitment === "development" ? 1.5 : 0) + (club.leagueStrength - 60) / 22,
+    )));
+    return {
+      clubId: club.id, wage, years, role, developmentStars: stars,
+      reasonEn, reasonEs, expectedApps: apps[role],
+    };
   });
 }
 
@@ -269,7 +421,7 @@ export function finalizeSeason(p: CareerPlayer, plan: SeasonPlan, decisions: Rec
     overall: dev.overallTo, apps, goals, assists, honours: b.honours,
   };
 
-  const offers = makeOffers({ ...p, wage: p.wage }, dev.overallTo, reputation, transferPush);
+  const offers = makeOffers(p, dev.overallTo, reputation, transferPush, b.avgRating, potentialCeiling(p));
 
   return {
     season, overallFrom: dev.overallFrom, overallTo: dev.overallTo, attrDeltas: dev.attrDeltas,

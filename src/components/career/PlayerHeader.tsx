@@ -4,6 +4,7 @@ import { useLang } from "@/lib/i18n";
 import { archetypeById, positionById } from "@/lib/career/data";
 import { fmtMoney, fmtWage, seasonLabel } from "@/lib/career/util";
 import { potentialAccent, potentialLabel, reputationLabel, roleLabel, useC } from "@/lib/career/copy";
+import { careerStatus, statusToneColor } from "@/lib/career/status";
 import type { CareerPlayer } from "@/lib/career/types";
 import { CountryFlag } from "./CountryFlag";
 import { ClubCrest } from "./ClubCrest";
@@ -18,6 +19,13 @@ export function PlayerHeader({ player, compact = false }: { player: CareerPlayer
   const c = useC();
   const pos = positionById(player.position);
   const arch = archetypeById(player.position, player.archetypeId);
+  // Which way the arrow points: the overall movement of the last season played.
+  const hist = player.seasons;
+  const ovrDelta = hist.length >= 2 ? hist[hist.length - 1].overall - hist[hist.length - 2].overall : 0;
+  const status = careerStatus(player.age, player.overall, ovrDelta, {
+    retired: player.retired,
+    peakOverall: player.peakOverall,
+  });
 
   if (compact) {
     return (
@@ -84,6 +92,10 @@ export function PlayerHeader({ player, compact = false }: { player: CareerPlayer
             <span className="text-white/60">{arch.label}</span>
           </div>
           <div className="mt-2 flex flex-wrap gap-2">
+            <span className="rounded-full px-2.5 py-0.5 text-[0.66rem] font-bold"
+              style={{ background: `${statusToneColor(status.tone)}1f`, color: statusToneColor(status.tone) }}>
+              {lang === "es" ? status.labelEs : status.label}
+            </span>
             <span className="rounded-full bg-gold/12 px-2.5 py-0.5 text-[0.66rem] font-bold text-gold">{roleLabel(player.role, lang)}</span>
             <span className="rounded-full bg-white/8 px-2.5 py-0.5 text-[0.66rem] font-semibold text-white/70">{reputationLabel(player.reputation, lang)}</span>
           </div>

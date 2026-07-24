@@ -104,13 +104,18 @@ export interface CareerPlayer {
   startYear: number;
 }
 
-/** A club's interest at the transfer window (Part 2 — a real, actionable offer). */
+/** A club's interest at the transfer window — a real, actionable offer. */
 export interface TransferOffer {
   clubId: string;
   wage: number;
   years: number;
   role: RoleTier;
   developmentStars: number; // 1–5
+  /** Why this club wants you. Never show an offer without one. */
+  reasonEn: string;
+  reasonEs: string;
+  /** Realistic league appearances next season, as [min, max]. */
+  expectedApps: [number, number];
 }
 
 /** One attribute movement in a development report. */

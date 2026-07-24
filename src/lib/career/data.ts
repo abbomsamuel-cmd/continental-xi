@@ -1,4 +1,5 @@
 import type { CareerPositionId, ClubRef } from "./types";
+import { ALL_WORLD_CLUBS, startingClubsFor, worldClubById } from "./world";
 
 /* ------------------------------------------------------------------ */
 /*  Country flags — one map, used by the CountryFlag component and     */
@@ -265,14 +266,22 @@ export const LEAGUES: League[] = [
 ];
 
 export const leagueById = (id: string) => LEAGUES.find((l) => l.id === id);
+
+/**
+ * The world database is the market now. The small legacy league list above is
+ * kept only so a career saved before the expansion still resolves its club.
+ */
 export const clubById = (id: string): ClubRef | undefined => {
+  const world = worldClubById(id);
+  if (world) return world;
   for (const l of LEAGUES) {
     const c = l.clubs.find((x) => x.id === id);
     if (c) return c;
   }
   return undefined;
 };
-export const ALL_CLUBS: ClubRef[] = LEAGUES.flatMap((l) => l.clubs);
+
+export const ALL_CLUBS: ClubRef[] = ALL_WORLD_CLUBS;
 
 /**
  * Where a teenager actually starts: a SMALL club — never one the player picks.
@@ -282,13 +291,6 @@ export const ALL_CLUBS: ClubRef[] = LEAGUES.flatMap((l) => l.clubs);
  * two identical players don't always land at the same club.
  */
 export function pickStartingClub(nationality: string): ClubRef {
-  const smallest = Math.min(...ALL_CLUBS.map((c) => c.tier)); // the "low division" floor
-  // home-country small clubs first; but only genuinely small ones — a teenager
-  // never debuts at an elite side. Nations with no small club here (e.g. England,
-  // Italy) start abroad at a small club, just like a real young talent moving.
-  const homeSmall = LEAGUES.filter((l) => l.country === nationality)
-    .flatMap((l) => l.clubs)
-    .filter((c) => c.tier === smallest);
-  const pool = homeSmall.length ? homeSmall : ALL_CLUBS.filter((c) => c.tier === smallest);
+  const pool = startingClubsFor(nationality);
   return pool[Math.floor(Math.random() * pool.length)];
 }

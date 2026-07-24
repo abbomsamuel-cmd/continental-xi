@@ -57,6 +57,14 @@ export interface CareerSeason {
   honours: string[];
   /** Individual award trophy-ids won that season (e.g. "golden-boot"). */
   awards?: string[];
+  /** Average match rating that season (Part 2.9 — richer timeline rows). */
+  avgRating?: number;
+  /** Market value at the end of the season, in euros. */
+  marketValue?: number;
+  /** True if an injury cost the player a chunk of this season. */
+  injured?: boolean;
+  /** International caps won this season. */
+  intlApps?: number;
 }
 
 export interface CareerPlayer {

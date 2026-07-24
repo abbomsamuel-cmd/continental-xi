@@ -133,6 +133,7 @@ function dentSeason(s: CareerSeason, appsKeep: number, overall: number): CareerS
     goals: Math.round(s.goals * appsKeep),
     assists: Math.round(s.assists * appsKeep),
     overall,
+    injured: true,
   };
 }
 

@@ -196,6 +196,10 @@ export interface TimelineChapter {
   honours: string[];
   /** True when the player changed club during or entering this chapter. */
   transferred: boolean;
+  /** Richer-row data (Part 2.9). */
+  avgRating: number;
+  marketValue: number;
+  injured: boolean;
 }
 
 /**
@@ -248,6 +252,9 @@ export function groupIntoChapters(seasons: CareerSeason[], startAge: number): Ti
       assists: group.reduce((n, s) => n + s.assists, 0),
       honours: group.flatMap((s) => s.honours),
       transferred,
+      avgRating: Math.round((group.reduce((n, s) => n + (s.avgRating ?? 0), 0) / group.length) * 10) / 10,
+      marketValue: lastSeason.marketValue ?? 0,
+      injured: group.some((s) => s.injured),
     });
     prevOverall = lastSeason.overall;
   }

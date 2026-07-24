@@ -625,10 +625,17 @@ function LadderRow({ slot, peak, playing, simming }: { slot: Slot; peak: number;
         <div className="flex min-w-0 items-center gap-1.5">
           {ch.transferred && <span className="shrink-0 text-[0.68rem] text-cyan-300" title={c("Transfer", "Traspaso")}>⇄</span>}
           <ClubCrest short={ch.clubShort} colors={ch.clubColors} size={17} />
+          <CountryFlag country={ch.clubCountry} size={11} />
           <span className="truncate text-[0.82rem] font-semibold text-white/90">{ch.clubName}</span>
-          {trophies.slice(0, 4).map((h, i) => <TrophyArt key={i} id={h.id} size={14} title={h.en} />)}
+          {ch.injured && <span className="shrink-0 text-[0.66rem]" title={c("Injured this spell", "Lesionado en esta etapa")}>🩺</span>}
+          {trophies.slice(0, 5).map((h, i) => <TrophyArt key={i} id={h.id} size={14} title={h.en} />)}
         </div>
-        <div className="text-[0.58rem] tabular-nums text-white/30">{yearLabel} · {ch.leagueName}</div>
+        <div className="flex items-center gap-1.5 text-[0.58rem] tabular-nums text-white/30">
+          <span>{yearLabel}</span>
+          <span className="truncate">· {ch.leagueName}</span>
+          {ch.avgRating > 0 && <span className="shrink-0 rounded bg-white/[0.06] px-1 font-bold text-emerald-300/70" title={c("Avg rating", "Nota media")}>{ch.avgRating.toFixed(1)}</span>}
+          {ch.marketValue > 0 && <span className="shrink-0 text-white/35">{fmtMoney(ch.marketValue)}</span>}
+        </div>
       </div>
 
       <span className="flex items-center gap-1">

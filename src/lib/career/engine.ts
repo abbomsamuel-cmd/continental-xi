@@ -420,6 +420,7 @@ export function finalizeSeason(p: CareerPlayer, plan: SeasonPlan, decisions: Rec
     clubShort: p.currentClubShort, clubColors: p.currentClubColors, clubCountry: p.currentClubCountry,
     overall: dev.overallTo, apps, goals, assists, honours: b.honours,
     awards: computeAwards(p, dev.overallTo, b, goals),
+    avgRating: b.avgRating, marketValue: mv,
   };
 
   const offers = makeOffers(p, dev.overallTo, reputation, transferPush, b.avgRating, potentialCeiling(p));

@@ -40,24 +40,24 @@ const BOARD: Record<PitchVariant, {
   bg: string; grass: string; frame: string; line: string; accent: string; slotGlow: string;
 }> = {
   cl: {
-    bg: "radial-gradient(120% 60% at 50% -10%, rgba(70,130,255,0.5), transparent 60%), radial-gradient(70% 45% at 88% 4%, rgba(150,100,255,0.22), transparent 62%), radial-gradient(70% 45% at 12% 4%, rgba(90,200,255,0.16), transparent 62%), linear-gradient(180deg, #0a1f5c 0%, #071845 55%, #050f30 100%)",
-    grass: "repeating-linear-gradient(0deg, rgba(120,170,255,0.05) 0 46px, rgba(120,170,255,0.09) 46px 92px)",
+    bg: "radial-gradient(120% 60% at 50% -10%, rgba(70,130,255,0.5), transparent 60%), radial-gradient(70% 45% at 88% 4%, rgba(150,100,255,0.24), transparent 62%), radial-gradient(70% 45% at 12% 4%, rgba(90,200,255,0.18), transparent 62%), linear-gradient(180deg, #0a1f5c 0%, #071845 55%, #050f30 100%)",
+    grass: "repeating-linear-gradient(0deg, rgba(130,180,255,0.09) 0 46px, rgba(120,170,255,0.02) 46px 92px)",
     frame: "1px solid rgba(150,185,255,0.42)",
-    line: "rgba(190,215,255,0.34)",
+    line: "rgba(190,215,255,0.38)",
     accent: "#37e0ff", slotGlow: "rgba(242,212,114,0.75)",
   },
   euro: {
-    bg: "radial-gradient(120% 60% at 50% -8%, rgba(27,79,255,0.42), transparent 60%), linear-gradient(180deg, #12924c 0%, #0f8446 55%, #0c6f3b 100%)",
-    grass: "repeating-linear-gradient(0deg, rgba(255,255,255,0.04) 0 46px, rgba(0,0,0,0.05) 46px 92px)",
+    bg: "radial-gradient(120% 60% at 50% -8%, rgba(27,79,255,0.42), transparent 60%), linear-gradient(180deg, #14a055 0%, #0f8446 55%, #0a6234 100%)",
+    grass: "repeating-linear-gradient(0deg, rgba(255,255,255,0.07) 0 46px, rgba(0,0,0,0.09) 46px 92px)",
     frame: "1px solid rgba(120,160,255,0.6)",
-    line: "rgba(255,255,255,0.5)",
+    line: "rgba(255,255,255,0.55)",
     accent: "#37e0ff", slotGlow: "rgba(47,107,255,0.7)",
   },
   copa: {
-    bg: "radial-gradient(120% 60% at 50% -8%, rgba(255,201,60,0.18), transparent 58%), linear-gradient(180deg, #126a3d 0%, #0c552f 55%, #073a20 100%)",
-    grass: "repeating-linear-gradient(0deg, rgba(255,236,190,0.045) 0 46px, rgba(0,0,0,0.06) 46px 92px)",
+    bg: "radial-gradient(120% 60% at 50% -8%, rgba(255,201,60,0.2), transparent 58%), linear-gradient(180deg, #14743f 0%, #0c552f 55%, #06371e 100%)",
+    grass: "repeating-linear-gradient(0deg, rgba(255,240,200,0.07) 0 46px, rgba(0,0,0,0.1) 46px 92px)",
     frame: "1px solid rgba(255,201,60,0.55)",
-    line: "rgba(255,236,190,0.42)",
+    line: "rgba(255,236,190,0.48)",
     accent: "#ffc93c", slotGlow: "rgba(255,201,60,0.75)",
   },
 };
@@ -160,13 +160,24 @@ export function Pitch({
         {/* premium competition mosaic — low-opacity geometric identity */}
         <PitchMosaic variant={variant} />
 
-        {/* floodlight bloom top corners + grounding vignette */}
+        {/* floodlight bloom top corners + near-field warmth + grounding vignette */}
         <div className="pointer-events-none absolute inset-0" aria-hidden
           style={{
             background:
-              `radial-gradient(40% 26% at 8% -2%, ${board.accent}22, transparent 70%),` +
-              `radial-gradient(40% 26% at 92% -2%, ${board.accent}22, transparent 70%),` +
-              "radial-gradient(130% 40% at 50% 112%, rgba(0,0,0,0.5), transparent 62%)",
+              `radial-gradient(34% 24% at 6% -3%, ${board.accent}3a, transparent 70%),` +
+              `radial-gradient(34% 24% at 94% -3%, ${board.accent}3a, transparent 70%),` +
+              "radial-gradient(60% 30% at 50% 100%, rgba(255,255,255,0.08), transparent 70%)," +
+              "radial-gradient(150% 46% at 50% 116%, rgba(0,0,0,0.55), transparent 60%)," +
+              "radial-gradient(150% 30% at 50% -8%, rgba(0,0,0,0.28), transparent 58%)",
+          }} />
+        {/* twin floodlight beams raking down from the top corners */}
+        <div className="pointer-events-none absolute inset-0 opacity-60" aria-hidden
+          style={{
+            background:
+              `conic-gradient(from 118deg at 7% -4%, transparent 0deg, ${board.accent}14 8deg, transparent 20deg),` +
+              `conic-gradient(from 208deg at 93% -4%, transparent 0deg, ${board.accent}14 8deg, transparent 20deg)`,
+            maskImage: "linear-gradient(to bottom, #000, transparent 70%)",
+            WebkitMaskImage: "linear-gradient(to bottom, #000, transparent 70%)",
           }} />
 
         {/* CL: soft light streaks + centre glow for a broadcast night feel */}
@@ -183,10 +194,14 @@ export function Pitch({
           </>
         )}
 
+        {/* centre-circle emblem glow — a soft competition-accent halo */}
+        <div className="pointer-events-none absolute left-1/2 top-[46.5%] h-40 w-40 -translate-x-1/2 -translate-y-1/2 rounded-full" aria-hidden
+          style={{ background: `radial-gradient(circle, ${board.accent}1c, transparent 68%)` }} />
+
         {/* pitch markings — subtle, with a soft competition-accent glow */}
         <svg viewBox="0 0 100 140" className="absolute inset-0 h-full w-full" preserveAspectRatio="none"
-          style={{ filter: `drop-shadow(0 0 2.5px ${board.accent}66)` }}>
-          <g fill="none" stroke={board.line} strokeWidth={0.45}>
+          style={{ filter: `drop-shadow(0 0 2.5px ${board.accent}88)` }}>
+          <g fill="none" stroke={board.line} strokeWidth={0.55}>
             <rect x="5" y="5" width="90" height="130" rx="1" />
             <line x1="5" y1="70" x2="95" y2="70" />
             <circle cx="50" cy="70" r="11" />

@@ -44,6 +44,17 @@ function region(country: string): "sa" | "concacaf" | "uefa" {
   return "uefa";
 }
 
+/** Reverse map so a competition's DISPLAY name (not just its id) resolves to
+ *  its art — this is what lets "World Cup" or "Copa América" from the
+ *  international résumé show their real trophy instead of a generic cup. */
+const NAME_TO_ID = new Map<string, TrophyId>();
+for (const [id, m] of Object.entries(TROPHY_META) as [TrophyId, { en: string; es: string }][]) {
+  NAME_TO_ID.set(m.en.toLowerCase(), id);
+  NAME_TO_ID.set(m.es.toLowerCase(), id);
+}
+/** The engine's ambiguous honours — these MUST be resolved by club, not name. */
+const GENERIC_HONOURS = new Set(["League", "Champions League", "Europa", "Domestic Cup"]);
+
 /**
  * Resolve a stored honour (or an award trophy-id) to its named, illustrated form.
  * `clubId` locates the competition; without it we fall back to generic art.
@@ -53,6 +64,16 @@ export function resolveHonour(honour: string, clubId?: string): ResolvedHonour {
   if (honour in TROPHY_META) {
     const m = TROPHY_META[honour as TrophyId];
     return { id: honour as TrophyId, en: m.en, es: m.es };
+  }
+  // A competition passed by its display name (e.g. an international honour).
+  // The engine's own generic honours are EXCLUDED here so they still get
+  // regionalised by club below (a Brazilian "Champions League" → Libertadores).
+  if (!GENERIC_HONOURS.has(honour)) {
+    const byName = NAME_TO_ID.get(honour.toLowerCase());
+    if (byName) {
+      const m = TROPHY_META[byName];
+      return { id: byName, en: m.en, es: m.es };
+    }
   }
 
   const club = clubId ? worldClubById(clubId) : undefined;

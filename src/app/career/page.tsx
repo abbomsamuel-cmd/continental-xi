@@ -272,41 +272,92 @@ function BigStat({ n, k }: { n: number; k: string }) {
 }
 
 /* ---------------- trophy cabinet — named, grouped, counted ---------------- */
+interface TrophyWin { clubName: string; clubShort: string; clubColors: [string, string]; year: number; national: boolean }
+interface TrophyGroup { id: TrophyId; en: string; es: string; wins: TrophyWin[] }
+
 function TrophyCabinet({ seasons, intlHonours }: { seasons: CareerSeason[]; intlHonours: string[] }) {
   const c = useC();
   const { lang } = useLang();
   const es = lang === "es";
-  const counts = new Map<TrophyId, { n: number; en: string; es: string }>();
-  const bump = (h: ResolvedHonour) => {
-    const prev = counts.get(h.id);
-    counts.set(h.id, { n: (prev?.n ?? 0) + 1, en: h.en, es: h.es });
+  const [open, setOpen] = useState<string | null>(null);
+
+  // Group by the RESOLVED competition, remembering exactly where + when each was
+  // won — so a Premier League title can never sit under a Brazilian trophy.
+  const groups = new Map<string, TrophyGroup>();
+  const add = (r: ResolvedHonour, win: TrophyWin) => {
+    const g = groups.get(r.en) ?? { id: r.id, en: r.en, es: r.es, wins: [] };
+    g.wins.push(win);
+    groups.set(r.en, g);
   };
-  for (const s of seasons) for (const h of seasonTrophies(s)) bump(h);
-  for (const h of intlHonours) bump(resolveHonour(h.split(" ·")[0]));
-  // biggest first: club titles before minor cups (order by count then name)
-  const list = [...counts.entries()].sort((a, b) => b[1].n - a[1].n);
+  for (const s of seasons) {
+    for (const h of s.honours) {
+      add(resolveHonour(h, s.clubId), { clubName: s.clubName, clubShort: s.clubShort, clubColors: s.clubColors, year: s.year, national: false });
+    }
+  }
+  for (const h of intlHonours) {
+    const name = h.split(" ·")[0].trim();
+    const year = Number(h.match(/\b(20\d\d)\b/)?.[1] ?? 0);
+    add(resolveHonour(name), { clubName: "", clubShort: "", clubColors: ["#8a94a8", "#5a6274"], year, national: true });
+  }
+  const list = [...groups.values()].sort((a, b) => b.wins.length - a.wins.length);
+  const active = open ? groups.get(open) : null;
 
   return (
     <div className="mt-3 border-t border-white/8 pt-3">
+      <div className="mb-2 flex items-center justify-between">
+        <span className="text-[0.5rem] font-bold uppercase tracking-widest text-white/35">{c("Trophy Cabinet", "Vitrina")}</span>
+        {list.length > 0 && <span className="text-[0.5rem] font-bold text-gold/70">{list.reduce((n, g) => n + g.wins.length, 0)} {c("titles", "títulos")}</span>}
+      </div>
       {list.length === 0 ? (
         <div className="flex items-center gap-2 opacity-40">
           <TrophyArt id="league-trophy" size={22} />
           <span className="text-[0.66rem] font-semibold uppercase tracking-widest text-white/40">{c("Empty Trophy Case", "Vitrina Vacía")}</span>
         </div>
       ) : (
-        <div className="grid grid-cols-3 gap-x-2 gap-y-3 sm:grid-cols-4">
-          {list.map(([id, v]) => (
-            <div key={id} className="flex flex-col items-center text-center">
-              <div className="relative">
-                <TrophyArt id={id} size={34} title={es ? v.es : v.en} />
-                {v.n > 1 && (
-                  <span className="absolute -right-1.5 -top-1 rounded-full bg-gold px-1 text-[0.52rem] font-black text-[#2a1e00]">×{v.n}</span>
-                )}
-              </div>
-              <span className="mt-1 line-clamp-2 text-[0.56rem] font-semibold leading-tight text-white/60">{es ? v.es : v.en}</span>
-            </div>
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-3 gap-x-1.5 gap-y-2.5 sm:grid-cols-4">
+            {list.map((g) => {
+              const isOpen = open === g.en;
+              return (
+                <button key={g.en} onClick={() => { setOpen(isOpen ? null : g.en); play("hover"); }}
+                  className={`flex flex-col items-center rounded-lg px-1 py-1 text-center transition-colors ${isOpen ? "bg-gold/10" : "hover:bg-white/5"}`}>
+                  <div className="relative">
+                    <TrophyArt id={g.id} size={34} title={es ? g.es : g.en} />
+                    {g.wins.length > 1 && (
+                      <span className="absolute -right-1.5 -top-1 rounded-full bg-gold px-1 text-[0.52rem] font-black text-[#2a1e00]">×{g.wins.length}</span>
+                    )}
+                  </div>
+                  <span className="mt-1 line-clamp-2 text-[0.55rem] font-semibold leading-tight text-white/60">{es ? g.es : g.en}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* tap a trophy → where + when it was won */}
+          <AnimatePresence initial={false}>
+            {active && (
+              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.18 }} className="overflow-hidden">
+                <div className="mt-2 rounded-lg border border-gold/20 bg-black/30 p-2.5">
+                  <div className="flex items-center gap-1.5">
+                    <TrophyArt id={active.id} size={16} />
+                    <span className="text-[0.7rem] font-bold text-gold">{es ? active.es : active.en}</span>
+                    <span className="text-[0.6rem] text-white/40">×{active.wins.length}</span>
+                  </div>
+                  <div className="mt-1.5 space-y-1">
+                    {[...active.wins].sort((a, b) => a.year - b.year).map((w, i) => (
+                      <div key={i} className="flex items-center gap-1.5 text-[0.68rem] text-white/70">
+                        {w.national ? <span className="text-[0.7rem]">🏴</span> : <ClubCrest short={w.clubShort} colors={w.clubColors} size={13} />}
+                        <span className="min-w-0 flex-1 truncate">{w.national ? c("with your nation", "con tu selección") : w.clubName}</span>
+                        {w.year > 0 && <span className="tabular-nums text-white/45">{w.year}</span>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </>
       )}
     </div>
   );

@@ -20,6 +20,7 @@ import { TrophyArt, type TrophyId } from "@/components/career/TrophyArt";
 import type { CareerPlayer, CareerSeason, TransferOffer } from "@/lib/career/types";
 import { ClubCrest } from "@/components/career/ClubCrest";
 import { CountryFlag } from "@/components/career/CountryFlag";
+import { LegacyCard } from "@/components/career/LegacyCard";
 
 const LAST_AGE = 38;
 
@@ -83,6 +84,7 @@ function Career({ player }: { player: CareerPlayer }) {
   const [justCommitted, setJustCommitted] = useState(false);
   const [simming, setSimming] = useState(false);
   const [celebrate, setCelebrate] = useState<ResolvedHonour[] | null>(null);
+  const [showLegacy, setShowLegacy] = useState(false);
   const simTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (simTimer.current) clearTimeout(simTimer.current); }, []);
 
@@ -131,6 +133,8 @@ function Career({ player }: { player: CareerPlayer }) {
     play(won.length || retire ? "trophy" : "advance");
     setRun(null); setStep(0); setChoices({}); setJustCommitted(true);
     if (won.length) setCelebrate(dedupeHonours(won));
+    // The career ends on the Legacy Card — the emotional close of the whole run.
+    if (retire) setShowLegacy(true);
   };
 
   return (
@@ -190,7 +194,7 @@ function Career({ player }: { player: CareerPlayer }) {
           {/* the current action — the beating heart of the one-screen loop */}
           <div className="rounded-2xl border border-white/10 bg-[#0b1020] p-4 sm:p-5">
             {player.retired ? (
-              <RetiredCard player={player} c={c} />
+              <RetiredCard player={player} c={c} onLegacy={() => setShowLegacy(true)} />
             ) : simming ? (
               <SimmingCard player={player} c={c} />
             ) : !run ? (
@@ -222,6 +226,9 @@ function Career({ player }: { player: CareerPlayer }) {
 
       <AnimatePresence>
         {celebrate && <Celebration honours={celebrate} onDone={() => setCelebrate(null)} c={c} es={es} />}
+      </AnimatePresence>
+      <AnimatePresence>
+        {showLegacy && player.retired && <LegacyCard player={player} onClose={() => setShowLegacy(false)} />}
       </AnimatePresence>
     </div>
   );
@@ -553,7 +560,9 @@ function OfferCard({ offer: o, onAccept, c, es }: {
   );
 }
 
-function RetiredCard({ player, c }: { player: CareerPlayer; c: (en: string, es: string) => string }) {
+function RetiredCard({ player, c, onLegacy }: {
+  player: CareerPlayer; c: (en: string, es: string) => string; onLegacy: () => void;
+}) {
   return (
     <div className="text-center">
       <div className="text-4xl">🥾</div>
@@ -562,8 +571,9 @@ function RetiredCard({ player, c }: { player: CareerPlayer; c: (en: string, es: 
         {c("Hung up the boots at", "Colgaste las botas a los")} {player.age}.
       </p>
       <div className="mt-4 flex flex-col gap-2">
-        <Link href="/career/timeline" className="btn btn-gold w-full text-sm">{c("View Summary", "Ver Resumen")}</Link>
-        <Link href="/career/new" className="btn btn-secondary w-full text-sm">{c("Play Again", "Jugar de Nuevo")}</Link>
+        <button onClick={onLegacy} className="btn btn-gold w-full text-sm">🏆 {c("View Legacy Card", "Ver Tarjeta de Legado")}</button>
+        <Link href="/career/timeline" className="btn btn-secondary w-full text-sm">{c("Career Timeline", "Trayectoria")}</Link>
+        <Link href="/career/new" className="btn btn-ghost w-full text-sm text-white/60">{c("Play Again", "Jugar de Nuevo")}</Link>
       </div>
     </div>
   );

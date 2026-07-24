@@ -1,16 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { play } from "@/lib/sound";
 import { useC } from "@/lib/career/copy";
-import {
-  ARCHETYPES, NATIONALITIES, POSITIONS, positionById,
-} from "@/lib/career/data";
+import { ARCHETYPES, POSITIONS, positionById } from "@/lib/career/data";
+import { NATIONS, REGIONS, nationByName, searchNations, type NationRegion } from "@/lib/career/nations";
 import { useCareer, WORLD_START_YEAR } from "@/lib/career/store";
 import type { CareerPositionId, Foot } from "@/lib/career/types";
-import { CountryFlag } from "@/components/career/CountryFlag";
 
 const BIRTH_YEARS = [WORLD_START_YEAR - 16, WORLD_START_YEAR - 17, WORLD_START_YEAR - 18];
 
@@ -130,15 +128,7 @@ function IdentityStep({
       </Field>
 
       <Field label={c("Nationality", "Nacionalidad")}>
-        <div className="grid max-h-64 grid-cols-2 gap-1.5 overflow-y-auto rounded-xl border border-white/8 bg-black/20 p-2 sm:grid-cols-3">
-          {NATIONALITIES.map((nat) => (
-            <button key={nat} onClick={() => { setNationality(nat); play("hover"); }}
-              className={`flex items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[0.78rem] font-semibold transition-colors ${
-                nationality === nat ? "bg-gold/15 text-gold ring-1 ring-gold/40" : "text-white/65 hover:bg-white/5"}`}>
-              <CountryFlag country={nat} size={16} /> <span className="truncate">{nat}</span>
-            </button>
-          ))}
-        </div>
+        <NationSelector value={nationality} onPick={setNationality} c={c} />
       </Field>
 
       <div className="grid gap-6 sm:grid-cols-3">
@@ -227,6 +217,78 @@ function ArchetypeStep({ position, value, onPick }: { position: CareerPositionId
           <p className="mt-1.5 text-[0.8rem] leading-relaxed text-white/60">{a.desc}</p>
         </button>
       ))}
+    </div>
+  );
+}
+
+/* ---------------- nationality: searchable, region-filtered ---------------- */
+function NationSelector({
+  value, onPick, c,
+}: { value: string; onPick: (v: string) => void; c: (en: string, es: string) => string }) {
+  const [query, setQuery] = useState("");
+  const [region, setRegion] = useState<NationRegion | "All">("All");
+
+  const list = useMemo(() => {
+    const base = query.trim() ? searchNations(query) : NATIONS;
+    return region === "All" ? base : base.filter((n) => n.region === region);
+  }, [query, region]);
+
+  const selected = value ? nationByName(value) : undefined;
+
+  return (
+    <div className="rounded-xl border border-white/10 bg-black/20 p-2.5">
+      {/* current pick + random */}
+      <div className="flex items-center gap-2">
+        <div className="flex min-w-0 flex-1 items-center gap-2 rounded-lg bg-white/[0.04] px-2.5 py-1.5">
+          {selected ? (
+            <>
+              <span className="text-base leading-none">{selected.flag}</span>
+              <span className="truncate text-[0.82rem] font-bold text-gold">{selected.name}</span>
+            </>
+          ) : (
+            <span className="text-[0.78rem] text-white/35">{c("No country selected", "Ningún país elegido")}</span>
+          )}
+        </div>
+        <button type="button"
+          onClick={() => { const n = NATIONS[Math.floor(Math.random() * NATIONS.length)]; onPick(n.name); play("select"); }}
+          className="shrink-0 rounded-lg border border-white/12 px-2.5 py-1.5 text-[0.7rem] font-bold text-white/70 hover:border-white/30 hover:text-white">
+          🎲 {c("Random", "Aleatorio")}
+        </button>
+      </div>
+
+      <input
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder={c("Search countries…", "Buscar países…")}
+        aria-label={c("Search countries", "Buscar países")}
+        className="mt-2 w-full rounded-lg border border-white/12 bg-[#0b1122] px-3 py-2 text-[0.82rem] text-white outline-none placeholder:text-white/30 focus:border-gold/60"
+      />
+
+      <div className="mt-2 flex flex-wrap gap-1">
+        {(["All", ...REGIONS] as const).map((r) => (
+          <button key={r} type="button" onClick={() => { setRegion(r); play("hover"); }}
+            className={`rounded-md px-2 py-1 text-[0.62rem] font-bold transition-colors ${
+              region === r ? "bg-gold/18 text-gold" : "text-white/45 hover:bg-white/6 hover:text-white/75"}`}>
+            {r === "All" ? c("All", "Todos") : r}
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-2 grid max-h-56 grid-cols-1 gap-1 overflow-y-auto pr-1 sm:grid-cols-2">
+        {list.map((n) => (
+          <button key={n.name} type="button" onClick={() => { onPick(n.name); play("hover"); }}
+            className={`flex items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[0.78rem] font-semibold transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-gold/60 ${
+              value === n.name ? "bg-gold/15 text-gold ring-1 ring-gold/40" : "text-white/65 hover:bg-white/5"}`}>
+            <span className="shrink-0 text-base leading-none">{n.flag}</span>
+            <span className="truncate">{n.name}</span>
+          </button>
+        ))}
+        {list.length === 0 && (
+          <div className="col-span-full py-6 text-center text-[0.76rem] text-white/35">
+            {c("No countries match.", "Ningún país coincide.")}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

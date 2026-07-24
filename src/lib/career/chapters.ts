@@ -217,6 +217,10 @@ export function groupIntoChapters(seasons: CareerSeason[], startAge: number): Ti
   }
 
   let prevClub: string | null = null;
+  // A season row stores the overall it ENDED on, so a chapter's true starting
+  // overall is the previous chapter's finish — otherwise the first season's
+  // growth is swallowed and the timeline understates every jump.
+  let prevOverall: number | null = null;
   for (const slot of [...buckets.keys()].sort((a, b) => a - b)) {
     const group = buckets.get(slot)!;
     const lastSeason = group[group.length - 1];
@@ -237,7 +241,7 @@ export function groupIntoChapters(seasons: CareerSeason[], startAge: number): Ti
       clubColors: lastSeason.clubColors,
       clubCountry: lastSeason.clubCountry,
       leagueName,
-      overallFrom: group[0].overall,
+      overallFrom: prevOverall ?? group[0].overall,
       overallTo: lastSeason.overall,
       apps: group.reduce((n, s) => n + s.apps, 0),
       goals: group.reduce((n, s) => n + s.goals, 0),
@@ -245,6 +249,7 @@ export function groupIntoChapters(seasons: CareerSeason[], startAge: number): Ti
       honours: group.flatMap((s) => s.honours),
       transferred,
     });
+    prevOverall = lastSeason.overall;
   }
   return out;
 }

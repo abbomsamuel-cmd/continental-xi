@@ -44,6 +44,26 @@ function region(country: string): "sa" | "concacaf" | "uefa" {
   return "uefa";
 }
 
+/**
+ * The marquee flights each carry their own iconic silverware, so winning the
+ * Premier League never looks like winning LaLiga in the cabinet. Every other
+ * league falls back to a regional generic (a gold cup or a shield plate) so the
+ * timeline still varies without drawing a bespoke trophy for all 45 divisions.
+ */
+const LEAGUE_TROPHY: Record<string, TrophyId> = {
+  "eng-pl": "premier-league",
+  "esp-ll": "la-liga",
+  "ger-bl": "bundesliga",
+  "ita-sa": "serie-a",
+  "fra-l1": "ligue-1",
+};
+
+function leagueTrophyId(leagueId: string | undefined, country: string): TrophyId {
+  if (leagueId && LEAGUE_TROPHY[leagueId]) return LEAGUE_TROPHY[leagueId];
+  // South-American titles read as a lifted cup; everywhere else, a shield plate.
+  return region(country) === "sa" ? "league-trophy" : "league-shield";
+}
+
 /** Reverse map so a competition's DISPLAY name (not just its id) resolves to
  *  its art — this is what lets "World Cup" or "Copa América" from the
  *  international résumé show their real trophy instead of a generic cup. */
@@ -82,8 +102,13 @@ export function resolveHonour(honour: string, clubId?: string): ResolvedHonour {
 
   switch (honour) {
     case "League": {
-      const name = club ? worldLeagueById(club.leagueId)?.name : undefined;
-      return { id: "league-shield", en: name ?? "League Title", es: name ?? "Título de Liga" };
+      const league = club ? worldLeagueById(club.leagueId) : undefined;
+      const name = league?.name;
+      return {
+        id: leagueTrophyId(league?.id, country),
+        en: name ?? "League Title",
+        es: name ?? "Título de Liga",
+      };
     }
     case "Domestic Cup": {
       const cup = DOMESTIC_CUP[country];

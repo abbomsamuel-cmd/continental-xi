@@ -42,7 +42,12 @@ export type TrophyId =
   | "sudamericana"
   | "concacaf-champions"
   | "afc-champions"
-  // domestic leagues
+  // domestic leagues — the marquee flights carry their own iconic silverware
+  | "premier-league"
+  | "la-liga"
+  | "bundesliga"
+  | "serie-a"
+  | "ligue-1"
   | "league-shield"
   | "league-trophy"
   // domestic cups
@@ -98,6 +103,11 @@ export const TROPHY_META: Record<TrophyId, TrophyMeta> = {
   "concacaf-champions": meta("concacaf-champions", "CONCACAF Champions Cup", "Copa de Campeones de CONCACAF", "continental"),
   "afc-champions": meta("afc-champions", "AFC Champions League", "Liga de Campeones de la AFC", "continental"),
 
+  "premier-league": meta("premier-league", "Premier League", "Premier League", "league"),
+  "la-liga": meta("la-liga", "LaLiga", "LaLiga", "league"),
+  bundesliga: meta("bundesliga", "Bundesliga", "Bundesliga", "league"),
+  "serie-a": meta("serie-a", "Serie A", "Serie A", "league"),
+  "ligue-1": meta("ligue-1", "Ligue 1", "Ligue 1", "league"),
   "league-shield": meta("league-shield", "League Shield", "Escudo de Liga", "league"),
   "league-trophy": meta("league-trophy", "League Title", "Título de Liga", "league"),
 
@@ -132,6 +142,7 @@ const GOLD_DEEP: Ramp = ["#ffe293", "#d99b23", "#6a4008"];
 const SILVER: Ramp = ["#f8fbff", "#c4d0e2", "#6c7a90"];
 const BRONZE: Ramp = ["#ffd8ae", "#c67e3d", "#6b3c15"];
 const AZURE: Ramp = ["#a9dcff", "#3f8ada", "#153f78"];
+const PURPLE: Ramp = ["#d7bbff", "#7a4fd0", "#3a2170"];
 
 /** Plinth tones — dark enough to sit on a dark UI, light enough to read. */
 const PL_TOP = "#6a748c";
@@ -542,6 +553,130 @@ const artLeagueTrophy = (): ReactElement => (
   </>
 );
 
+/** Premier League: a crown-topped cup on a plinth, banded in royal purple. */
+const artPremierLeague = (): ReactElement => (
+  <>
+    <defs>
+      <Metal id="tr-epl-g" c={GOLD} />
+      <Metal id="tr-epl-d" c={GOLD_DEEP} />
+      <Metal id="tr-epl-p" c={PURPLE} />
+    </defs>
+    <Shadow rx={13} />
+    <Stand y={50} w={21} h={6} taper={3} />
+    <rect x="21.6" y="47.4" width="20.8" height="2.4" rx="1.2" fill="url(#tr-epl-p)" />
+    <rect x="29.4" y="40" width="5.2" height="10" fill="url(#tr-epl-d)" />
+    {/* crown finial */}
+    <path d="M24 13 L26.5 6 L29 11 L32 4 L35 11 L37.5 6 L40 13 Z" fill="url(#tr-epl-g)" />
+    <g fill="url(#tr-epl-d)">
+      <circle cx="26.5" cy="6" r="1.4" />
+      <circle cx="32" cy="4" r="1.6" />
+      <circle cx="37.5" cy="6" r="1.4" />
+    </g>
+    <rect x="24" y="12.6" width="16" height="2.6" rx="1" fill="url(#tr-epl-g)" />
+    {/* handles */}
+    <path d="M21.6 21c-5 1-6.6 6.6-3.4 11" fill="none" stroke="url(#tr-epl-g)" strokeWidth="3" strokeLinecap="round" />
+    <path d="M42.4 21c5 1 6.6 6.6 3.4 11" fill="none" stroke="url(#tr-epl-g)" strokeWidth="3" strokeLinecap="round" />
+    {/* bowl */}
+    <rect x="19.6" y="15.4" width="24.8" height="3.2" rx="1.6" fill="url(#tr-epl-g)" />
+    <path d="M21.6 18.6h20.8v4.4c0 8.8-5 14.4-10.4 16.4-5.4-2-10.4-7.6-10.4-16.4z" fill="url(#tr-epl-g)" />
+    <path d="M23 26.2c4.5 2 13.5 2 18 0l-.7 3.4c-5.4 2.2-11.2 2.2-16.6 0z" fill="url(#tr-epl-p)" />
+    <path d="M25.6 19c0 8 .8 13 2.4 15.6" fill="none" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" opacity="0.4" />
+  </>
+);
+
+/** LaLiga: a tall, slim modern chalice with a pointed finial. */
+const artLaLiga = (): ReactElement => (
+  <>
+    <defs>
+      <Metal id="tr-lal-g" c={GOLD} />
+      <Metal id="tr-lal-d" c={GOLD_DEEP} />
+    </defs>
+    <Shadow rx={10} />
+    <Stand y={51} w={15} h={5} taper={2.4} />
+    <rect x="30" y="40" width="4" height="11" fill="url(#tr-lal-d)" />
+    <ellipse cx="32" cy="41.4" rx="4.6" ry="1.8" fill="url(#tr-lal-d)" />
+    <path d="M32 3.6 34.4 9 32 11.4 29.6 9z" fill="url(#tr-lal-g)" />
+    <path d="M26.2 12h11.6l-1.5 22.4c-.3 4-2.2 6.2-4.3 6.2s-4-2.2-4.3-6.2z" fill="url(#tr-lal-g)" />
+    <rect x="24.6" y="9.8" width="14.8" height="3" rx="1.5" fill="url(#tr-lal-g)" />
+    <path d="M28.6 13c-.3 10 .2 17.4 1.5 21.6" fill="none" stroke="#fff" strokeWidth="1.4" strokeLinecap="round" opacity="0.42" />
+  </>
+);
+
+/** Bundesliga: the Meisterschale — a broad ringed salver standing on end. */
+const artBundesliga = (): ReactElement => (
+  <>
+    <defs>
+      <Metal id="tr-bun-g" c={GOLD} />
+      <Metal id="tr-bun-d" c={GOLD_DEEP} />
+    </defs>
+    <Shadow cy={58} rx={12} />
+    <path d="M26 49.6h12l2.2 6.4H23.8z" fill={PL_BODY} />
+    <rect x="25" y="48.4" width="14" height="2.2" rx="1.1" fill={PL_TOP} />
+    <circle cx="32" cy="27" r="22" fill="url(#tr-bun-g)" />
+    <circle cx="32" cy="27" r="22" fill="none" stroke="url(#tr-bun-d)" strokeWidth="2" />
+    <circle cx="32" cy="27" r="16.4" fill="#1d2432" opacity="0.26" />
+    <circle cx="32" cy="27" r="16.4" fill="none" stroke="url(#tr-bun-d)" strokeWidth="1.2" opacity="0.6" />
+    <circle cx="32" cy="27" r="9" fill="none" stroke="url(#tr-bun-d)" strokeWidth="1.2" opacity="0.5" />
+    <path d={starPath(32, 27, 6, 2.6)} fill="url(#tr-bun-g)" />
+    <g fill="url(#tr-bun-d)">
+      <circle cx="51.5" cy="27" r="1.5" />
+      <circle cx="45.8" cy="40.8" r="1.5" />
+      <circle cx="32" cy="46.5" r="1.5" />
+      <circle cx="18.2" cy="40.8" r="1.5" />
+      <circle cx="12.5" cy="27" r="1.5" />
+      <circle cx="18.2" cy="13.2" r="1.5" />
+      <circle cx="32" cy="7.5" r="1.5" />
+      <circle cx="45.8" cy="13.2" r="1.5" />
+    </g>
+    <path d="M18 15.6a22 22 0 0 1 9-6" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" opacity="0.42" />
+  </>
+);
+
+/** Serie A: a tall domed-lid coppa, fluted body, slender handles. */
+const artSerieA = (): ReactElement => (
+  <>
+    <defs>
+      <Metal id="tr-sea-g" c={GOLD} />
+      <Metal id="tr-sea-d" c={GOLD_DEEP} />
+    </defs>
+    <Shadow rx={12} />
+    <Stand y={51} w={18} h={5} taper={2.8} />
+    <rect x="29.6" y="41" width="4.8" height="10" fill="url(#tr-sea-d)" />
+    <ellipse cx="32" cy="42.6" rx="5.4" ry="2" fill="url(#tr-sea-d)" />
+    <circle cx="32" cy="5" r="2.4" fill="url(#tr-sea-g)" />
+    <path d="M22 14c0-6 4.6-9.4 10-9.4S42 8 42 14z" fill="url(#tr-sea-g)" />
+    <rect x="21" y="13.4" width="22" height="2.8" rx="1.4" fill="url(#tr-sea-d)" />
+    <path d="M21 20c-4.6 1-6 6-3 10" fill="none" stroke="url(#tr-sea-g)" strokeWidth="2.4" strokeLinecap="round" />
+    <path d="M43 20c4.6 1 6 6 3 10" fill="none" stroke="url(#tr-sea-g)" strokeWidth="2.4" strokeLinecap="round" />
+    <path d="M22.4 16.6h19.2l-1.8 20.4c-.3 3.4-3.3 5.4-7.8 5.4s-7.5-2-7.8-5.4z" fill="url(#tr-sea-g)" />
+    <g stroke="#7f5411" strokeWidth="0.9" opacity="0.4" fill="none">
+      <path d="M28 18l-1 21.6" />
+      <path d="M32 18v21.6" />
+      <path d="M36 18l1 21.6" />
+    </g>
+    <path d="M25.6 17.6c0 8 .6 13.2 2 16.4" fill="none" stroke="#fff" strokeWidth="1.4" strokeLinecap="round" opacity="0.38" />
+  </>
+);
+
+/** Ligue 1: the Hexagoal — a hexagon body around a gilt sphere. */
+const artLigue1 = (): ReactElement => (
+  <>
+    <defs>
+      <Metal id="tr-fl1-g" c={GOLD} />
+      <Metal id="tr-fl1-d" c={GOLD_DEEP} />
+    </defs>
+    <Shadow rx={12} />
+    <Stand y={52} w={18} h={5} taper={2.8} />
+    <rect x="29.6" y="42" width="4.8" height="10" fill="url(#tr-fl1-d)" />
+    <path d="M32 6 52 17.5V40L32 51 12 40V17.5z" fill="url(#tr-fl1-g)" />
+    <path d="M32 12 47 20.2V37L32 45 17 37V20.2z" fill="#1d2432" opacity="0.24" />
+    <path d="M32 12 47 20.2V37L32 45 17 37V20.2z" fill="none" stroke="url(#tr-fl1-d)" strokeWidth="1.2" opacity="0.6" />
+    <circle cx="32" cy="28.5" r="6.6" fill="url(#tr-fl1-g)" />
+    <path d={starPath(32, 28.5, 5.4, 2.2)} fill="url(#tr-fl1-d)" opacity="0.6" />
+    <path d="M14 19.5 32 9.4 50 19.5" fill="none" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" opacity="0.35" />
+  </>
+);
+
 /* --------------------------------------------------------------- cup ---- */
 
 /** The everyday knockout cup: open bowl, round handles, tall stem. */
@@ -893,6 +1028,11 @@ const ART: Record<TrophyId, () => ReactElement> = {
   "concacaf-champions": artConcacafChampions,
   "afc-champions": artAfcChampions,
 
+  "premier-league": artPremierLeague,
+  "la-liga": artLaLiga,
+  bundesliga: artBundesliga,
+  "serie-a": artSerieA,
+  "ligue-1": artLigue1,
   "league-shield": artLeagueShield,
   "league-trophy": artLeagueTrophy,
 

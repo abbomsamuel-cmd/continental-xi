@@ -138,12 +138,12 @@ function Career({ player }: { player: CareerPlayer }) {
   };
 
   return (
-    <div className="mx-auto max-w-6xl px-3 pb-16 pt-20 sm:px-4 sm:pt-24">
-      <div className="grid gap-3 lg:grid-cols-[35fr_65fr]">
+    <div className="mx-auto max-w-4xl px-3 pb-16 pt-20 sm:px-4 sm:pt-24">
+      <div className="grid gap-3 lg:grid-cols-[38fr_62fr]">
 
         {/* ============ LEFT — player + trophies + current action ============ */}
         <div className="space-y-3">
-          <div className="rounded-2xl border border-white/10 bg-[#0b1020] p-4 sm:p-5">
+          <div className="rounded-2xl border border-white/10 bg-[#15111f] p-4 sm:p-5">
             {/* identity */}
             <div className="flex items-start gap-3">
               <OvrBadge value={player.overall} size={58} />
@@ -192,7 +192,7 @@ function Career({ player }: { player: CareerPlayer }) {
           </div>
 
           {/* the current action — the beating heart of the one-screen loop */}
-          <div className="rounded-2xl border border-white/10 bg-[#0b1020] p-4 sm:p-5">
+          <div className="rounded-2xl border border-white/10 bg-[#15111f] p-4 sm:p-5">
             {player.retired ? (
               <RetiredCard player={player} c={c} onLegacy={() => setShowLegacy(true)} />
             ) : simming ? (
@@ -210,9 +210,9 @@ function Career({ player }: { player: CareerPlayer }) {
         </div>
 
         {/* ============ RIGHT — the age ladder ============ */}
-        <div className="rounded-2xl border border-white/10 bg-[#0a0e1c] p-3 sm:p-4">
+        <div className="rounded-2xl border border-white/10 bg-[#100d1a] p-3 sm:p-4">
           <div className="mb-2.5 flex items-center justify-between px-1">
-            <span className="font-display text-sm font-black uppercase tracking-wider text-white/70">{c("Career", "Trayectoria")}</span>
+            <span className="font-display text-sm font-black uppercase tracking-wider" style={{ color: "#b39cf5" }}>{c("Career", "Trayectoria")}</span>
             <span className="text-[0.6rem] font-bold uppercase tracking-widest text-white/30">{c("Age chapters", "Capítulos por edad")}</span>
           </div>
           <div className="space-y-2">
@@ -374,18 +374,22 @@ function IdleCard({ player, onPlay, justCommitted, c }: {
   return (
     <div>
       <div className="flex items-center justify-between">
-        <div className="text-[0.55rem] font-bold uppercase tracking-[0.25em] text-gold/70">
+        <div className="text-[0.55rem] font-bold uppercase tracking-[0.25em]" style={{ color: "#b39cf5" }}>
           {justCommitted ? c("Chapter saved", "Capítulo guardado") : c("Next Chapter", "Próximo Capítulo")}
         </div>
         <div className="text-[0.6rem] font-bold text-white/45">{c("Season", "Temporada")} {seasonLabel(player.currentYear)}</div>
       </div>
-      <div className="mt-1 font-display text-3xl font-black text-white">
+      <div className="mt-1 font-display text-2xl font-black text-white sm:text-3xl">
         {c("Age", "Edad")} {player.age} <span className="text-white/25">→</span> {player.age + YEARS_PER_CHAPTER}
       </div>
-      <p className="mt-1 text-[0.78rem] leading-relaxed text-white/45">
+      <p className="mt-1 text-[0.76rem] leading-relaxed text-white/45">
         {c("Two seasons play out at", "Se juegan dos temporadas en")} {player.currentClubName}. {c("Handle what comes, then choose your next move.", "Afronta lo que venga y elige tu próximo paso.")}
       </p>
-      <button onClick={onPlay} className="btn btn-gold mt-4 w-full text-base">▶ {c("Play", "Jugar")}</button>
+      <button onClick={onPlay}
+        className="mt-4 w-full rounded-xl py-3 font-display text-base font-black text-white transition-transform hover:-translate-y-0.5"
+        style={{ background: "linear-gradient(135deg, #8b5cf6, #a78bfa)", boxShadow: "0 8px 24px rgba(139,92,246,0.4)" }}>
+        ▶ {c("Play", "Jugar")}
+      </button>
     </div>
   );
 }
@@ -586,8 +590,11 @@ function buildLadder(chapters: TimelineChapter[], player: CareerPlayer): Slot[] 
   const byAge = new Map(chapters.map((ch) => [ch.fromAge, ch]));
   const start = player.age - player.seasons.length;
   const first = start - (start % YEARS_PER_CHAPTER);
+  // Stop at the chapter the player is on (the "up next" row) instead of drawing
+  // every empty age to 38 — a Copero-style compact ladder, no long dead tail.
+  const last = Math.min(LAST_AGE, player.age);
   const out: Slot[] = [];
-  for (let age = first; age <= LAST_AGE; age += YEARS_PER_CHAPTER) {
+  for (let age = first; age <= last; age += YEARS_PER_CHAPTER) {
     const chapter = byAge.get(age) ?? null;
     const state: Slot["state"] = chapter ? "past" : age === player.age ? "current" : age < player.age ? "past" : "future";
     out.push({ age, chapter, state });
@@ -612,11 +619,11 @@ function LadderRow({ slot, peak, playing, simming }: { slot: Slot; peak: number;
     return (
       <motion.div initial={false}
         className={`flex items-center gap-3 rounded-2xl border px-3 py-3.5 ${
-          state === "current" ? "border-gold/40 bg-gold/[0.06]" : "border-white/5 bg-white/[0.015] opacity-40"}`}>
+          state === "current" ? "border-[#8b5cf6]/50 bg-[#8b5cf6]/[0.08]" : "border-white/5 bg-white/[0.015] opacity-40"}`}>
         <motion.span animate={simming ? { scale: [1, 1.1, 1] } : {}} transition={{ duration: 0.9, repeat: Infinity }}
-          className="grid h-12 w-12 shrink-0 place-items-center rounded-xl font-display text-lg font-black text-white/70"
-          style={{ background: state === "current" ? "#d4af3733" : "#ffffff0d" }}>{slot.age}</motion.span>
-        <span className="text-[0.95rem] font-bold text-white/50">
+          className="grid h-12 w-12 shrink-0 place-items-center rounded-xl font-display text-lg font-black text-white"
+          style={{ background: state === "current" ? "#8b5cf644" : "#ffffff0d" }}>{slot.age}</motion.span>
+        <span className="text-[0.95rem] font-bold" style={{ color: state === "current" ? "#c4b5fd" : "rgba(255,255,255,0.5)" }}>
           {state === "current" ? (simming ? c("Simulating…", "Simulando…") : playing ? c("Playing…", "Jugando…") : c("Up next", "A continuación")) : "—"}
         </span>
       </motion.div>
@@ -629,7 +636,7 @@ function LadderRow({ slot, peak, playing, simming }: { slot: Slot; peak: number;
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}
       className={`flex items-center gap-3 overflow-hidden rounded-2xl border-l-[5px] border-y border-r px-3 py-3 transition-colors hover:bg-white/[0.04] ${
-        best ? "border-y-gold/25 border-r-gold/25 bg-gold/[0.05]" : delta < 0 ? "border-y-red-400/15 border-r-red-400/15 bg-[#0b1122]" : "border-y-white/8 border-r-white/8 bg-[#0b1122]"}`}
+        best ? "border-y-gold/25 border-r-gold/25 bg-gold/[0.05]" : delta < 0 ? "border-y-red-400/15 border-r-red-400/15 bg-[#17121f]" : "border-y-white/8 border-r-white/8 bg-[#17121f]"}`}
       style={{ borderLeftColor: clubColor }}>
       {/* age */}
       <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl font-display text-lg font-black text-white shadow-inner"

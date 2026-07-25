@@ -25,6 +25,8 @@ const POS_NAME: Record<string, string> = {
 };
 const GROUP_ORDER: PositionGroup[] = ["GK", "DEF", "MID", "ATT"];
 const GROUP_LABEL: Record<PositionGroup, string> = { GK: "Goalkeeper", DEF: "Defense", MID: "Midfield", ATT: "Attack" };
+/** Colour per position line so the tracker isn't one monotone accent. */
+const GROUP_COLOR: Record<PositionGroup, string> = { GK: "#f6c445", DEF: "#38bdf8", MID: "#34d399", ATT: "#fb7185" };
 
 const AI_STRATEGIES: { id: AiStrategy; label: string; hint: string; advanced?: boolean }[] = [
   { id: "relaxed", label: "Relaxed & Balanced", hint: "Fair, mostly 75–87 rated" },
@@ -256,28 +258,32 @@ export function DraftRoundView() {
 
                   {/* POSITION CHIPS grouped by area */}
                   <div className="mt-3 space-y-2.5">
-                    {groupedSlots.map(({ group, slots }) => (
+                    {groupedSlots.map(({ group, slots }) => {
+                      const gc = GROUP_COLOR[group];
+                      return (
                       <div key={group}>
-                        <div className="mb-1 text-[0.52rem] font-bold uppercase tracking-[0.2em] text-white/40">{GROUP_LABEL[group]}</div>
+                        <div className="mb-1 text-[0.52rem] font-bold uppercase tracking-[0.2em]" style={{ color: `${gc}cc` }}>{GROUP_LABEL[group]}</div>
                         <div className="flex flex-wrap gap-1.5">
                           {slots.map((s) => s.filled ? (
                             <span key={s.i} title={`${POS_NAME[s.pos]} — ${s.name}`}
-                              className="inline-flex min-h-[36px] items-center gap-1 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[0.72rem] font-bold text-white/55">
-                              <span aria-hidden style={{ color: theme.accent }}>✓</span>{s.pos}
+                              className="inline-flex min-h-[36px] items-center gap-1 rounded-lg border px-2.5 py-1 text-[0.72rem] font-bold text-white/60"
+                              style={{ borderColor: `${gc}44`, background: `${gc}14` }}>
+                              <span aria-hidden style={{ color: gc }}>✓</span>{s.pos}
                             </span>
                           ) : (
                             <button key={s.i} onClick={() => { beginRound(s.i); play("select"); scrollToPitch(); }}
                               title={`${POS_NAME[s.pos]} — choose a player`}
                               aria-label={`Draft a ${POS_NAME[s.pos]}`}
                               className="group inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border px-2.5 py-1 font-display text-sm font-extrabold text-white transition-all hover:-translate-y-0.5 active:scale-95"
-                              style={{ borderColor: theme.accent, background: theme.soft }}>
+                              style={{ borderColor: gc, background: `${gc}22`, boxShadow: `0 0 12px ${gc}22` }}>
                               {s.pos}
-                              <span className="text-[0.5rem] font-bold uppercase tracking-wider opacity-70" style={{ color: theme.accent }}>Choose</span>
+                              <span className="text-[0.5rem] font-bold uppercase tracking-wider opacity-80" style={{ color: gc }}>Choose</span>
                             </button>
                           ))}
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
                   {/* FORMATION — compact control with a tactical-board glyph */}

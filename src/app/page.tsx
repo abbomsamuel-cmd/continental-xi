@@ -1,13 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { AnimatedCounter } from "@/components/AnimatedCounter";
-import { TiltCard } from "@/components/fx/TiltCard";
-import { Sparks, CameraFlashes } from "@/components/fx/Atmosphere";
+import { CameraFlashes } from "@/components/fx/Atmosphere";
 import { TeamBadge } from "@/components/TeamBadge";
-import { LineupCard, type BadgeKind } from "@/components/LineupCard";
 import { ReportBug } from "@/components/ReportBug";
 import { useGame } from "@/lib/store";
 import { useCurrentPlayer } from "@/lib/career/store";
@@ -19,29 +16,22 @@ import { getAllPlayers, SQUADS } from "@/lib/players";
 import { USER_TEAM_ID, teamLabel } from "@/lib/engine/tournament";
 
 /* ------------------------------------------------------------------ */
-/*  Stadium scene behind the hub — tiered stands, floodlight pylons    */
-/*  with swinging beams, pitch glow. The hub should never feel static. */
+/*  Stadium scene behind the hub — tiered stands, floodlight pylons.    */
 /* ------------------------------------------------------------------ */
 function StadiumScene() {
   return (
     <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[70vh] overflow-hidden" aria-hidden>
-      <div
-        className="aurora absolute -left-1/4 top-0 h-2/3 w-2/3 rounded-full opacity-40"
-        style={{ background: "radial-gradient(circle, rgba(27,79,255,0.5), transparent 65%)" }}
-      />
-      <div
-        className="aurora absolute -right-1/4 top-1/4 h-2/3 w-2/3 rounded-full opacity-30"
-        style={{ background: "radial-gradient(circle, rgba(212,175,55,0.4), transparent 65%)", animationDelay: "-8s" }}
-      />
+      <div className="aurora absolute -left-1/4 top-0 h-2/3 w-2/3 rounded-full opacity-40"
+        style={{ background: "radial-gradient(circle, rgba(27,79,255,0.5), transparent 65%)" }} />
+      <div className="aurora absolute -right-1/4 top-1/4 h-2/3 w-2/3 rounded-full opacity-30"
+        style={{ background: "radial-gradient(circle, rgba(212,175,55,0.4), transparent 65%)", animationDelay: "-8s" }} />
       <svg viewBox="0 0 1200 420" preserveAspectRatio="xMidYMax slice" className="slow-pan absolute inset-x-0 bottom-0 h-2/3 w-full opacity-70">
         <defs>
           <linearGradient id="standsGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#0a2258" />
-            <stop offset="100%" stopColor="#040d24" />
+            <stop offset="0%" stopColor="#0a2258" /><stop offset="100%" stopColor="#040d24" />
           </linearGradient>
           <linearGradient id="beamGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="rgba(235,245,255,0.5)" />
-            <stop offset="100%" stopColor="rgba(235,245,255,0)" />
+            <stop offset="0%" stopColor="rgba(235,245,255,0.5)" /><stop offset="100%" stopColor="rgba(235,245,255,0)" />
           </linearGradient>
         </defs>
         {[{ x: 150, sway: "beamSwayA" }, { x: 1050, sway: "beamSwayB" }].map((p) => (
@@ -51,11 +41,9 @@ function StadiumScene() {
             {[-20, -8, 4, 16].map((dx) => (
               <circle key={dx} cx={p.x + dx + 2} cy={127} r={3.1} fill="#dfeeff" style={{ animation: "floodFlicker 7s linear infinite" }} />
             ))}
-            <polygon
-              points={`${p.x - 26},136 ${p.x + 26},136 ${p.x + 150},420 ${p.x - 200},420`}
+            <polygon points={`${p.x - 26},136 ${p.x + 26},136 ${p.x + 150},420 ${p.x - 200},420`}
               fill="url(#beamGrad)" opacity={0.16}
-              style={{ transformOrigin: `${p.x}px 136px`, animation: `${p.sway} 9s ease-in-out infinite` }}
-            />
+              style={{ transformOrigin: `${p.x}px 136px`, animation: `${p.sway} 9s ease-in-out infinite` }} />
           </g>
         ))}
         <path d="M-20 268 Q 600 170 1220 268 L 1220 320 Q 600 232 -20 320 Z" fill="url(#standsGrad)" opacity="0.9" />
@@ -70,9 +58,7 @@ function StadiumScene() {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Daily challenge — same deterministic config as /daily              */
-/* ------------------------------------------------------------------ */
+/* ---- daily challenge — same deterministic config as /daily ---- */
 function todayKey(): string {
   const d = new Date();
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
@@ -84,52 +70,11 @@ function dailyConfig(key: string): { formation: string; mode: "classic" | "exper
   return { formation: forms[h % forms.length], mode: h % 3 === 0 ? "expert" : "classic" };
 }
 
-/* ------------------------------------------------------------------ */
-
 const COMP_META = {
   cl: { label: "Champions League", accent: "#22e0ff", href: "/tournament" },
   euro: { label: "UEFA EURO", accent: "#37e0ff", href: "/international" },
   copa: { label: "Copa América", accent: "#ffc93c", href: "/international" },
 } as const;
-
-/** Mini broadcast-XI samples shown on each competition card, so a visitor
- *  immediately sees how the three lineup skins differ. */
-type PreviewCard = { name: string; overall: number; colors: [string, string]; pos: string; season: string; nation: string };
-const MODES = [
-  {
-    key: "cl", emoji: "🏆", kickerKey: "mode.cl.kicker", titleKey: "mode.cl.title", bodyKey: "mode.cl.body",
-    chipKeys: ["mode.cl.chip1", "mode.cl.chip2", "mode.cl.chip3"],
-    href: "/draft", accent: "#22e0ff", panel: "cl-panel cl-streaks", glow: "rgba(34,224,255,0.35)",
-    badge: "crest" as BadgeKind, nameAccent: "#1546c8", strip: "linear-gradient(160deg, #071a52, #0b2464)",
-    preview: [
-      { name: "A. Rossi", overall: 91, colors: ["#0b1b52", "#c9a24a"], pos: "ST", season: "94", nation: "Italy" },
-      { name: "M. König", overall: 89, colors: ["#7a0d16", "#f2d472"], pos: "CM", season: "07", nation: "Germany" },
-      { name: "L. Ferrand", overall: 88, colors: ["#0e2a6b", "#3aa0ff"], pos: "GK", season: "99", nation: "France" },
-    ] as PreviewCard[],
-  },
-  {
-    key: "euro", emoji: "🇪🇺", kickerKey: "mode.euro.kicker", titleKey: "mode.euro.title", bodyKey: "mode.euro.body",
-    chipKeys: ["mode.euro.chip1", "mode.euro.chip2"],
-    href: "/international?comp=euro", accent: "#37e0ff", panel: "euro-panel euro-grid", glow: "rgba(55,224,255,0.4)",
-    badge: "flag" as BadgeKind, nameAccent: "#1b3fd0", strip: "linear-gradient(160deg, #0e7a3f, #128a48)",
-    preview: [
-      { name: "J. Novak", overall: 90, colors: ["#c8102e", "#ffffff"], pos: "CAM", season: "04", nation: "Czechia" },
-      { name: "P. Andersen", overall: 88, colors: ["#0033a0", "#ffffff"], pos: "CB", season: "92", nation: "Denmark" },
-      { name: "R. De Vries", overall: 89, colors: ["#ff6b1a", "#0b2a6b"], pos: "RW", season: "88", nation: "Netherlands" },
-    ] as PreviewCard[],
-  },
-  {
-    key: "copa", emoji: "🌎", kickerKey: "mode.copa.kicker", titleKey: "mode.copa.title", bodyKey: "mode.copa.body",
-    chipKeys: ["mode.copa.chip1", "mode.copa.chip2"],
-    href: "/international?comp=copa", accent: "#ffc93c", panel: "copa-panel copa-heat copa-gold-border", glow: "rgba(255,201,60,0.4)",
-    badge: "flag" as BadgeKind, nameAccent: "#9a6b00", strip: "linear-gradient(160deg, #0a5a34, #0c6a3d)",
-    preview: [
-      { name: "D. Rey", overall: 92, colors: ["#75aadb", "#ffffff"], pos: "ST", season: "86", nation: "Argentina" },
-      { name: "C. Nunes", overall: 90, colors: ["#f7c948", "#0a7d3b"], pos: "CM", season: "70", nation: "Brazil" },
-      { name: "S. Ortega", overall: 87, colors: ["#c8102e", "#0b3aa0"], pos: "LB", season: "95", nation: "Chile" },
-    ] as PreviewCard[],
-  },
-] as const;
 
 /** icon + accent + translation keys; dates are static labels. */
 const NEWS = [
@@ -139,7 +84,6 @@ const NEWS = [
   { date: "Jul 2026", icon: "📱", titleKey: "news.mobile.title", bodyKey: "news.mobile.body" },
 ];
 
-/** FAQ list as translation keys. q3 renders a special 3-line competitions block. */
 const FAQ_KEYS: { q: string; a: string; kind?: "comps" }[] = [
   { q: "faq.q1", a: "faq.a1" },
   { q: "faq.q2", a: "faq.a2" },
@@ -163,178 +107,57 @@ function SectionHeading({ kicker, title, right }: { kicker: string; title: React
   );
 }
 
-function ModeCard({ mode, index }: { mode: (typeof MODES)[number]; index: number }) {
-  const router = useRouter();
-  const t = useT();
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 34 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-60px" }}
-      transition={{ delay: index * 0.09, duration: 0.55, ease: "easeOut" }}
-    >
-      <TiltCard
-        className={`shine group h-full cursor-pointer overflow-hidden rounded-3xl ${mode.panel}`}
-        onClick={() => { play("select"); router.push(mode.href); }}
-      >
-        <div className="relative flex h-full min-h-[230px] flex-col p-6" style={{ transformStyle: "preserve-3d" }}>
-          <Sparks count={7} color={mode.accent} />
-          <div className="tilt-layer relative w-fit" style={{ ["--z" as string]: "46px" }}>
-            <motion.span
-              aria-hidden
-              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
-              style={{ width: 78, height: 78, border: `1px solid ${mode.accent}44` }}
-              animate={{ scale: [1, 1.4], opacity: [0.7, 0] }}
-              transition={{ duration: 2.6, repeat: Infinity, ease: "easeOut", delay: index * 0.4 }}
-            />
-            <motion.span
-              className="relative block text-5xl"
-              animate={{ y: [0, -6, 0], rotate: [0, 3, 0, -3, 0] }}
-              transition={{ duration: 4.2, repeat: Infinity, ease: "easeInOut", delay: index * 0.3 }}
-              style={{ filter: `drop-shadow(0 6px 26px ${mode.glow})` }}
-            >
-              {mode.emoji}
-            </motion.span>
-          </div>
-          <div className="tilt-layer mt-3" style={{ ["--z" as string]: "28px" }}>
-            <div className="cl-heading text-[0.58rem] tracking-[0.35em]" style={{ color: mode.accent }}>{t(mode.kickerKey)}</div>
-            <h3 className="mt-1 font-display text-xl font-extrabold text-white sm:text-2xl">{t(mode.titleKey)}</h3>
-            <p className="mt-2 text-[0.82rem] leading-relaxed text-white/70">{t(mode.bodyKey)}</p>
-          </div>
-
-          {/* mini broadcast-XI preview — shows the competition's lineup skin */}
-          <div className="tilt-layer mt-4" style={{ ["--z" as string]: "16px" }}>
-            <div className="mb-1 text-[0.5rem] font-bold uppercase tracking-[0.25em] text-white/35">{t("home.comps.previewXI")}</div>
-            <div className="flex gap-1.5 rounded-xl p-2" style={{ background: mode.strip }}>
-              {mode.preview.map((p, i) => (
-                <LineupCard
-                  key={i}
-                  name={p.name}
-                  overall={p.overall}
-                  colors={p.colors as [string, string]}
-                  nationality={p.nation}
-                  seasonLabel={p.season}
-                  slotPos={p.pos}
-                  variant={mode.key}
-                  widthClass="w-[clamp(38px,20%,52px)]"
-                />
-              ))}
-            </div>
-          </div>
-
-          <div className="tilt-layer mt-auto pt-4" style={{ ["--z" as string]: "20px" }}>
-            <div className="flex flex-wrap gap-1.5">
-              {mode.chipKeys.map((c) => (
-                <span key={c} className="chip" style={{ background: `${mode.accent}1e`, color: mode.accent }}>{t(c)}</span>
-              ))}
-            </div>
-            <div
-              className="mt-3 inline-flex items-center gap-2 text-[0.68rem] font-extrabold uppercase tracking-[0.2em] transition-transform duration-300 group-hover:translate-x-1.5"
-              style={{ color: mode.accent }}
-            >
-              {t("home.comps.enter")} <span aria-hidden>→</span>
-            </div>
-          </div>
-        </div>
-      </TiltCard>
-    </motion.div>
-  );
+/* ------------------------------------------------------------------ */
+/*  The PLAY tiles — big, saturated, obvious. Icon + title + 3 words.   */
+/* ------------------------------------------------------------------ */
+interface Tile {
+  href: string;
+  icon: string;
+  kicker: string;
+  title: string;
+  tag: string;
+  cta: string;
+  gradient: string;
+  glow: string;
+  ring: string;
+  badge?: string;
+  span: string;   // grid span classes
+  minH: string;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Player Career Mode — a first-class pillar of the hub, its own       */
-/*  violet/gold identity distinct from the tournament competitions.     */
-/* ------------------------------------------------------------------ */
-const CAREER_VIOLET = "#c9a7ff";
-
-/** A stylised OVR-growth arc: a career rising, peaking, then bowing out. */
-function CareerArc() {
-  const t = useT();
-  // age → overall milestones, mapped into the 300×150 drawing box
-  const pts: [number, number][] = [[16, 60], [21, 74], [26, 86], [30, 90], [34, 85], [38, 77]];
-  const X = (age: number) => 20 + ((age - 16) / 22) * 260;
-  const Y = (ovr: number) => 132 - ((ovr - 56) / 38) * 116;
-  const line = pts.map((p) => `${X(p[0]).toFixed(1)} ${Y(p[1]).toFixed(1)}`).join(" L ");
-  const area = `M ${X(16)} 132 L ${line} L ${X(38)} 132 Z`;
+function PlayTile({ tile, index }: { tile: Tile; index: number }) {
   return (
-    <div className="relative w-full shrink-0 lg:w-[320px]">
-      <svg viewBox="0 0 300 150" className="w-full" role="img" aria-label={t("home.career.arcLabel")}>
-        <defs>
-          <linearGradient id="carc-line" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0" stopColor={CAREER_VIOLET} /><stop offset="1" stopColor="#f2d472" />
-          </linearGradient>
-          <linearGradient id="carc-area" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="rgba(201,167,255,0.34)" /><stop offset="1" stopColor="rgba(201,167,255,0)" />
-          </linearGradient>
-        </defs>
-        {[132, 103, 74, 45].map((y) => <line key={y} x1="14" y1={y} x2="286" y2={y} stroke="rgba(255,255,255,0.06)" strokeWidth="1" />)}
-        <path d={area} fill="url(#carc-area)" />
-        <path d={`M ${line}`} fill="none" stroke="url(#carc-line)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-        {pts.map((p, i) => (
-          <circle key={i} cx={X(p[0])} cy={Y(p[1])} r={i === 3 ? 4.5 : 3}
-            fill={i === 3 ? "#f2d472" : CAREER_VIOLET} stroke="#0a1330" strokeWidth="1.5" />
-        ))}
-        {/* peak marker */}
-        <text x={X(30)} y={Y(90) - 9} textAnchor="middle" fontFamily="var(--font-display)" fontWeight="800" fontSize="13" fill="#f2d472">90</text>
-        <text x={X(16)} y={146} textAnchor="middle" fontSize="9" fill="rgba(255,255,255,0.45)">16</text>
-        <text x={X(38)} y={146} textAnchor="middle" fontSize="9" fill="rgba(255,255,255,0.45)">38</text>
-      </svg>
-      <div className="mt-1 text-center text-[0.55rem] font-bold uppercase tracking-[0.3em] text-white/40">{t("home.career.arcLabel")}</div>
-    </div>
-  );
-}
-
-function CareerBand({ player }: { player: ReturnType<typeof useCurrentPlayer> }) {
-  const t = useT();
-  const active = player && !player.retired ? player : null;
-  const retired = player && player.retired ? player : null;
-  const href = active ? "/career" : retired ? "/career" : "/career/new";
-  const ctaKey = active ? "home.career.continue" : retired ? "home.career.view" : "home.career.start";
-  return (
-    <motion.section
-      initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.16 }}
-      className="mt-4"
-    >
-      <div
-        className="shine relative overflow-hidden rounded-3xl p-6 sm:p-8"
-        style={{ border: "1px solid rgba(190,150,255,0.3)", background: "linear-gradient(115deg, #1b1246 0%, #131b46 48%, #0a1330 100%)" }}
+    <div className={`${tile.span} tile-rise`} style={{ animationDelay: `${index * 70}ms` }}>
+      <Link
+        href={tile.href}
+        onClick={() => play("select")}
+        className={`group relative flex h-full flex-col justify-between overflow-hidden rounded-3xl p-5 transition-transform duration-300 hover:-translate-y-1.5 sm:p-6 ${tile.minH}`}
+        style={{ background: tile.gradient, boxShadow: tile.glow, border: `1px solid ${tile.ring}` }}
       >
+        {/* top-left studio light + moving diagonal shine */}
         <span aria-hidden className="pointer-events-none absolute inset-0"
-          style={{ background: "radial-gradient(58% 80% at 90% -14%, rgba(201,167,255,0.3), transparent 60%), radial-gradient(46% 70% at 4% 128%, rgba(242,212,114,0.16), transparent 60%)" }} />
-        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-          <div className="max-w-xl">
-            <div className="cl-heading text-[0.6rem] tracking-[0.4em]" style={{ color: CAREER_VIOLET }}>{t("home.career.kicker")}</div>
-            <h2 className="mt-1.5 font-display text-2xl font-extrabold sm:text-3xl">
-              {t("home.career.title.a")}<span className="text-gradient-gold">{t("home.career.title.b")}</span>
-            </h2>
-            <p className="mt-2 text-sm leading-relaxed text-white/70">{t("home.career.body")}</p>
+          style={{ background: "radial-gradient(100% 60% at 12% -12%, rgba(255,255,255,0.32), transparent 55%)" }} />
+        <span aria-hidden className="pointer-events-none absolute -inset-x-1/2 -top-1/2 h-[200%] w-[60%] -translate-x-1/3 rotate-12 bg-white/10 opacity-0 blur-xl transition-all duration-700 group-hover:translate-x-[220%] group-hover:opacity-100" />
+        {/* faint icon watermark */}
+        <span aria-hidden className="pointer-events-none absolute -bottom-6 -right-3 select-none text-[7rem] leading-none opacity-15 sm:text-[9rem]">{tile.icon}</span>
 
-            {player && (
-              <div className="mt-4 flex w-fit items-center gap-2.5 rounded-xl bg-black/30 px-3 py-2">
-                <span className="text-[0.55rem] font-bold uppercase tracking-[0.22em]" style={{ color: CAREER_VIOLET }}>{t("home.career.activeKicker")}</span>
-                <span className="font-display text-sm font-extrabold text-white">{player.name}</span>
-                <span className="text-[0.7rem] text-white/55">
-                  {retired ? t("home.career.retiredTag") : t("home.career.ageClub", { age: player.age, club: player.currentClubName })}
-                </span>
-              </div>
-            )}
-
-            <div className="mt-4 flex flex-wrap gap-1.5">
-              {["home.career.chip1", "home.career.chip2", "home.career.chip3"].map((c) => (
-                <span key={c} className="chip" style={{ background: `${CAREER_VIOLET}1e`, color: CAREER_VIOLET }}>{t(c)}</span>
-              ))}
-            </div>
-
-            <div className="mt-5 flex flex-wrap gap-2.5">
-              <Link href={href} className="btn btn-gold btn-pulse" onClick={() => play("select")}>🎮 {t(ctaKey)}</Link>
-              {player && <Link href="/career/timeline" className="btn btn-ghost" onClick={() => play("click")}>{t("home.career.view")}</Link>}
-            </div>
-          </div>
-
-          <CareerArc />
+        <div className="relative flex items-start justify-between gap-2">
+          <span className="text-4xl drop-shadow-[0_6px_18px_rgba(0,0,0,0.45)] sm:text-5xl">{tile.icon}</span>
+          <span className="rounded-full bg-black/25 px-2.5 py-1 text-[0.52rem] font-bold uppercase tracking-[0.2em] text-white/90 backdrop-blur-sm">
+            {tile.kicker}
+          </span>
         </div>
-      </div>
-    </motion.section>
+
+        <div className="relative mt-auto pt-6">
+          <h3 className="font-display text-2xl font-black leading-none text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.35)] sm:text-3xl">{tile.title}</h3>
+          <p className="mt-1.5 text-[0.82rem] font-semibold text-white/85">{tile.tag}</p>
+          <span className="mt-3.5 inline-flex items-center gap-2 rounded-full bg-white/22 px-4 py-1.5 text-[0.66rem] font-extrabold uppercase tracking-[0.15em] text-white backdrop-blur-sm transition-transform duration-300 group-hover:translate-x-1">
+            {tile.badge && <span className="rounded bg-white px-1.5 py-0.5 text-[0.5rem] font-black text-black">{tile.badge}</span>}
+            {tile.cta} <span aria-hidden>→</span>
+          </span>
+        </div>
+      </Link>
+    </div>
   );
 }
 
@@ -423,13 +246,12 @@ export default function Home() {
 
   const resumeMeta = resume ? COMP_META[resume.comp] : null;
 
-  /* ---- daily challenge ---- */
+  /* ---- daily challenge + career state ---- */
   const dkey = todayKey();
   const dcfg = dailyConfig(dkey);
   const dailyPlayed = mounted && profile.drafts.some((d) => d.daily === dkey);
-
-  /* ---- recent activity from the real log ---- */
-  const recent = mounted ? matchLog.slice(0, 4) : [];
+  const activeCareer = mounted && careerPlayer && !careerPlayer.retired ? careerPlayer : null;
+  const anyCareer = mounted ? careerPlayer : null;
 
   /* ---- hall of champions ---- */
   const champions = mounted
@@ -449,217 +271,156 @@ export default function Home() {
   const totalGoals = mounted ? profile.drafts.reduce((s, d) => s + (d.goals ?? 0), 0) : 0;
   const compsCompleted = mounted ? profile.drafts.length + (profile.intlResults?.length ?? 0) : 0;
 
+  /* ---- the tiles ---- */
+  const tiles: Tile[] = [
+    {
+      href: anyCareer ? "/career" : "/career/new", icon: "🎮",
+      kicker: t("home.tile.career.kicker"), title: t("home.qa.career"),
+      tag: activeCareer ? `${activeCareer.name} · ${t("home.career.ageClub", { age: activeCareer.age, club: activeCareer.currentClubShort ?? activeCareer.currentClubName })}` : t("home.tile.career.tag"),
+      cta: anyCareer ? t("home.tile.continue") : t("home.tile.play"), badge: anyCareer ? undefined : t("home.tile.new"),
+      gradient: "linear-gradient(145deg, #7c3aed 0%, #a21caf 52%, #f59e0b 130%)",
+      glow: "0 14px 46px rgba(124,58,237,0.42)", ring: "rgba(216,180,254,0.5)",
+      span: "sm:col-span-2 lg:col-span-2", minH: "min-h-[210px] sm:min-h-[240px]",
+    },
+    {
+      href: "/draft", icon: "🏆", kicker: t("home.tile.cl.kicker"), title: "Champions League",
+      tag: t("home.tile.cl.tag"), cta: t("home.tile.play"),
+      gradient: "linear-gradient(145deg, #1e3a8a 0%, #2563eb 50%, #22d3ee 130%)",
+      glow: "0 14px 46px rgba(37,99,235,0.42)", ring: "rgba(125,211,252,0.5)",
+      span: "sm:col-span-2 lg:col-span-2", minH: "min-h-[210px] sm:min-h-[240px]",
+    },
+    {
+      href: "/international?comp=euro", icon: "🇪🇺", kicker: t("home.tile.euro.kicker"), title: "UEFA EURO",
+      tag: t("home.tile.euro.tag"), cta: t("home.tile.play"),
+      gradient: "linear-gradient(145deg, #065f46 0%, #16a34a 52%, #2563eb 135%)",
+      glow: "0 14px 40px rgba(22,163,74,0.4)", ring: "rgba(134,239,172,0.5)",
+      span: "lg:col-span-1", minH: "min-h-[190px]",
+    },
+    {
+      href: "/international?comp=copa", icon: "🌎", kicker: t("home.tile.copa.kicker"), title: "Copa América",
+      tag: t("home.tile.copa.tag"), cta: t("home.tile.play"),
+      gradient: "linear-gradient(145deg, #b45309 0%, #f59e0b 46%, #10b981 132%)",
+      glow: "0 14px 40px rgba(245,158,11,0.4)", ring: "rgba(253,224,138,0.55)",
+      span: "lg:col-span-1", minH: "min-h-[190px]",
+    },
+    {
+      href: "/daily", icon: "📅", kicker: t("home.tile.daily.kicker"), title: t("home.daily.kicker"),
+      tag: `${dcfg.formation} · ${t(dcfg.mode === "expert" ? "draft.mode.expert.title" : "draft.mode.classic.title")}`,
+      cta: dailyPlayed ? t("home.daily.viewResult") : t("home.tile.play"),
+      gradient: "linear-gradient(145deg, #be185d 0%, #f43f5e 50%, #fb923c 132%)",
+      glow: "0 14px 40px rgba(244,63,94,0.42)", ring: "rgba(253,164,175,0.55)",
+      span: "sm:col-span-2 lg:col-span-2", minH: "min-h-[190px]",
+    },
+  ];
+
   return (
     <div className="relative pb-24">
       <StadiumScene />
       <div className="mx-auto max-w-7xl px-4 pt-24 sm:pt-28 lg:px-6">
         {/* ===================== HUB MASTHEAD ===================== */}
         <div className="flex flex-wrap items-end justify-between gap-4">
-          <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}>
+          <motion.div initial={{ y: 14 }} animate={{ y: 0 }}>
             <div className="cl-heading text-[0.6rem] tracking-[0.45em] text-cyan">{t("home.kicker")}</div>
-            <h1 className="mt-1 font-display text-3xl font-extrabold sm:text-4xl">
+            <h1 className="mt-1 font-display text-3xl font-black sm:text-5xl">
               {t("home.welcome")} <span className="text-gradient-gold">{mounted ? profile.name : "Manager"}</span>
             </h1>
           </motion.div>
           <motion.div
-            initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-            className="glass flex items-center gap-4 rounded-2xl px-4 py-2.5"
+            initial={{ y: 14 }} animate={{ y: 0 }} transition={{ delay: 0.1 }}
+            className="flex items-center gap-2.5"
           >
-            <span className="text-[0.7rem] text-muted">🏆 <span className="font-display font-extrabold text-gold">{mounted ? profile.trophies : 0}</span> {t("home.trophiesLabel")}</span>
-            <span className="text-[0.7rem] text-muted">🎖️ <span className="font-display font-extrabold text-cyan">{mounted ? profile.achievements.length : 0}</span>/{ACHIEVEMENTS.length}</span>
+            <span className="flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[0.72rem] font-bold" style={{ background: "linear-gradient(135deg, rgba(242,212,114,0.22), rgba(212,175,55,0.1))", border: "1px solid rgba(242,212,114,0.4)" }}>
+              🏆 <span className="font-display text-base font-black text-gold">{mounted ? profile.trophies : 0}</span> <span className="text-gold/80">{t("home.trophiesLabel")}</span>
+            </span>
+            <span className="flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[0.72rem] font-bold" style={{ background: "rgba(34,224,255,0.12)", border: "1px solid rgba(34,224,255,0.35)" }}>
+              🎖️ <span className="font-display text-base font-black text-cyan">{mounted ? profile.achievements.length : 0}</span><span className="text-cyan/70">/{ACHIEVEMENTS.length}</span>
+            </span>
           </motion.div>
         </div>
 
-        {/* ===================== CONTINUE PLAYING ===================== */}
-        <motion.section
-          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}
-          className="mt-6"
-        >
-          {resume && resumeMeta ? (
-            <div className={`shine relative overflow-hidden rounded-3xl p-6 sm:p-7 ${
+        {/* ===================== CONTINUE PLAYING (only if a save) ===================== */}
+        {resume && resumeMeta && (
+          <motion.section initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="mt-6">
+            <div className={`shine relative overflow-hidden rounded-3xl p-5 sm:p-6 ${
               resume.comp === "euro" ? "euro-panel euro-grid" : resume.comp === "copa" ? "copa-panel copa-heat copa-gold-border" : "cl-panel cl-streaks"
             }`}>
               <CameraFlashes count={8} />
               <div className="flex flex-wrap items-center justify-between gap-5">
                 <div className="min-w-0">
                   <div className="cl-heading text-[0.58rem] tracking-[0.4em]" style={{ color: resumeMeta.accent }}>
-                    {t("home.continueKicker")} · {resumeMeta.label}
+                    ▶ {t("home.continueKicker")} · {resumeMeta.label}
                   </div>
-                  <h2 className="mt-1.5 truncate font-display text-2xl font-extrabold text-white sm:text-3xl">{resume.name}</h2>
-                  <div className="mt-1 text-sm text-white/65">{resume.stage}</div>
+                  <h2 className="mt-1.5 truncate font-display text-2xl font-black text-white sm:text-3xl">{resume.name}</h2>
+                  <div className="mt-1 text-sm text-white/70">{resume.stage}</div>
                   {resume.opp && (
-                    <div className="mt-3 flex items-center gap-2 rounded-xl bg-black/25 px-3 py-2 w-fit">
+                    <div className="mt-3 flex w-fit items-center gap-2 rounded-xl bg-black/25 px-3 py-2">
                       <span className="text-[0.6rem] font-bold uppercase tracking-[0.25em] text-white/45">{t("home.next")}</span>
                       <TeamBadge colors={resume.opp.colors} code={resume.opp.short} size={22} />
                       <span className="font-display text-sm font-extrabold text-white">{resume.opp.name}</span>
                     </div>
                   )}
                 </div>
-                <Link
-                  href={resume.href}
-                  className={`btn btn-pulse ${resume.comp === "euro" ? "btn-euro" : resume.comp === "copa" ? "btn-copa" : "btn-gold"}`}
-                  onClick={() => play("select")}
-                >
+                <Link href={resume.href} className={`btn btn-pulse text-base ${resume.comp === "euro" ? "btn-euro" : resume.comp === "copa" ? "btn-copa" : "btn-gold"}`} onClick={() => play("select")}>
                   ▶ {resume.cta}
                 </Link>
               </div>
             </div>
-          ) : (
-            <div className="cl-panel cl-streaks shine relative overflow-hidden rounded-3xl p-6 sm:p-7">
-              <Sparks count={10} color="#d4af37" />
-              <div className="flex flex-wrap items-center justify-between gap-5">
-                <div className="max-w-lg">
-                  <div className="cl-heading text-[0.58rem] tracking-[0.4em] text-gold">{t("home.startKicker")}</div>
-                  <h2 className="mt-1.5 font-display text-2xl font-extrabold text-white sm:text-3xl">
-                    {t("home.noCampaign")}
-                  </h2>
-                  <p className="mt-2 text-sm leading-relaxed text-white/65">{t("home.noCampaignBody")}</p>
-                </div>
-                <div className="flex flex-wrap gap-2.5">
-                  <Link href="/draft" className="btn btn-gold btn-pulse" onClick={() => play("select")}>{t("home.startDraft")}</Link>
-                  <Link href="/international" className="btn btn-ghost" onClick={() => play("click")}>{t("home.leadNation")}</Link>
-                </div>
-              </div>
+          </motion.section>
+        )}
+
+        {/* ===================== CHOOSE YOUR GAME — the bento ===================== */}
+        <section className="mt-6">
+          <div className="mb-4 flex items-end justify-between">
+            <div>
+              <div className="cl-heading text-[0.6rem] tracking-[0.4em] text-cyan">{t("home.play.kicker")}</div>
+              <h2 className="mt-1 font-display text-xl font-black sm:text-2xl">
+                {t("home.play.title.a")}<span className="text-gradient-gold">{t("home.comps.title.b")}</span>
+              </h2>
             </div>
-          )}
-        </motion.section>
-
-        {/* ===================== PLAYER CAREER MODE ===================== */}
-        <CareerBand player={mounted ? careerPlayer : null} />
-
-        {/* ===================== QUICK ACTIONS ===================== */}
-        <motion.section
-          initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-          className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6"
-        >
-          {[
-            { href: "/career", icon: "🎮", label: t("home.qa.career") },
-            { href: "/draft", icon: "🎴", label: t("home.qa.newDraft") },
-            { href: "/daily", icon: "📅", label: t("home.qa.daily") },
-            { href: "/history", icon: "📜", label: t("home.qa.history") },
-            { href: "/international", icon: "🌍", label: t("home.qa.leadNation") },
-            { href: "/stats", icon: "👔", label: t("home.qa.profile") },
-          ].map((a) => (
-            <Link
-              key={a.href}
-              href={a.href}
-              onClick={() => play("click")}
-              className="glass shine flex items-center justify-center gap-2 rounded-xl px-3 py-3 text-[0.72rem] font-extrabold uppercase tracking-wider text-white/75 transition-all hover:-translate-y-0.5 hover:text-white"
-            >
-              <span className="text-base">{a.icon}</span> {a.label}
-            </Link>
-          ))}
-        </motion.section>
-
-        {/* ============ DAILY CHALLENGE + RECENT ACTIVITY ============ */}
-        <section className="mt-12 grid gap-4 lg:grid-cols-[1fr_1.2fr]">
-          {/* daily challenge */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-            className="glass-strong shine relative flex flex-col overflow-hidden rounded-3xl p-6"
-          >
-            <div className="cl-heading text-[0.58rem] tracking-[0.4em] text-cyan">{t("home.daily.kicker")} · {dkey}</div>
-            <h3 className="mt-1.5 font-display text-xl font-extrabold text-white">
-              {t("home.daily.today")} <span className="text-gradient-cyan">{dcfg.formation}</span>
-              {" · "}
-              <span className="text-gradient-gold">{t(dcfg.mode === "expert" ? "draft.mode.expert.title" : "draft.mode.classic.title")}</span>
-            </h3>
-            <p className="mt-2 text-[0.8rem] leading-relaxed text-muted">{t("home.daily.body")}</p>
-            <div className="mt-4 flex flex-wrap items-center gap-3">
-              <Link href="/daily" className="btn btn-cyan text-[0.72rem]" onClick={() => play("select")}>
-                {dailyPlayed ? t("home.daily.viewResult") : t("home.daily.playToday")}
-              </Link>
-              {dailyPlayed && <span className="chip bg-green/15 text-green">{t("home.daily.playedToday")}</span>}
+            <div className="hidden gap-2 sm:flex">
+              <Link href="/history" onClick={() => play("click")} className="glass flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[0.66rem] font-extrabold uppercase tracking-wider text-white/75 transition-colors hover:text-white">📜 {t("home.more.history")}</Link>
+              <Link href="/stats" onClick={() => play("click")} className="glass flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[0.66rem] font-extrabold uppercase tracking-wider text-white/75 transition-colors hover:text-white">👔 {t("home.more.profile")}</Link>
             </div>
-          </motion.div>
-
-          {/* recent activity */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-            transition={{ delay: 0.08 }}
-            className="glass rounded-3xl p-6"
-          >
-            <div className="flex items-center justify-between">
-              <div className="cl-heading text-[0.58rem] tracking-[0.4em] text-gold">{t("home.recent.kicker")}</div>
-              <Link href="/history" className="text-[0.62rem] font-bold uppercase tracking-wider text-cyan hover:underline" onClick={() => play("click")}>
-                {t("home.recent.full")}
-              </Link>
-            </div>
-            {recent.length === 0 ? (
-              <p className="mt-4 text-sm text-muted">{t("home.recent.empty")}</p>
-            ) : (
-              <div className="mt-3 space-y-2">
-                {recent.map((m) => (
-                  <div key={m.id} className="flex items-center justify-between gap-2 rounded-xl bg-white/4 px-3 py-2">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <span className="h-5 w-1 shrink-0 rounded-full" style={{ background: COMP_META[m.comp].accent }} />
-                      <TeamBadge colors={m.home.colors} code={m.home.short} size={18} />
-                      <span className="truncate text-[0.72rem] font-semibold text-white/85">
-                        {m.home.name} <span className="font-display font-extrabold text-white">{m.result.homeGoals}–{m.result.awayGoals}</span> {m.away.name}
-                      </span>
-                      <TeamBadge colors={m.away.colors} code={m.away.short} size={18} />
-                    </div>
-                    <span className="shrink-0 text-[0.58rem] uppercase tracking-wider text-white/40">{m.round}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </motion.div>
-        </section>
-
-        {/* ===================== FEATURED COMPETITIONS ===================== */}
-        <section id="modes" className="mt-16 scroll-mt-24">
-          <SectionHeading
-            kicker={t("home.comps.kicker")}
-            title={<>{t("home.comps.title.a")}<span className="text-gradient-gold">{t("home.comps.title.b")}</span></>}
-          />
-          <div className="mt-7 grid gap-5 md:grid-cols-3">
-            {MODES.map((m, i) => <ModeCard key={m.key} mode={m} index={i} />)}
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {tiles.map((tile, i) => <PlayTile key={tile.title} tile={tile} index={i} />)}
+          </div>
+          {/* secondary links on mobile */}
+          <div className="mt-3 flex gap-2 sm:hidden">
+            <Link href="/history" onClick={() => play("click")} className="glass flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-[0.68rem] font-extrabold uppercase tracking-wider text-white/75">📜 {t("home.more.history")}</Link>
+            <Link href="/stats" onClick={() => play("click")} className="glass flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-[0.68rem] font-extrabold uppercase tracking-wider text-white/75">👔 {t("home.more.profile")}</Link>
           </div>
         </section>
 
         {/* ===================== HALL OF CHAMPIONS ===================== */}
-        <section className="mt-16">
-          <SectionHeading
-            kicker={t("home.champs.kicker")}
-            title={t("home.champs.title")}
-            right={mounted && profile.trophies > 0 ? (
-              <span className="chip bg-gold/15 text-gold">🏆 {t("home.champs.titlesWon", { n: profile.trophies, s: profile.trophies === 1 ? "" : "s" })}</span>
-            ) : undefined}
-          />
-          {champions.length === 0 ? (
-            <motion.div
-              initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}
-              className="glass mt-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border-dashed p-6"
-            >
-              <p className="max-w-md text-sm text-muted">{t("home.champs.empty")}</p>
-              <Link href="/draft" className="btn btn-ghost text-xs" onClick={() => play("click")}>{t("home.champs.claim")}</Link>
-            </motion.div>
-          ) : (
+        {champions.length > 0 && (
+          <section className="mt-14">
+            <SectionHeading
+              kicker={t("home.champs.kicker")}
+              title={t("home.champs.title")}
+              right={mounted && profile.trophies > 0 ? (
+                <span className="chip bg-gold/15 text-gold">🏆 {t("home.champs.titlesWon", { n: profile.trophies, s: profile.trophies === 1 ? "" : "s" })}</span>
+              ) : undefined}
+            />
             <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {champions.map((c, i) => (
-                <motion.div
-                  key={c.key}
-                  initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-                  transition={{ delay: i * 0.07 }}
+                <motion.div key={c.key}
+                  initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.07 }}
                   className="shine relative overflow-hidden rounded-2xl p-4"
-                  style={{ background: "linear-gradient(165deg, rgba(212,175,55,0.14), rgba(10,20,50,0.6))", border: "1px solid rgba(212,175,55,0.4)" }}
-                >
+                  style={{ background: "linear-gradient(165deg, rgba(212,175,55,0.14), rgba(10,20,50,0.6))", border: "1px solid rgba(212,175,55,0.4)" }}>
                   <div className="text-2xl" aria-hidden>🏆</div>
                   <div className="mt-2 text-[0.58rem] font-bold uppercase tracking-[0.25em]" style={{ color: c.accent }}>{c.comp}</div>
                   <div className="mt-0.5 truncate font-display text-sm font-extrabold text-white">{c.name}</div>
                   <div className="mt-0.5 truncate text-[0.62rem] text-muted">{c.sub}</div>
-                  <div className="mt-1 text-[0.58rem] text-white/40">
-                    {new Date(c.date).toLocaleDateString(undefined, { month: "short", year: "numeric" })}
-                  </div>
+                  <div className="mt-1 text-[0.58rem] text-white/40">{new Date(c.date).toLocaleDateString(undefined, { month: "short", year: "numeric" })}</div>
                 </motion.div>
               ))}
             </div>
-          )}
-        </section>
+          </section>
+        )}
 
         {/* ===================== STATISTICS ===================== */}
-        <section className="mt-16">
+        <section className="mt-14">
           <SectionHeading kicker={t("home.stats.kicker")} title={t("home.stats.title")} />
           <div className="glass-strong vignette mt-5 rounded-3xl p-6 sm:p-8">
             <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-6">
@@ -681,17 +442,13 @@ export default function Home() {
         </section>
 
         {/* ===================== GAME NEWS ===================== */}
-        <section id="news" className="mt-16 scroll-mt-24">
+        <section id="news" className="mt-14 scroll-mt-24">
           <SectionHeading kicker={t("home.news.kicker")} title={t("home.news.title")} />
           <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {NEWS.map((n, i) => (
-              <motion.article
-                key={n.titleKey}
-                initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-                transition={{ delay: i * 0.07 }}
-                whileHover={{ y: -4 }}
-                className="glass shine rounded-2xl p-4"
-              >
+              <motion.article key={n.titleKey}
+                initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.07 }}
+                whileHover={{ y: -4 }} className="glass shine rounded-2xl p-4">
                 <div className="flex items-center justify-between">
                   <span className="text-xl" aria-hidden>{n.icon}</span>
                   <span className="text-[0.55rem] font-bold uppercase tracking-[0.2em] text-white/35">{n.date}</span>
@@ -704,7 +461,7 @@ export default function Home() {
         </section>
 
         {/* ============== WHAT IS CONTINENTAL XI + FAQ ================ */}
-        <section className="mt-16">
+        <section className="mt-14">
           <SectionHeading kicker={t("home.about.kicker")} title={t("home.about.title")} />
           <details className="faq-item glass mt-5 overflow-hidden rounded-2xl">
             <summary className="flex cursor-pointer items-center justify-between gap-3 px-5 py-4 text-sm font-extrabold text-white">
@@ -712,10 +469,7 @@ export default function Home() {
               <span className="faq-plus grid h-6 w-6 shrink-0 place-items-center rounded-full bg-white/8 text-base font-bold text-cyan" aria-hidden>+</span>
             </summary>
             <div className="space-y-3 px-5 pb-5 text-[0.82rem] leading-relaxed text-white/70">
-              <p>{t("about.p1")}</p>
-              <p>{t("about.p2")}</p>
-              <p>{t("about.p3")}</p>
-              <p>{t("about.p4")}</p>
+              <p>{t("about.p1")}</p><p>{t("about.p2")}</p><p>{t("about.p3")}</p><p>{t("about.p4")}</p>
             </div>
           </details>
         </section>
@@ -754,6 +508,7 @@ export default function Home() {
             <div>
               <div className="text-[0.6rem] font-bold uppercase tracking-[0.25em] text-muted">{t("home.footer.play")}</div>
               <div className="mt-2 grid gap-1.5 text-xs">
+                <Link className="text-white/70 hover:text-gold" href="/career">{t("home.qa.career")}</Link>
                 <Link className="text-white/70 hover:text-gold" href="/draft">{t("mode.cl.title")}</Link>
                 <Link className="text-white/70 hover:text-gold" href="/international?comp=euro">{t("mode.euro.title")}</Link>
                 <Link className="text-white/70 hover:text-gold" href="/international?comp=copa">Copa América</Link>

@@ -138,12 +138,13 @@ function Career({ player }: { player: CareerPlayer }) {
   };
 
   return (
-    <div className="mx-auto max-w-4xl px-3 pb-16 pt-20 sm:px-4 sm:pt-24">
+    <div className="relative mx-auto max-w-4xl px-3 pb-16 pt-20 sm:px-4 sm:pt-24">
+      <div aria-hidden className="fixed inset-0 -z-10 bg-[#070709]" />
       <div className="grid gap-3 lg:grid-cols-[38fr_62fr]">
 
         {/* ============ LEFT — player + trophies + current action ============ */}
         <div className="space-y-3">
-          <div className="rounded-2xl border border-white/10 bg-[#15111f] p-4 sm:p-5">
+          <div className="rounded-2xl border border-white/10 bg-[#0c0c10] p-4 sm:p-5">
             {/* identity */}
             <div className="flex items-start gap-3">
               <OvrBadge value={player.overall} size={58} />
@@ -181,10 +182,10 @@ function Career({ player }: { player: CareerPlayer }) {
             </div>
 
             {/* stat line */}
-            <div className="mt-4 grid grid-cols-3 divide-x divide-white/8 rounded-xl border border-white/8 bg-black/25 py-2.5 text-center">
-              <BigStat n={totals.apps} k={c("APPS", "PJ")} />
-              <BigStat n={totals.goals} k={c("GOALS", "GOLES")} />
-              <BigStat n={totals.assists} k={c("ASSISTS", "ASIST")} />
+            <div className="mt-4 grid grid-cols-3 divide-x divide-white/8 rounded-xl border border-white/8 bg-black/30 py-2.5 text-center">
+              <BigStat n={totals.apps} k={c("APPS", "PJ")} icon="👕" />
+              <BigStat n={totals.goals} k={c("GOALS", "GOLES")} icon="⚽" />
+              <BigStat n={totals.assists} k={c("ASSISTS", "ASIST")} icon="👟" />
             </div>
 
             {/* trophy cabinet */}
@@ -192,7 +193,7 @@ function Career({ player }: { player: CareerPlayer }) {
           </div>
 
           {/* the current action — the beating heart of the one-screen loop */}
-          <div className="rounded-2xl border border-white/10 bg-[#15111f] p-4 sm:p-5">
+          <div className="rounded-2xl border border-white/10 bg-[#0c0c10] p-4 sm:p-5">
             {player.retired ? (
               <RetiredCard player={player} c={c} onLegacy={() => setShowLegacy(true)} />
             ) : simming ? (
@@ -210,16 +211,25 @@ function Career({ player }: { player: CareerPlayer }) {
         </div>
 
         {/* ============ RIGHT — the age ladder ============ */}
-        <div className="rounded-2xl border border-white/10 bg-[#100d1a] p-3 sm:p-4">
-          <div className="mb-2.5 flex items-center justify-between px-1">
-            <span className="font-display text-sm font-black uppercase tracking-wider" style={{ color: "#b39cf5" }}>{c("Career", "Trayectoria")}</span>
-            <span className="text-[0.6rem] font-bold uppercase tracking-widest text-white/30">{c("Age chapters", "Capítulos por edad")}</span>
+        <div className="rounded-2xl border border-white/8 bg-[#0c0c10] p-2.5 sm:p-3">
+          {/* column headers — the Copero career ledger */}
+          <div className="grid grid-cols-[40px_1fr_42px_40px_40px_38px] items-center gap-2 px-2 pb-2 text-[0.5rem] font-bold uppercase tracking-[0.15em] text-white/30 sm:grid-cols-[46px_1fr_46px_46px_46px_44px]">
+            <span>{c("Age", "Edad")}</span>
+            <span>{c("Club", "Club")}</span>
+            <span className="text-center">OVR</span>
+            <span className="text-center">{c("Apps", "PJ")}</span>
+            <span className="text-center">{c("Goals", "Gol")}</span>
+            <span className="text-center">{c("Ast", "Asis")}</span>
           </div>
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {buildLadder(chapters, player).map((slot) => (
               <LadderRow key={slot.age} slot={slot} peak={totals.peakOverall}
                 playing={(simming || !!run) && slot.state === "current"} simming={simming && slot.state === "current"} />
             ))}
+            {intl.caps > 0 && (
+              <NationalRow nation={player.nationality} caps={intl.caps} goals={intl.goals}
+                assists={intl.assists ?? 0} honours={player.intl?.majorHonours ?? []} />
+            )}
           </div>
         </div>
       </div>
@@ -266,11 +276,14 @@ function dedupeHonours(list: ResolvedHonour[]): ResolvedHonour[] {
   return list.filter((h) => (seen.has(h.id) ? false : (seen.add(h.id), true)));
 }
 
-function BigStat({ n, k }: { n: number; k: string }) {
+function BigStat({ n, k, icon }: { n: number; k: string; icon: string }) {
   return (
-    <div>
-      <div className="font-display text-xl font-black text-white">{n}</div>
-      <div className="text-[0.48rem] font-bold uppercase tracking-widest text-white/35">{k}</div>
+    <div className="flex flex-col items-center">
+      <div className="text-[0.46rem] font-bold uppercase tracking-widest text-white/35">{k}</div>
+      <div className="mt-0.5 flex items-center gap-1">
+        <span className="text-[0.72rem] leading-none opacity-75">{icon}</span>
+        <span className="font-display text-lg font-black text-white">{n}</span>
+      </div>
     </div>
   );
 }
@@ -602,12 +615,36 @@ function buildLadder(chapters: TimelineChapter[], player: CareerPlayer): Slot[] 
   return out;
 }
 
-function ratingColor(r: number): string {
-  if (r >= 7.5) return "#7ee081";
-  if (r >= 7.0) return "#b6e36a";
-  if (r >= 6.6) return "#f2d472";
-  return "#ffa657";
+/** Relative luminance of a hex colour — decides age-square text contrast. */
+function hexLum(hex: string): number {
+  const h = hex.replace("#", "");
+  const v = h.length === 3 ? h.split("").map((x) => x + x).join("") : h.padEnd(6, "0");
+  const r = parseInt(v.slice(0, 2), 16), g = parseInt(v.slice(2, 4), 16), b = parseInt(v.slice(4, 6), 16);
+  return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
 }
+const inkOn = (hex: string) => (hexLum(hex) > 0.6 ? "#0a0a0a" : "#ffffff");
+
+/** Compact OVR chip, tier-coloured (orange / steel / gold) like the reference. */
+function OvrChip({ value }: { value: number }) {
+  const s = ovrStyle(value);
+  return (
+    <span className="grid h-8 w-full place-items-center rounded-md font-display text-[0.82rem] font-black"
+      style={{ background: s.bg, color: s.fg }}>{value}</span>
+  );
+}
+
+const AP_ICON = "👕", GL_ICON = "⚽", AS_ICON = "👟";
+function StatCell({ icon, n }: { icon: string; n: number }) {
+  return (
+    <div className="flex items-center justify-center gap-1">
+      <span className="text-[0.6rem] leading-none opacity-70">{icon}</span>
+      <span className="font-display text-[0.88rem] font-black tabular-nums text-white">{n}</span>
+    </div>
+  );
+}
+
+/** Shared column template so headers + every row + the national row all align. */
+const ROW_COLS = "grid grid-cols-[40px_1fr_42px_40px_40px_38px] items-center gap-2 sm:grid-cols-[46px_1fr_46px_46px_46px_44px]";
 
 function LadderRow({ slot, peak, playing, simming }: { slot: Slot; peak: number; playing: boolean; simming: boolean }) {
   const c = useC();
@@ -615,76 +652,72 @@ function LadderRow({ slot, peak, playing, simming }: { slot: Slot; peak: number;
   const clubColor = ch?.clubColors?.[0] ?? "#3a4560";
 
   if (!ch) {
-    // current (up next / playing) or a faded future slot
+    const cur = state === "current";
     return (
-      <motion.div initial={false}
-        className={`flex items-center gap-3 rounded-2xl border px-3 py-3.5 ${
-          state === "current" ? "border-[#8b5cf6]/50 bg-[#8b5cf6]/[0.08]" : "border-white/5 bg-white/[0.015] opacity-40"}`}>
-        <motion.span animate={simming ? { scale: [1, 1.1, 1] } : {}} transition={{ duration: 0.9, repeat: Infinity }}
-          className="grid h-12 w-12 shrink-0 place-items-center rounded-xl font-display text-lg font-black text-white"
-          style={{ background: state === "current" ? "#8b5cf644" : "#ffffff0d" }}>{slot.age}</motion.span>
-        <span className="text-[0.95rem] font-bold" style={{ color: state === "current" ? "#c4b5fd" : "rgba(255,255,255,0.5)" }}>
-          {state === "current" ? (simming ? c("Simulating…", "Simulando…") : playing ? c("Playing…", "Jugando…") : c("Up next", "A continuación")) : "—"}
+      <div className={`${ROW_COLS} rounded-xl px-2 py-2.5 ${cur ? "" : "opacity-40"}`}
+        style={{ background: cur ? "#8b5cf61c" : "#ffffff05", boxShadow: `inset 0 0 0 1px ${cur ? "#8b5cf655" : "rgba(255,255,255,0.05)"}` }}>
+        <motion.span animate={simming ? { scale: [1, 1.12, 1] } : {}} transition={{ duration: 0.9, repeat: Infinity }}
+          className="grid h-9 w-9 place-items-center rounded-lg font-display text-[0.9rem] font-black text-white"
+          style={{ background: cur ? "#8b5cf6" : "#ffffff12" }}>{slot.age}</motion.span>
+        <span className="flex items-center gap-2 text-[0.85rem] font-bold" style={{ color: cur ? "#c4b5fd" : "rgba(255,255,255,0.4)" }}>
+          {cur && <span className="grid h-6 w-6 place-items-center rounded-full bg-white/10 text-[0.7rem] text-white/60">?</span>}
+          {cur ? (simming ? c("Simulating…", "Simulando…") : playing ? c("Playing…", "Jugando…") : c("Choosing club…", "Eligiendo club…")) : "—"}
         </span>
-      </motion.div>
+        <span /><span /><span /><span />
+      </div>
     );
   }
 
-  const delta = ch.overallTo - ch.overallFrom;
-  const best = ch.overallTo >= peak && peak > 0;
   const trophies = ch.seasons.flatMap((s) => seasonTrophies(s));
+  const best = ch.overallTo >= peak && peak > 0;
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}
-      className={`flex items-center gap-3 overflow-hidden rounded-2xl border-l-[5px] border-y border-r px-3 py-3 transition-colors hover:bg-white/[0.04] ${
-        best ? "border-y-gold/25 border-r-gold/25 bg-gold/[0.05]" : delta < 0 ? "border-y-red-400/15 border-r-red-400/15 bg-[#17121f]" : "border-y-white/8 border-r-white/8 bg-[#17121f]"}`}
-      style={{ borderLeftColor: clubColor }}>
-      {/* age */}
-      <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl font-display text-lg font-black text-white shadow-inner"
-        style={{ background: `linear-gradient(135deg, ${clubColor}, ${clubColor}aa)` }}>{ch.fromAge}</span>
-
-      {/* club + trophies */}
-      <div className="min-w-0 flex-1">
-        <div className="flex min-w-0 items-center gap-1.5">
-          <ClubCrest short={ch.clubShort} colors={ch.clubColors} size={26} />
-          <span className="truncate font-display text-[0.98rem] font-extrabold text-white">{ch.clubName}</span>
-          <CountryFlag country={ch.clubCountry} size={12} />
-          {ch.transferred && <span className="shrink-0 text-sm text-cyan-300" title={c("Transfer", "Traspaso")}>⇄</span>}
-          {ch.injured && <span className="shrink-0 text-sm" title={c("Injured this spell", "Lesionado en esta etapa")}>🩺</span>}
-        </div>
-        <div className="mt-1 flex items-center gap-2">
-          {ch.avgRating > 0 && (
-            <span className="rounded-md px-1.5 py-0.5 font-display text-[0.72rem] font-black" style={{ background: `${ratingColor(ch.avgRating)}22`, color: ratingColor(ch.avgRating) }}>
-              {ch.avgRating.toFixed(1)}
-            </span>
-          )}
-          {ch.marketValue > 0 && <span className="text-[0.72rem] font-bold text-white/45">{fmtMoney(ch.marketValue)}</span>}
-          <div className="flex items-center gap-0.5">
-            {trophies.slice(0, 6).map((h, i) => <TrophyArt key={i} id={h.id} size={19} title={h.en} />)}
-          </div>
-        </div>
+    <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22 }}
+      className={`${ROW_COLS} rounded-xl px-2 py-2 transition-[filter] hover:brightness-125`}
+      style={{ background: `linear-gradient(90deg, ${clubColor}33, ${clubColor}0d 72%)`, boxShadow: `inset 0 0 0 1px ${best ? "rgba(242,201,76,0.4)" : "rgba(255,255,255,0.05)"}` }}>
+      {/* age square, tinted with the club's own colour */}
+      <span className="grid h-9 w-9 place-items-center rounded-lg font-display text-[0.92rem] font-black"
+        style={{ background: clubColor, color: inkOn(clubColor), boxShadow: `0 2px 10px ${clubColor}55` }}>{ch.fromAge}</span>
+      {/* club + trophies won that spell */}
+      <div className="flex min-w-0 items-center gap-1.5">
+        <ClubCrest short={ch.clubShort} colors={ch.clubColors} size={22} />
+        <span className="truncate font-display text-[0.9rem] font-extrabold text-white">{ch.clubName}</span>
+        {ch.transferred && <span className="shrink-0 text-[0.72rem] text-cyan-300" title={c("Transfer", "Traspaso")}>⇄</span>}
+        {ch.injured && <span className="shrink-0 text-[0.72rem]" title={c("Injured this spell", "Lesionado en esta etapa")}>🩹</span>}
+        <span className="flex shrink-0 items-center gap-0.5">
+          {trophies.slice(0, 3).map((h, i) => <TrophyArt key={i} id={h.id} size={15} title={h.en} />)}
+        </span>
       </div>
-
-      {/* OVR */}
-      <div className="flex shrink-0 flex-col items-center">
-        <OvrBadge value={ch.overallTo} size={36} />
-        {delta !== 0 && <span className="mt-0.5 text-[0.66rem] font-black" style={{ color: delta > 0 ? "#7ee081" : "#ff6b6b" }}>{delta > 0 ? "▲" : "▼"}{Math.abs(delta)}</span>}
-      </div>
-
-      {/* stats — big numbers, tiny labels */}
-      <div className="flex shrink-0 gap-3 text-center">
-        <StatCell n={ch.apps} k="PJ" />
-        <StatCell n={ch.goals} k="G" gold />
-        <StatCell n={ch.assists} k="A" />
-      </div>
+      <OvrChip value={ch.overallTo} />
+      <StatCell icon={AP_ICON} n={ch.apps} />
+      <StatCell icon={GL_ICON} n={ch.goals} />
+      <StatCell icon={AS_ICON} n={ch.assists} />
     </motion.div>
   );
 }
 
-function StatCell({ n, k, gold }: { n: number; k: string; gold?: boolean }) {
+/** The national-team career, a gold row at the foot of the ledger. */
+function NationalRow({ nation, caps, goals, assists, honours }: {
+  nation: string; caps: number; goals: number; assists: number; honours: string[];
+}) {
+  const es = useLang().lang === "es";
+  const trophies = honours.map((h) => resolveHonour(h.split(" ·")[0].trim())).slice(0, 3);
   return (
-    <div className="w-8">
-      <div className={`font-display text-lg font-black tabular-nums ${gold ? "text-gold" : "text-white"}`}>{n}</div>
-      <div className="text-[0.5rem] font-bold uppercase tracking-widest text-white/30">{k}</div>
+    <div className={`${ROW_COLS} mt-1 rounded-xl px-2 py-2`}
+      style={{ background: "linear-gradient(90deg, rgba(242,201,76,0.24), rgba(242,201,76,0.05) 72%)", boxShadow: "inset 0 0 0 1px rgba(242,201,76,0.38)" }}>
+      <span className="grid h-9 w-9 place-items-center overflow-hidden rounded-lg" style={{ background: "#e6b81f" }}>
+        <CountryFlag country={nation} size={20} />
+      </span>
+      <div className="flex min-w-0 items-center gap-1.5">
+        <CountryFlag country={nation} size={20} />
+        <span className="truncate font-display text-[0.9rem] font-extrabold text-white">{nation}</span>
+        <span className="flex shrink-0 items-center gap-0.5">
+          {trophies.map((h, i) => <TrophyArt key={i} id={h.id} size={15} title={es ? h.es : h.en} />)}
+        </span>
+      </div>
+      <span className="grid h-8 place-items-center text-[0.58rem] font-bold uppercase tracking-widest text-[#f2c94c]/70">Int</span>
+      <StatCell icon={AP_ICON} n={caps} />
+      <StatCell icon={GL_ICON} n={goals} />
+      <StatCell icon={AS_ICON} n={assists} />
     </div>
   );
 }

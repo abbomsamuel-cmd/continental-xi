@@ -10,6 +10,7 @@ import { TeamBadge } from "@/components/TeamBadge";
 import { LineupCard, type BadgeKind } from "@/components/LineupCard";
 import { ReportBug } from "@/components/ReportBug";
 import { useGame } from "@/lib/store";
+import { useCurrentPlayer } from "@/lib/career/store";
 import { useHydrated } from "@/lib/useHydrated";
 import { useT } from "@/lib/i18n";
 import { ACHIEVEMENTS } from "@/lib/achievements";
@@ -240,6 +241,103 @@ function ModeCard({ mode, index }: { mode: (typeof MODES)[number]; index: number
   );
 }
 
+/* ------------------------------------------------------------------ */
+/*  Player Career Mode — a first-class pillar of the hub, its own       */
+/*  violet/gold identity distinct from the tournament competitions.     */
+/* ------------------------------------------------------------------ */
+const CAREER_VIOLET = "#c9a7ff";
+
+/** A stylised OVR-growth arc: a career rising, peaking, then bowing out. */
+function CareerArc() {
+  const t = useT();
+  // age → overall milestones, mapped into the 300×150 drawing box
+  const pts: [number, number][] = [[16, 60], [21, 74], [26, 86], [30, 90], [34, 85], [38, 77]];
+  const X = (age: number) => 20 + ((age - 16) / 22) * 260;
+  const Y = (ovr: number) => 132 - ((ovr - 56) / 38) * 116;
+  const line = pts.map((p) => `${X(p[0]).toFixed(1)} ${Y(p[1]).toFixed(1)}`).join(" L ");
+  const area = `M ${X(16)} 132 L ${line} L ${X(38)} 132 Z`;
+  return (
+    <div className="relative w-full shrink-0 lg:w-[320px]">
+      <svg viewBox="0 0 300 150" className="w-full" role="img" aria-label={t("home.career.arcLabel")}>
+        <defs>
+          <linearGradient id="carc-line" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stopColor={CAREER_VIOLET} /><stop offset="1" stopColor="#f2d472" />
+          </linearGradient>
+          <linearGradient id="carc-area" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="rgba(201,167,255,0.34)" /><stop offset="1" stopColor="rgba(201,167,255,0)" />
+          </linearGradient>
+        </defs>
+        {[132, 103, 74, 45].map((y) => <line key={y} x1="14" y1={y} x2="286" y2={y} stroke="rgba(255,255,255,0.06)" strokeWidth="1" />)}
+        <path d={area} fill="url(#carc-area)" />
+        <path d={`M ${line}`} fill="none" stroke="url(#carc-line)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+        {pts.map((p, i) => (
+          <circle key={i} cx={X(p[0])} cy={Y(p[1])} r={i === 3 ? 4.5 : 3}
+            fill={i === 3 ? "#f2d472" : CAREER_VIOLET} stroke="#0a1330" strokeWidth="1.5" />
+        ))}
+        {/* peak marker */}
+        <text x={X(30)} y={Y(90) - 9} textAnchor="middle" fontFamily="var(--font-display)" fontWeight="800" fontSize="13" fill="#f2d472">90</text>
+        <text x={X(16)} y={146} textAnchor="middle" fontSize="9" fill="rgba(255,255,255,0.45)">16</text>
+        <text x={X(38)} y={146} textAnchor="middle" fontSize="9" fill="rgba(255,255,255,0.45)">38</text>
+      </svg>
+      <div className="mt-1 text-center text-[0.55rem] font-bold uppercase tracking-[0.3em] text-white/40">{t("home.career.arcLabel")}</div>
+    </div>
+  );
+}
+
+function CareerBand({ player }: { player: ReturnType<typeof useCurrentPlayer> }) {
+  const t = useT();
+  const active = player && !player.retired ? player : null;
+  const retired = player && player.retired ? player : null;
+  const href = active ? "/career" : retired ? "/career" : "/career/new";
+  const ctaKey = active ? "home.career.continue" : retired ? "home.career.view" : "home.career.start";
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.16 }}
+      className="mt-4"
+    >
+      <div
+        className="shine relative overflow-hidden rounded-3xl p-6 sm:p-8"
+        style={{ border: "1px solid rgba(190,150,255,0.3)", background: "linear-gradient(115deg, #1b1246 0%, #131b46 48%, #0a1330 100%)" }}
+      >
+        <span aria-hidden className="pointer-events-none absolute inset-0"
+          style={{ background: "radial-gradient(58% 80% at 90% -14%, rgba(201,167,255,0.3), transparent 60%), radial-gradient(46% 70% at 4% 128%, rgba(242,212,114,0.16), transparent 60%)" }} />
+        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+          <div className="max-w-xl">
+            <div className="cl-heading text-[0.6rem] tracking-[0.4em]" style={{ color: CAREER_VIOLET }}>{t("home.career.kicker")}</div>
+            <h2 className="mt-1.5 font-display text-2xl font-extrabold sm:text-3xl">
+              {t("home.career.title.a")}<span className="text-gradient-gold">{t("home.career.title.b")}</span>
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-white/70">{t("home.career.body")}</p>
+
+            {player && (
+              <div className="mt-4 flex w-fit items-center gap-2.5 rounded-xl bg-black/30 px-3 py-2">
+                <span className="text-[0.55rem] font-bold uppercase tracking-[0.22em]" style={{ color: CAREER_VIOLET }}>{t("home.career.activeKicker")}</span>
+                <span className="font-display text-sm font-extrabold text-white">{player.name}</span>
+                <span className="text-[0.7rem] text-white/55">
+                  {retired ? t("home.career.retiredTag") : t("home.career.ageClub", { age: player.age, club: player.currentClubName })}
+                </span>
+              </div>
+            )}
+
+            <div className="mt-4 flex flex-wrap gap-1.5">
+              {["home.career.chip1", "home.career.chip2", "home.career.chip3"].map((c) => (
+                <span key={c} className="chip" style={{ background: `${CAREER_VIOLET}1e`, color: CAREER_VIOLET }}>{t(c)}</span>
+              ))}
+            </div>
+
+            <div className="mt-5 flex flex-wrap gap-2.5">
+              <Link href={href} className="btn btn-gold btn-pulse" onClick={() => play("select")}>🎮 {t(ctaKey)}</Link>
+              {player && <Link href="/career/timeline" className="btn btn-ghost" onClick={() => play("click")}>{t("home.career.view")}</Link>}
+            </div>
+          </div>
+
+          <CareerArc />
+        </div>
+      </div>
+    </motion.section>
+  );
+}
+
 /* ================================================================== */
 
 export default function Home() {
@@ -253,6 +351,7 @@ export default function Home() {
   const draftComplete = useGame((s) => s.draftComplete);
   const placedSlots = useGame((s) => s.placedSlots);
   const matchLog = useGame((s) => s.matchLog);
+  const careerPlayer = useCurrentPlayer();
   const playerCount = getAllPlayers().length;
 
   /* ---- CONTINUE PLAYING: whatever the manager left on the desk ---- */
@@ -353,7 +452,7 @@ export default function Home() {
   return (
     <div className="relative pb-24">
       <StadiumScene />
-      <div className="mx-auto max-w-6xl px-4 pt-24 sm:pt-28">
+      <div className="mx-auto max-w-7xl px-4 pt-24 sm:pt-28 lg:px-6">
         {/* ===================== HUB MASTHEAD ===================== */}
         <div className="flex flex-wrap items-end justify-between gap-4">
           <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}>
@@ -425,23 +524,27 @@ export default function Home() {
           )}
         </motion.section>
 
+        {/* ===================== PLAYER CAREER MODE ===================== */}
+        <CareerBand player={mounted ? careerPlayer : null} />
+
         {/* ===================== QUICK ACTIONS ===================== */}
         <motion.section
           initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-          className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-5"
+          className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6"
         >
           {[
+            { href: "/career", icon: "🎮", label: t("home.qa.career") },
             { href: "/draft", icon: "🎴", label: t("home.qa.newDraft") },
             { href: "/daily", icon: "📅", label: t("home.qa.daily") },
             { href: "/history", icon: "📜", label: t("home.qa.history") },
             { href: "/international", icon: "🌍", label: t("home.qa.leadNation") },
             { href: "/stats", icon: "👔", label: t("home.qa.profile") },
-          ].map((a, i) => (
+          ].map((a) => (
             <Link
               key={a.href}
               href={a.href}
               onClick={() => play("click")}
-              className={`glass shine flex items-center justify-center gap-2 rounded-xl px-3 py-3 text-[0.72rem] font-extrabold uppercase tracking-wider text-white/75 transition-all hover:-translate-y-0.5 hover:text-white ${i === 4 ? "col-span-2 sm:col-span-1" : ""}`}
+              className="glass shine flex items-center justify-center gap-2 rounded-xl px-3 py-3 text-[0.72rem] font-extrabold uppercase tracking-wider text-white/75 transition-all hover:-translate-y-0.5 hover:text-white"
             >
               <span className="text-base">{a.icon}</span> {a.label}
             </Link>

@@ -26,7 +26,7 @@ export default function SavesPage() {
     <div className="mx-auto max-w-3xl px-4 pt-24 sm:px-6 sm:pt-28">
       <div className="flex items-center justify-between">
         <h1 className="font-display text-2xl font-black text-white sm:text-3xl">{c("Save Slots", "Partidas")}</h1>
-        <Link href="/career/new" onClick={() => play("select")} className="btn btn-gold text-sm">+ {c("New Career", "Nueva Carrera")}</Link>
+        <Link href="/career/new" onClick={() => play("select")} className="btn btn-career text-sm">+ {c("New Career", "Nueva Carrera")}</Link>
       </div>
 
       {saves.length === 0 ? (

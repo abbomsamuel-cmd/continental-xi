@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { seededRng, shuffle, hashString } from "@/lib/rng";
 import { play } from "@/lib/sound";
-import { WavingFlag } from "@/components/fx/WavingFlag";
+import { Flag } from "@/components/Flag";
 import { Sparks } from "@/components/fx/Atmosphere";
 
 /**
@@ -18,18 +18,6 @@ const REVEAL_MS = 2300;
 const TARGET = 30; // index of the drawn nation in the strip
 const STRIP_LEN = TARGET + 8;
 const EASE_SPIN = [0.1, 0.75, 0.12, 1] as const;
-
-const FLAG_EMOJI: Record<string, string> = {
-  Spain: "🇪🇸", France: "🇫🇷", Germany: "🇩🇪", "West Germany": "🇩🇪", Italy: "🇮🇹",
-  Portugal: "🇵🇹", Netherlands: "🇳🇱", Denmark: "🇩🇰", Greece: "🇬🇷", England: "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
-  Croatia: "🇭🇷", Poland: "🇵🇱", Austria: "🇦🇹", Romania: "🇷🇴", Scotland: "🏴󠁧󠁢󠁳󠁣󠁴󠁿",
-  Ukraine: "🇺🇦", Hungary: "🇭🇺", Iceland: "🇮🇸", "Republic of Ireland": "🇮🇪", Norway: "🇳🇴",
-  Belgium: "🇧🇪", Sweden: "🇸🇪", Switzerland: "🇨🇭", Turkey: "🇹🇷", Wales: "🏴󠁧󠁢󠁷󠁬󠁳󠁿",
-  Russia: "🇷🇺", "Czech Republic": "🇨🇿", Czechoslovakia: "🇨🇿", "Soviet Union": "🇷🇺",
-  Argentina: "🇦🇷", Brazil: "🇧🇷", Uruguay: "🇺🇾", Chile: "🇨🇱", Colombia: "🇨🇴",
-  Paraguay: "🇵🇾", Peru: "🇵🇪", Ecuador: "🇪🇨", Bolivia: "🇧🇴", Venezuela: "🇻🇪",
-  Mexico: "🇲🇽", "United States": "🇺🇸",
-};
 
 interface Entry { name: string; colors: [string, string] }
 
@@ -47,12 +35,8 @@ const abbrOf = (name: string) => {
   return (w.length === 1 ? w[0].slice(0, 3) : w.map((x) => x[0]).join("").slice(0, 3)).toUpperCase();
 };
 
-function FlagGlyph({ name, colors, size }: { name: string; colors: [string, string]; size: number }) {
-  const emoji = FLAG_EMOJI[nationOf(name)];
-  if (emoji) {
-    return <span style={{ fontSize: size, lineHeight: 1 }} aria-hidden>{emoji}</span>;
-  }
-  return <WavingFlag colors={colors} width={size * 1.4} />;
+function FlagGlyph({ name, size }: { name: string; size: number }) {
+  return <Flag nationality={nationOf(name)} width={size * 1.4} />;
 }
 
 /** Build the strip: shuffled nations, drawn one at TARGET, no dupes beside it. */
@@ -98,8 +82,8 @@ function useSpinSounds(onDone: () => void) {
 /*  The staged reveal both competitions share: impact → flag grows →   */
 /*  country name → season. Palette-driven so each comp keeps its skin. */
 /* ------------------------------------------------------------------ */
-function Reveal({ club, seasonLabel, colors, accent, compLine }: {
-  club: string; seasonLabel: string; colors: [string, string]; accent: string; compLine: string;
+function Reveal({ club, seasonLabel, accent, compLine }: {
+  club: string; seasonLabel: string; accent: string; compLine: string;
 }) {
   return (
     <motion.div
@@ -123,7 +107,7 @@ function Reveal({ club, seasonLabel, colors, accent, compLine }: {
         transition={{ duration: 0.55, times: [0, 0.7, 1], ease: "easeOut" }}
         style={{ filter: `drop-shadow(0 10px 34px ${accent}66)` }}
       >
-        <FlagGlyph name={club} colors={colors} size={74} />
+        <FlagGlyph name={club} size={74} />
       </motion.div>
       <motion.div
         initial={{ opacity: 0, y: 16 }}
@@ -163,7 +147,7 @@ export function EuroSpinner({ club, seasonLabel, colors, reel, onDone }: Props) 
   return (
     <div className="mx-auto w-full max-w-2xl">
       <div className="mb-3 text-center">
-        <p className="cl-heading text-[0.62rem] tracking-[0.4em] text-[#37e0ff]">Crossing Europe</p>
+        <p className="cl-heading text-[0.62rem] tracking-[0.4em] text-[#ff3b57]">Crossing Europe</p>
       </div>
 
       <div
@@ -216,7 +200,7 @@ export function EuroSpinner({ club, seasonLabel, colors, reel, onDone }: Props) 
                   border: "1px solid rgba(219,230,255,0.22)",
                 }}
               >
-                <FlagGlyph name={it.name} colors={it.colors} size={34} />
+                <FlagGlyph name={it.name} size={34} />
                 <span className="text-[0.62rem] font-extrabold tracking-[0.2em] text-white/75">{abbrOf(it.name)}</span>
               </div>
             ))}
@@ -226,7 +210,7 @@ export function EuroSpinner({ club, seasonLabel, colors, reel, onDone }: Props) 
         {/* the reveal */}
         <AnimatePresence>
           {phase === "reveal" && (
-            <Reveal club={club} seasonLabel={seasonLabel} colors={colors} accent="#37e0ff" compLine="EURO" />
+            <Reveal club={club} seasonLabel={seasonLabel} accent="#ff3b57" compLine="EURO" />
           )}
         </AnimatePresence>
       </div>
@@ -251,18 +235,18 @@ export function CopaSpinner({ club, seasonLabel, colors, reel, onDone }: Props) 
   return (
     <div className="mx-auto w-full max-w-md">
       <div className="mb-3 text-center">
-        <p className="cl-heading text-[0.62rem] tracking-[0.4em] text-[#ffc93c]">🥁 Rolling Through the Américas</p>
+        <p className="cl-heading text-[0.62rem] tracking-[0.4em] text-[#00e676]">🥁 Rolling Through the Américas</p>
       </div>
 
       <div
         className="relative mx-auto h-[300px] max-w-[300px] overflow-hidden rounded-3xl"
         style={{
-          background: "linear-gradient(180deg, rgba(23,201,122,0.14), rgba(6,37,26,0.75) 55%, rgba(255,138,61,0.10))",
-          border: "2px solid rgba(255,201,60,0.55)",
-          boxShadow: "inset 0 0 40px rgba(23,201,122,0.15), 0 18px 50px rgba(0,0,0,0.5), 0 0 44px rgba(255,201,60,0.18)",
+          background: "linear-gradient(180deg, rgba(0,230,118,0.14), rgba(6,37,26,0.75) 55%, rgba(14,165,233,0.10))",
+          border: "2px solid rgba(255,215,0,0.55)",
+          boxShadow: "inset 0 0 40px rgba(0,230,118,0.15), 0 18px 50px rgba(0,0,0,0.5), 0 0 44px rgba(255,215,0,0.18)",
         }}
       >
-        <Sparks count={8} color="#ffc93c" />
+        <Sparks count={8} color="#00e676" />
 
         {/* golden side pointers + centre band */}
         <AnimatePresence>
@@ -270,12 +254,12 @@ export function CopaSpinner({ club, seasonLabel, colors, reel, onDone }: Props) 
             <motion.div key="frame" exit={{ opacity: 0 }} className="pointer-events-none absolute inset-0 z-20">
               <motion.div
                 className="absolute inset-x-3 top-1/2 h-[86px] -translate-y-1/2 rounded-2xl"
-                style={{ border: "2px solid rgba(255,201,60,0.9)", boxShadow: "0 0 30px rgba(255,201,60,0.4), inset 0 0 24px rgba(255,201,60,0.12)" }}
+                style={{ border: "2px solid rgba(255,215,0,0.9)", boxShadow: "0 0 30px rgba(255,215,0,0.4), inset 0 0 24px rgba(255,215,0,0.12)" }}
                 animate={{ scale: [1, 1, 1.08, 1] }}
                 transition={{ duration: SPIN_MS / 1000 + 0.15, times: [0, 0.93, 0.97, 1] }}
               />
-              <div className="absolute left-1 top-1/2 -translate-y-1/2 border-y-[10px] border-l-[14px] border-y-transparent" style={{ borderLeftColor: "#ffc93c" }} />
-              <div className="absolute right-1 top-1/2 -translate-y-1/2 border-y-[10px] border-r-[14px] border-y-transparent" style={{ borderRightColor: "#ffc93c" }} />
+              <div className="absolute left-1 top-1/2 -translate-y-1/2 border-y-[10px] border-l-[14px] border-y-transparent" style={{ borderLeftColor: "#ffd700" }} />
+              <div className="absolute right-1 top-1/2 -translate-y-1/2 border-y-[10px] border-r-[14px] border-y-transparent" style={{ borderRightColor: "#ffd700" }} />
               <div className="absolute inset-x-0 top-0 z-10 h-20 bg-gradient-to-b from-[#04140c] to-transparent" />
               <div className="absolute inset-x-0 bottom-0 z-10 h-20 bg-gradient-to-t from-[#04140c] to-transparent" />
             </motion.div>
@@ -308,7 +292,7 @@ export function CopaSpinner({ club, seasonLabel, colors, reel, onDone }: Props) 
                   border: "1px solid rgba(255,201,60,0.25)",
                 }}
               >
-                <FlagGlyph name={it.name} colors={it.colors} size={30} />
+                <FlagGlyph name={it.name} size={30} />
                 <span className="font-display text-lg font-extrabold tracking-[0.25em] text-white/85">{abbrOf(it.name)}</span>
               </div>
             ))}
@@ -318,7 +302,7 @@ export function CopaSpinner({ club, seasonLabel, colors, reel, onDone }: Props) 
         {/* the reveal */}
         <AnimatePresence>
           {phase === "reveal" && (
-            <Reveal club={club} seasonLabel={seasonLabel} colors={colors} accent="#ffc93c" compLine="COPA AMÉRICA" />
+            <Reveal club={club} seasonLabel={seasonLabel} accent="#00e676" compLine="COPA AMÉRICA" />
           )}
         </AnimatePresence>
       </div>

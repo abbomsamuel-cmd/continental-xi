@@ -39,8 +39,8 @@ export function RadarChart({ data, size = 240 }: Props) {
       })}
       <motion.polygon
         points={shape}
-        fill="rgba(212,175,55,0.22)"
-        stroke="#d4af37"
+        fill="rgba(0,240,255,0.2)"
+        stroke="#00f0ff"
         strokeWidth="2"
         initial={{ opacity: 0, scale: 0.6 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -52,7 +52,7 @@ export function RadarChart({ data, size = 240 }: Props) {
         const [lx, ly] = point(118, i);
         return (
           <g key={d.label}>
-            <circle cx={x} cy={y} r="3" fill="#f2d472" />
+            <circle cx={x} cy={y} r="3" fill="#7dfaff" />
             <text x={lx} y={ly} textAnchor="middle" dominantBaseline="middle"
               className="fill-white font-bold" style={{ fontSize: 10 }}>
               {d.label}

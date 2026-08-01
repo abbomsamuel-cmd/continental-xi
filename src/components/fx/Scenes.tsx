@@ -43,7 +43,7 @@ export function CopaScene() {
       {/* stands silhouette */}
       <div className="absolute inset-x-0 bottom-0 h-[26vh]"
         style={{ background: "linear-gradient(to top, rgba(2,10,6,0.98), rgba(4,18,11,0.6) 65%, transparent)" }} />
-      <Sparks count={16} color="#ffc93c" />
+      <Sparks count={16} color="#00e676" />
       <CameraFlashes count={12} />
     </div>
   );

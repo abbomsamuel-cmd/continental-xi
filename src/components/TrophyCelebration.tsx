@@ -140,9 +140,9 @@ export function TrophyCelebration({ tournament, teamName, tie, onViewStats, onCo
   const digest = useMemo(() => campaignDigest(tournament, teamName), [tournament, teamName]);
 
   const theme = {
-    champion: { ring: "#f2d472", accent: "#22e0ff", bg: "#0a1f6e", label: "Champions of Europe", emoji: "🏆" },
-    runner: { ring: "#c8d2e0", accent: "#c8d2e0", bg: "#0a1533", label: "Runners-up", emoji: "🥈" },
-    out: { ring: "#5f8bff", accent: "#5f8bff", bg: "#0a1330", label: stageName || "The Road Ends", emoji: "" },
+    champion: { ring: "#7dfaff", accent: "#00f0ff", bg: "#0d1a12", label: "Champions of Europe", emoji: "🏆" },
+    runner: { ring: "#c8d2e0", accent: "#c8d2e0", bg: "#0d1320", label: "Runners-up", emoji: "🥈" },
+    out: { ring: "#00f0ff", accent: "#00f0ff", bg: "#0a0e17", label: stageName || "The Road Ends", emoji: "" },
   }[kind];
 
   const [celebrateKey, setCelebrateKey] = useState(0);
@@ -177,7 +177,7 @@ export function TrophyCelebration({ tournament, teamName, tie, onViewStats, onCo
       scoreLine: finalTie && opp
         ? `${teamName} ${finalTie.userAgg}-${finalTie.oppAgg} ${teamLabel(opp)}${finalTie.pens ? ` · pens ${finalTie.pens[0]}-${finalTie.pens[1]}` : ""}`
         : `${teamName} · ${theme.label}`,
-      accent: "#22e0ff",
+      accent: "#00f0ff",
       players: xi.map((p) => ({ name: p!.name, position: p!.position, overall: p!.overall })),
     });
   };
@@ -201,7 +201,7 @@ export function TrophyCelebration({ tournament, teamName, tie, onViewStats, onCo
     >
       {/* atmosphere per outcome */}
       <div key={celebrateKey} className="pointer-events-none fixed inset-0">
-        {kind === "champion" && (<><Fireworks count={9} palette={["#d4af37", "#f2d472", "#22e0ff", "#ffffff"]} /><Confetti count={130} /><CameraFlashes count={20} /></>)}
+        {kind === "champion" && (<><Fireworks count={9} palette={["#00f0ff", "#7dfaff", "#00f0ff", "#ffffff"]} /><Confetti count={130} /><CameraFlashes count={20} /></>)}
         {kind === "runner" && (<><Sparks count={18} color="#c8d2e0" /><CameraFlashes count={8} /></>)}
         {kind === "out" && (<>
           <RainOverlay drops={outTier === "sf" ? 60 : outTier === "qf" ? 48 : 40} opacity={outTier === "sf" ? 0.5 : 0.4} />
@@ -232,7 +232,7 @@ export function TrophyCelebration({ tournament, teamName, tie, onViewStats, onCo
                 </div>
 
                 <h1 className="mt-4 font-display text-4xl font-black leading-none sm:text-6xl">
-                  {won ? <span className="text-gradient-gold text-shine">{teamName}</span> : <span className="text-white">{teamName}</span>}
+                  {won ? <span className="text-gradient-cyan text-shine">{teamName}</span> : <span className="text-white">{teamName}</span>}
                 </h1>
 
                 {/* big score vs opponent, or league placing */}
@@ -271,7 +271,7 @@ export function TrophyCelebration({ tournament, teamName, tie, onViewStats, onCo
             {/* actions — immediately below the hero, no scrolling required */}
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
               className="mt-4 flex flex-wrap gap-2.5">
-              <button className="btn btn-gold" onClick={() => { play("select"); resetDraft(); router.push("/draft"); }}>🆕 Start New Draft</button>
+              <button className="btn btn-cyan" onClick={() => { play("select"); resetDraft(); router.push("/draft"); }}>🆕 Start New Draft</button>
               <button className="btn btn-secondary" onClick={() => { play("select"); onContinue(); }}>📊 Tournament Stats</button>
               <button className="btn btn-ghost" onClick={shareCard}>📸 Share XI</button>
               {won && <button className="btn btn-ghost" onClick={() => { play("trophy"); setCelebrateKey((k) => k + 1); }}>🎆 Replay</button>}

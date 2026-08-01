@@ -43,7 +43,7 @@ function EmptyState({ hasSaves }: { hasSaves: boolean }) {
         {c("Create a player and live an entire career — academy to retirement — in a few minutes.",
            "Crea un jugador y vive una carrera entera — de la cantera al retiro — en unos minutos.")}
       </p>
-      <Link href="/career/new" className="btn btn-gold mt-5">⚽ {c("Create Your Player", "Crea Tu Jugador")}</Link>
+      <Link href="/career/new" className="btn btn-career mt-5">⚽ {c("Create Your Player", "Crea Tu Jugador")}</Link>
       {hasSaves && <Link href="/career/saves" className="btn btn-ghost mt-2 block">{c("Load a save", "Cargar partida")}</Link>}
     </div>
   );
@@ -487,7 +487,7 @@ function EventCard({ ev, onChoose, c, es }: {
           ))}
         </div>
       ) : (
-        <button onClick={() => onChoose("__ok")} className="btn btn-gold mt-3 w-full text-sm">{c("Continue", "Continuar")} →</button>
+        <button onClick={() => onChoose("__ok")} className="btn btn-career mt-3 w-full text-sm">{c("Continue", "Continuar")} →</button>
       )}
     </div>
   );
@@ -526,7 +526,7 @@ function DecisionCard({ player, run, choices, onFinish, c, es }: {
         <div className="text-3xl">🎖️</div>
         <h2 className="mt-1 font-display text-lg font-black text-white">{c("A career-ending blow", "Un golpe que acaba la carrera")}</h2>
         <p className="mt-1 text-[0.8rem] text-white/55">{c("The injury proved one too many. It's time.", "La lesión fue una de más. Es la hora.")}</p>
-        <button onClick={() => onFinish({ retire: true })} className="btn btn-gold mt-3 w-full text-sm">{c("Hang Up the Boots", "Colgar las Botas")}</button>
+        <button onClick={() => onFinish({ retire: true })} className="btn btn-career mt-3 w-full text-sm">{c("Hang Up the Boots", "Colgar las Botas")}</button>
       </div>
     );
   }
@@ -542,7 +542,7 @@ function DecisionCard({ player, run, choices, onFinish, c, es }: {
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
         <button onClick={() => onFinish({ action: { type: "stay" } })} className="btn btn-secondary flex-1 text-sm">{c("Stay at", "Quedarme en")} {after.currentClubShort}</button>
-        {run.result.contractExpiring && <button onClick={() => onFinish({ action: { type: "renew" } })} className="btn btn-gold text-sm">{c("Renew", "Renovar")}</button>}
+        {run.result.contractExpiring && <button onClick={() => onFinish({ action: { type: "renew" } })} className="btn btn-career text-sm">{c("Renew", "Renovar")}</button>}
         {after.age >= 33 && <button onClick={() => onFinish({ retire: true })} className="btn btn-ghost text-sm text-white/50">{c("Retire", "Retirarme")}</button>}
       </div>
     </div>
@@ -571,7 +571,7 @@ function OfferCard({ offer: o, onAccept, c, es }: {
           <span>{fmtWage(o.wage)}</span><span>· {o.years} {c("yrs", "años")}</span><span>· {o.expectedApps[0]}–{o.expectedApps[1]} {c("apps", "PJ")}</span>
         </div>
         <p className="mt-1.5 text-[0.7rem] italic leading-snug text-white/50">{es ? o.reasonEs : o.reasonEn}</p>
-        <button onClick={onAccept} className="btn btn-gold mt-2 w-full text-sm">{c("Sign", "Fichar")}</button>
+        <button onClick={onAccept} className="btn btn-career mt-2 w-full text-sm">{c("Sign", "Fichar")}</button>
       </div>
     </div>
   );
@@ -588,7 +588,7 @@ function RetiredCard({ player, c, onLegacy }: {
         {c("Hung up the boots at", "Colgaste las botas a los")} {player.age}.
       </p>
       <div className="mt-4 flex flex-col gap-2">
-        <button onClick={onLegacy} className="btn btn-gold w-full text-sm">🏆 {c("View Legacy Card", "Ver Tarjeta de Legado")}</button>
+        <button onClick={onLegacy} className="btn btn-career w-full text-sm">🏆 {c("View Legacy Card", "Ver Tarjeta de Legado")}</button>
         <Link href="/career/timeline" className="btn btn-secondary w-full text-sm">{c("Career Timeline", "Trayectoria")}</Link>
         <Link href="/career/new" className="btn btn-ghost w-full text-sm text-white/60">{c("Play Again", "Jugar de Nuevo")}</Link>
       </div>

@@ -15,7 +15,7 @@ import { getFxSetting, setFxSetting, type FxSetting } from "@/lib/fx";
 import { play, getMasterVolume, setMasterVolume } from "@/lib/sound";
 
 const TIER_COLORS: Record<string, string> = {
-  bronze: "#cd7f32", silver: "#c0c8d4", gold: "#d4af37", legendary: "#22e0ff",
+  bronze: "#cd7f32", silver: "#c0c8d4", gold: "#d4af37", legendary: "#00f0ff",
 };
 
 function mode<T>(arr: T[]): T | null {

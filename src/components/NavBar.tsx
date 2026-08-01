@@ -45,14 +45,11 @@ const MORE: Group = {
     { href: "/stats?tab=settings", key: "nav.more.settings", emoji: "⚙️" },
   ],
 };
-const GROUPS = [PLAY, CAREER, MORE];
-
 const basePath = (href: string) => href.split(/[?#]/)[0];
 
 export function NavBar() {
   const pathname = usePathname();
   const [openMenu, setOpenMenu] = useState<string | null>(null);
-  const [mobileOpen, setMobileOpen] = useState(false);
   const mounted = useHydrated();
   const t = useT();
   const soundOn = useGame((s) => s.profile.soundOn);
@@ -62,13 +59,13 @@ export function NavBar() {
   // Close menus on Escape (event-driven — safe inside an effect).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { setOpenMenu(null); setMobileOpen(false); }
+      if (e.key === "Escape") setOpenMenu(null);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const closeAll = () => { setOpenMenu(null); setMobileOpen(false); };
+  const closeAll = () => setOpenMenu(null);
   const groupActive = (g: Group) => g.items.some((i) => pathname === basePath(i.href));
 
   return (
@@ -77,14 +74,14 @@ export function NavBar() {
         <span
           aria-hidden
           className="pointer-events-none absolute inset-x-0 bottom-0 h-px opacity-70"
-          style={{ background: "linear-gradient(90deg, transparent, rgba(212,175,55,0.7) 30%, rgba(34,224,255,0.5) 70%, transparent)" }}
+          style={{ background: "linear-gradient(90deg, transparent, rgba(0,240,255,0.7) 30%, rgba(0,240,255,0.5) 70%, transparent)" }}
         />
         <Link href="/" className="group flex items-center gap-2.5" onClick={() => { play("click"); closeAll(); }}>
           <span className="relative grid place-items-center transition-transform duration-300 group-hover:scale-110 group-hover:rotate-[8deg]">
             <CrestLogo size={38} />
           </span>
           <span className="font-display text-sm font-extrabold tracking-tight sm:text-base">
-            CONTINENTAL <span className="text-gradient-gold">XI</span>
+            CONTINENTAL <span className="text-gradient-cyan">XI</span>
           </span>
         </Link>
 
@@ -111,65 +108,20 @@ export function NavBar() {
 
         <div className="flex items-center gap-2">
           {mounted && trophies > 0 && (
-            <span className="chip hidden bg-[rgba(212,175,55,0.15)] text-gold sm:inline-flex">🏆 {trophies}</span>
+            <span className="chip hidden bg-[rgba(0,240,255,0.15)] text-cyan sm:inline-flex">🏆 {trophies}</span>
           )}
           <button
             aria-label={t("nav.toggleSound")}
             onClick={() => { toggleSound(); play("click"); }}
-            className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 text-sm transition-all hover:scale-110 hover:border-gold/50"
+            className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 text-sm transition-all hover:scale-110 hover:border-cyan/50"
           >
             {mounted && soundOn ? "🔊" : "🔇"}
-          </button>
-          <button
-            aria-label={t("nav.menu")}
-            className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 transition-all active:scale-90 md:hidden"
-            onClick={() => { setMobileOpen((o) => !o); setOpenMenu(null); }}
-          >
-            ☰
           </button>
         </div>
       </nav>
 
       {/* click-away backdrop for desktop dropdowns */}
       {openMenu && <div className="fixed inset-0 z-40 hidden md:block" onClick={() => setOpenMenu(null)} />}
-
-      {/* mobile menu — grouped sections */}
-      <AnimatePresence>
-        {mobileOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: -8, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -8, scale: 0.98 }}
-            transition={{ duration: 0.18 }}
-            className="glass mx-auto mt-2 max-w-6xl rounded-2xl p-3 md:hidden"
-          >
-            <Link href="/" onClick={closeAll}
-              className={`block rounded-lg px-3 py-2 text-sm font-bold ${pathname === "/" ? "bg-gold/10 text-gold" : "text-muted"}`}>
-              🏠 {t("nav.home")}
-            </Link>
-            <Link href="/daily" onClick={closeAll}
-              className={`block rounded-lg px-3 py-2 text-sm font-bold ${pathname === "/daily" ? "bg-gold/10 text-gold" : "text-muted"}`}>
-              📅 {t("nav.daily")}
-            </Link>
-            {GROUPS.map((g) => (
-              <div key={g.id} className="mt-1.5 border-t border-white/8 pt-1.5">
-                <div className="px-3 py-1 text-[0.58rem] font-bold uppercase tracking-[0.25em] text-white/35">{t(g.key)}</div>
-                {g.items.map((i) => (
-                  <Link key={i.key + i.href} href={i.href} onClick={closeAll}
-                    className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-semibold ${pathname === basePath(i.href) ? "bg-gold/10 text-gold" : "text-muted"}`}>
-                    <span aria-hidden>{i.emoji}</span> {t(i.key)}
-                  </Link>
-                ))}
-              </div>
-            ))}
-            <div className="mt-1.5 flex items-center justify-between border-t border-white/8 px-3 pt-3">
-              <span className="text-[0.62rem] font-bold uppercase tracking-widest text-muted">{t("nav.language")}</span>
-              <LanguageToggle />
-            </div>
-            <div className="px-1.5 pt-2"><ReportBug className="text-sm font-semibold" /></div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </header>
   );
 }
@@ -179,16 +131,16 @@ function TopLink({ href, label, active, onClick }: { href: string; label: string
     <Link
       href={href}
       onClick={() => { play("hover"); onClick(); }}
-      className={`relative rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors ${active ? "text-gold" : "text-muted hover:text-white"}`}
+      className={`relative rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors ${active ? "text-cyan" : "text-muted hover:text-white"}`}
     >
       {active && (
         <motion.span
           layoutId="nav-pill"
           className="absolute inset-0 rounded-lg"
           style={{
-            background: "linear-gradient(160deg, rgba(212,175,55,0.16), rgba(212,175,55,0.04))",
-            border: "1px solid rgba(212,175,55,0.35)",
-            boxShadow: "0 0 14px rgba(212,175,55,0.2)",
+            background: "linear-gradient(160deg, rgba(0,240,255,0.16), rgba(0,240,255,0.04))",
+            border: "1px solid rgba(0,240,255,0.35)",
+            boxShadow: "0 0 14px rgba(0,240,255,0.2)",
           }}
           transition={{ type: "spring", stiffness: 380, damping: 32 }}
         />
@@ -209,7 +161,7 @@ function GroupButton({
       <button
         onClick={() => { const wasOpen = open; onToggle(); play(wasOpen ? "hover" : "menu"); }}
         aria-expanded={open}
-        className={`flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors ${active || open ? "text-gold" : "text-muted hover:text-white"}`}
+        className={`flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors ${active || open ? "text-cyan" : "text-muted hover:text-white"}`}
       >
         {t(group.key)}
         <span aria-hidden className={`text-[0.6rem] transition-transform duration-200 ${open ? "rotate-180" : ""}`}>▾</span>

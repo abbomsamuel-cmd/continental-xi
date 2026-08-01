@@ -46,19 +46,19 @@ export interface MiniRow {
 
 const PAL: Record<Comp, { accent: string; soft: string; page: string; emblem: string; glow: string }> = {
   cl: {
-    accent: "#d4af37", soft: "rgba(212,175,55,0.15)", emblem: "★",
-    page: "radial-gradient(120% 90% at 50% 12%, #0a1b4d, #020714 78%)",
-    glow: "rgba(41,98,255,0.35)",
+    accent: "#00f0ff", soft: "rgba(0,240,255,0.15)", emblem: "★",
+    page: "radial-gradient(120% 90% at 50% 12%, #121824, #05070d 78%)",
+    glow: "rgba(0,240,255,0.35)",
   },
   euro: {
-    accent: "#37e0ff", soft: "rgba(55,224,255,0.14)", emblem: "✦",
+    accent: "#ff3b57", soft: "rgba(255,59,87,0.14)", emblem: "✦",
     page: "radial-gradient(120% 90% at 50% 12%, #081b56, #030818 78%)",
-    glow: "rgba(27,79,255,0.4)",
+    glow: "rgba(27,63,208,0.4)",
   },
   copa: {
-    accent: "#ffc93c", soft: "rgba(255,201,60,0.14)", emblem: "◆",
+    accent: "#00e676", soft: "rgba(0,230,118,0.14)", emblem: "◆",
     page: "radial-gradient(120% 90% at 50% 12%, #0a3a24, #02120a 78%)",
-    glow: "rgba(23,201,122,0.35)",
+    glow: "rgba(0,230,118,0.35)",
   },
 };
 

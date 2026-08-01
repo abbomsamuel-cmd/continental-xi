@@ -41,9 +41,9 @@ const POOL_BADGE: Record<string, string | null> = {
 };
 
 const POOL_THEME: Record<string, { accent: string; heading: string; soft: string }> = {
-  clubs: { accent: "#22e0ff", heading: "text-gradient-gold", soft: "rgba(34,224,255,0.35)" },
-  euro: { accent: "#37e0ff", heading: "text-gradient-euro", soft: "rgba(55,224,255,0.4)" },
-  copa: { accent: "#ffc93c", heading: "text-gradient-copa", soft: "rgba(255,201,60,0.4)" },
+  clubs: { accent: "#00f0ff", heading: "text-gradient-cyan", soft: "rgba(0,240,255,0.35)" },
+  euro: { accent: "#ff3b57", heading: "text-gradient-euro", soft: "rgba(255,59,87,0.4)" },
+  copa: { accent: "#00e676", heading: "text-gradient-copa", soft: "rgba(0,230,118,0.4)" },
 };
 
 export function DraftRoundView() {

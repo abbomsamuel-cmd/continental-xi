@@ -52,7 +52,7 @@ export function LeagueTable({ rows, tournament, highlightUser = true }: Props) {
         <span className="text-center">GF</span>
         <span className="text-center">GA</span>
         <span className="text-center">GD</span>
-        <span className="text-center text-gold">Pts</span>
+        <span className="text-center text-cyan">Pts</span>
         <span className="hidden text-center sm:block">Form</span>
       </div>
 
@@ -77,16 +77,16 @@ export function LeagueTable({ rows, tournament, highlightUser = true }: Props) {
               layout
               transition={{ type: "spring", stiffness: 130, damping: 20 }}
               className={`grid grid-cols-[28px_1fr_repeat(5,26px)_38px_40px] items-center gap-1 border-b border-white/5 px-3 py-2 text-xs sm:grid-cols-[28px_1fr_repeat(7,28px)_44px_46px_90px] ${
-                isUser && highlightUser ? "bg-gold/15" : "hover:bg-white/4"
+                isUser && highlightUser ? "bg-cyan/15" : "hover:bg-white/4"
               }`}
             >
               <div className="flex items-center gap-1">
                 <span className="h-4 w-1 rounded-full" style={{ background: BAND_STYLES[band].bar }} />
-                <span className={`font-bold ${isUser ? "text-gold" : "text-white/70"}`}>{pos}</span>
+                <span className={`font-bold ${isUser ? "text-cyan" : "text-white/70"}`}>{pos}</span>
               </div>
               <div className="flex min-w-0 items-center gap-2">
                 <TeamBadge colors={team.colors} code={team.short} size={20} />
-                <span className={`truncate font-semibold ${isUser ? "text-gold" : "text-white/90"}`}>
+                <span className={`truncate font-semibold ${isUser ? "text-cyan" : "text-white/90"}`}>
                   {isUser ? `${team.name} ★` : teamLabel(team)}
                 </span>
                 {moved !== 0 && (
@@ -102,7 +102,7 @@ export function LeagueTable({ rows, tournament, highlightUser = true }: Props) {
               <span className="text-center text-white/70">{r.gf}</span>
               <span className="text-center text-white/70">{r.ga}</span>
               <span className="text-center text-white/70">{r.gf - r.ga > 0 ? "+" : ""}{r.gf - r.ga}</span>
-              <span className="text-center font-display font-extrabold text-gold">{r.points}</span>
+              <span className="text-center font-display font-extrabold text-cyan">{r.points}</span>
               <div className="hidden justify-center sm:flex"><FormDots form={r.form} /></div>
             </motion.div>
             </div>

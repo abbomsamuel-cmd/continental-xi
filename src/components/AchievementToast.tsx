@@ -6,7 +6,7 @@ import { achievementById } from "@/lib/achievements";
 import { useGame } from "@/lib/store";
 
 const TIER_COLORS: Record<string, string> = {
-  bronze: "#cd7f32", silver: "#c0c8d4", gold: "#d4af37", legendary: "#22e0ff",
+  bronze: "#cd7f32", silver: "#c0c8d4", gold: "#d4af37", legendary: "#00f0ff",
 };
 
 export function AchievementToast({ ids }: { ids: string[] }) {

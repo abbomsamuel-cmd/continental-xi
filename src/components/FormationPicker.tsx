@@ -8,7 +8,7 @@ import type { Formation } from "@/lib/types";
 const GROUP_COLOR: Record<string, string> = { GK: "#f2d472", DEF: "#5aa9ff", MID: "#2ee6a6", ATT: "#ff8a5c" };
 
 /** A tiny pitch that draws the formation's shape — dots coloured by unit. */
-export function FormationGlyph({ formation, accent = "#22e0ff", size = 96 }: { formation: Formation; accent?: string; size?: number }) {
+export function FormationGlyph({ formation, accent = "#00f0ff", size = 96 }: { formation: Formation; accent?: string; size?: number }) {
   return (
     <svg viewBox="0 0 100 128" width={size} height={size * 1.28} className="block" aria-hidden>
       <rect x="2" y="2" width="96" height="124" rx="6" fill="rgba(255,255,255,0.03)" stroke={`${accent}44`} strokeWidth="1" />

@@ -16,7 +16,7 @@ function StatBar({ label, a, b, suffix = "", delay = 0 }: { label: string; a: nu
         <span>{b}{suffix}</span>
       </div>
       <div className="mt-1 flex h-1.5 overflow-hidden rounded-full bg-white/10">
-        <motion.div className="bg-gold" initial={{ width: 0 }} animate={{ width: `${aPct}%` }} transition={{ delay, duration: 0.6, ease: "easeOut" }} />
+        <motion.div className="bg-cyan" initial={{ width: 0 }} animate={{ width: `${aPct}%` }} transition={{ delay, duration: 0.6, ease: "easeOut" }} />
         <motion.div className="bg-cyan" initial={{ width: 0 }} animate={{ width: `${100 - aPct}%` }} transition={{ delay, duration: 0.6, ease: "easeOut" }} />
       </div>
     </div>
@@ -107,7 +107,7 @@ export function MatchModal({ result, teams, title, onClose }: Props) {
                   {result.homeGoals}<span className="mx-1 text-muted">-</span>{result.awayGoals}
                 </motion.div>
                 {result.penalties && (
-                  <div className="text-[0.65rem] font-bold text-gold">
+                  <div className="text-[0.65rem] font-bold text-cyan">
                     pens {result.penalties[0]}-{result.penalties[1]}
                   </div>
                 )}
@@ -117,17 +117,17 @@ export function MatchModal({ result, teams, title, onClose }: Props) {
             </div>
             {/* team ratings */}
             <div className="mt-2 flex items-center justify-between text-[0.62rem] font-bold">
-              <span className="rounded-md bg-white/8 px-2 py-0.5 text-white/80">Team rating <span className="text-gold">{homeRating.toFixed(1)}</span></span>
+              <span className="rounded-md bg-white/8 px-2 py-0.5 text-white/80">Team rating <span className="text-cyan">{homeRating.toFixed(1)}</span></span>
               <span className="rounded-md bg-white/8 px-2 py-0.5 text-white/80">Team rating <span className="text-cyan">{awayRating.toFixed(1)}</span></span>
             </div>
           </div>
 
           <div className="px-5 pb-5">
             {/* MOTM */}
-            <div className="rounded-xl bg-gold/12 px-3 py-2 text-center text-xs">
+            <div className="rounded-xl bg-cyan/12 px-3 py-2 text-center text-xs">
               <span aria-hidden>⭐ </span>
               <span className="text-muted">Player of the Match · </span>
-              <span className="font-bold text-gold">{result.motm}</span>
+              <span className="font-bold text-cyan">{result.motm}</span>
             </div>
 
             {/* minute-by-minute timeline strip */}
@@ -214,15 +214,15 @@ export function MatchModal({ result, teams, title, onClose }: Props) {
             {/* momentum — filled swing chart */}
             <div className="mt-4">
               <div className="mb-1 flex justify-between text-[0.6rem] font-bold uppercase tracking-widest text-muted">
-                <span className="text-gold">◂ {home.short}</span><span>Momentum</span><span className="text-cyan">{away.short} ▸</span>
+                <span className="text-cyan">◂ {home.short}</span><span>Momentum</span><span className="text-cyan">{away.short} ▸</span>
               </div>
               <svg viewBox="0 0 100 30" className="h-14 w-full">
                 <defs>
                   <linearGradient id="momGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="rgba(212,175,55,0.5)" />
-                    <stop offset="50%" stopColor="rgba(212,175,55,0.05)" />
-                    <stop offset="50%" stopColor="rgba(34,224,255,0.05)" />
-                    <stop offset="100%" stopColor="rgba(34,224,255,0.5)" />
+                    <stop offset="0%" stopColor="rgba(0,240,255,0.5)" />
+                    <stop offset="50%" stopColor="rgba(0,240,255,0.05)" />
+                    <stop offset="50%" stopColor="rgba(0,240,255,0.05)" />
+                    <stop offset="100%" stopColor="rgba(0,240,255,0.5)" />
                   </linearGradient>
                 </defs>
                 <line x1="0" y1="15" x2="100" y2="15" stroke="rgba(255,255,255,0.15)" strokeWidth="0.4" />

@@ -1,9 +1,16 @@
 "use client";
 
+import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Formation, Player, Position } from "@/lib/types";
 import { suitability } from "@/lib/suitability";
+import { computeChemistryLinks } from "@/lib/chemistry";
 import { LineupCard, EmptyTile, type SlotState } from "@/components/LineupCard";
+
+/** Pixel distance a pointer must travel before a press becomes a drag —
+ *  below this it resolves as a normal tap (the guaranteed-working fallback). */
+const DRAG_THRESHOLD = 6;
 
 export type PitchVariant = "cl" | "euro" | "copa";
 
@@ -27,38 +34,40 @@ interface Props {
   captainSlot?: number;
   interaction?: Interaction | null;
   compact?: boolean;
+  /** draw connector lines between nearby linked players (same club / nation / era) */
+  showChemistry?: boolean;
 }
 
 /**
  * Per-competition broadcast identity — original ContinentalXI looks inspired by
  * elite football graphics, never a copy:
- *   cl   deep navy pitch, electric-blue lighting + gold, European night
+ *   cl   deep navy pitch, cyan-blue lighting + gold, European night
  *   euro bright green pitch, royal-blue frame, clean international broadcast
- *   copa emerald pitch, gold + warm accents, festive South America
+ *   copa cyan pitch, gold + warm accents, festive South America
  */
 const BOARD: Record<PitchVariant, {
   bg: string; grass: string; frame: string; line: string; accent: string; slotGlow: string;
 }> = {
   cl: {
-    bg: "radial-gradient(120% 60% at 50% -10%, rgba(70,130,255,0.5), transparent 60%), radial-gradient(70% 45% at 88% 4%, rgba(150,100,255,0.24), transparent 62%), radial-gradient(70% 45% at 12% 4%, rgba(90,200,255,0.18), transparent 62%), linear-gradient(180deg, #0a1f5c 0%, #071845 55%, #050f30 100%)",
-    grass: "repeating-linear-gradient(0deg, rgba(130,180,255,0.09) 0 46px, rgba(120,170,255,0.02) 46px 92px)",
-    frame: "1px solid rgba(150,185,255,0.42)",
-    line: "rgba(190,215,255,0.38)",
-    accent: "#37e0ff", slotGlow: "rgba(242,212,114,0.75)",
+    bg: "radial-gradient(120% 60% at 50% -10%, rgba(0,240,255,0.22), transparent 60%), radial-gradient(70% 45% at 88% 4%, rgba(0,240,255,0.2), transparent 62%), radial-gradient(70% 45% at 12% 4%, rgba(0,240,255,0.14), transparent 62%), linear-gradient(180deg, #121824 0%, #0d1320 55%, #05070d 100%)",
+    grass: "repeating-linear-gradient(0deg, rgba(148,163,184,0.07) 0 46px, rgba(148,163,184,0.02) 46px 92px)",
+    frame: "1px solid rgba(0,240,255,0.32)",
+    line: "rgba(226,232,240,0.32)",
+    accent: "#00f0ff", slotGlow: "rgba(0,240,255,0.75)",
   },
   euro: {
-    bg: "radial-gradient(120% 60% at 50% -8%, rgba(27,79,255,0.42), transparent 60%), linear-gradient(180deg, #14a055 0%, #0f8446 55%, #0a6234 100%)",
+    bg: "radial-gradient(120% 60% at 50% -8%, rgba(27,63,208,0.42), transparent 60%), linear-gradient(180deg, #14a055 0%, #0f8446 55%, #0a6234 100%)",
     grass: "repeating-linear-gradient(0deg, rgba(255,255,255,0.07) 0 46px, rgba(0,0,0,0.09) 46px 92px)",
-    frame: "1px solid rgba(120,160,255,0.6)",
+    frame: "1px solid rgba(255,59,87,0.55)",
     line: "rgba(255,255,255,0.55)",
-    accent: "#37e0ff", slotGlow: "rgba(47,107,255,0.7)",
+    accent: "#ff3b57", slotGlow: "rgba(255,59,87,0.7)",
   },
   copa: {
-    bg: "radial-gradient(120% 60% at 50% -8%, rgba(255,201,60,0.2), transparent 58%), linear-gradient(180deg, #14743f 0%, #0c552f 55%, #06371e 100%)",
+    bg: "radial-gradient(120% 60% at 50% -8%, rgba(255,215,0,0.18), transparent 58%), linear-gradient(180deg, #0f6d43 0%, #0c552f 55%, #06371e 100%)",
     grass: "repeating-linear-gradient(0deg, rgba(255,240,200,0.07) 0 46px, rgba(0,0,0,0.1) 46px 92px)",
-    frame: "1px solid rgba(255,201,60,0.55)",
+    frame: "1px solid rgba(0,230,118,0.55)",
     line: "rgba(255,236,190,0.48)",
-    accent: "#ffc93c", slotGlow: "rgba(255,201,60,0.75)",
+    accent: "#00e676", slotGlow: "rgba(0,230,118,0.75)",
   },
 };
 
@@ -72,8 +81,8 @@ function PitchMosaic({ variant }: { variant: PitchVariant }) {
       <svg className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden preserveAspectRatio="xMidYMid slice">
         <defs>
           <pattern id={id} width="60" height="52" patternUnits="userSpaceOnUse">
-            <path d="M15 0 L45 0 L60 26 L45 52 L15 52 L0 26 Z" fill="none" stroke="rgba(120,175,255,0.9)" strokeWidth="1" />
-            <path d="M45 0 L60 26 M15 0 L0 26 M15 52 L0 26 M45 52 L60 26" stroke="rgba(120,175,255,0.5)" strokeWidth="0.6" />
+            <path d="M15 0 L45 0 L60 26 L45 52 L15 52 L0 26 Z" fill="none" stroke="rgba(0,240,255,0.9)" strokeWidth="1" />
+            <path d="M45 0 L60 26 M15 0 L0 26 M15 52 L0 26 M45 52 L60 26" stroke="rgba(0,240,255,0.5)" strokeWidth="0.6" />
           </pattern>
         </defs>
         <rect width="100%" height="100%" fill={`url(#${id})`} opacity="0.08" />
@@ -112,10 +121,91 @@ function project(x: number, y: number): { left: string; top: string } {
   return { left: `${8 + x * 0.84}%`, top: `${5 + (100 - y) * 0.84}%` };
 }
 
+interface DragState {
+  source: number;
+  x: number;
+  y: number;
+  over: number | null;
+}
+
 export function Pitch({
   formation, players, showRatings = true, variant = "cl", captainSlot, interaction = null, compact = false,
+  showChemistry = false,
 }: Props) {
   const board = BOARD[variant] ?? BOARD.cl;
+  const chemLinks = useMemo(
+    () => (showChemistry ? computeChemistryLinks(formation, players) : []),
+    [showChemistry, formation, players],
+  );
+
+  // ---- drag-and-drop: a pointer-based progressive enhancement over the tap
+  // flow below. It never bypasses the legality system — a drag just calls the
+  // same interaction.onSlot(i) the tap handler calls, at pointerdown (select
+  // source) and pointerup (resolve destination or cancel). Tap-to-select /
+  // tap-to-place keeps working untouched as the guaranteed fallback.
+  const [drag, setDrag] = useState<DragState | null>(null);
+  const dragSourceRef = useRef<number | null>(null);
+  const draggingRef = useRef(false);
+  const startPosRef = useRef<{ x: number; y: number } | null>(null);
+
+  function hitSlot(x: number, y: number): number | null {
+    if (typeof document === "undefined") return null;
+    const el = document.elementFromPoint(x, y)?.closest<HTMLElement>("[data-slot-index]");
+    const idx = el?.dataset.slotIndex;
+    return idx !== undefined ? Number(idx) : null;
+  }
+
+  function endDrag(commitIndex: number | null) {
+    const source = dragSourceRef.current;
+    draggingRef.current = false;
+    dragSourceRef.current = null;
+    startPosRef.current = null;
+    setDrag(null);
+    if (source === null || !interaction) return;
+    // resolve to the same onSlot(i) contract the tap flow uses — swap onto a
+    // legal destination, or re-tap the source to cancel the selection.
+    if (commitIndex !== null && commitIndex !== source) interaction.onSlot(commitIndex);
+    else interaction.onSlot(source);
+  }
+
+  function onCardPointerDown(e: ReactPointerEvent, i: number, draggable: boolean) {
+    if (!draggable) return;
+    dragSourceRef.current = i;
+    draggingRef.current = false;
+    startPosRef.current = { x: e.clientX, y: e.clientY };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }
+
+  function onCardPointerMove(e: ReactPointerEvent, i: number) {
+    if (dragSourceRef.current !== i || !startPosRef.current) return;
+    const dx = e.clientX - startPosRef.current.x;
+    const dy = e.clientY - startPosRef.current.y;
+    if (!draggingRef.current) {
+      if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+      draggingRef.current = true;
+      interaction?.onSlot(i); // select the source, mirroring the first tap
+    }
+    setDrag({ source: i, x: e.clientX, y: e.clientY, over: hitSlot(e.clientX, e.clientY) });
+  }
+
+  function onCardPointerUp(e: ReactPointerEvent, i: number) {
+    if (dragSourceRef.current !== i) return;
+    if (draggingRef.current) {
+      endDrag(hitSlot(e.clientX, e.clientY));
+    } else {
+      // never crossed the drag threshold — a plain tap, let onClick handle it
+      dragSourceRef.current = null;
+      startPosRef.current = null;
+    }
+  }
+
+  function onCardPointerCancel(i: number) {
+    if (dragSourceRef.current !== i) return;
+    if (draggingRef.current) endDrag(null);
+    else { dragSourceRef.current = null; startPosRef.current = null; }
+  }
+
+  const draggedPlayer = drag ? players[drag.source] : null;
 
   function slotInfo(i: number, slotPos: Position) {
     const filled = players[i];
@@ -220,6 +310,28 @@ export function Pitch({
         </svg>
       </div>
 
+      {/* chemistry connector lines — same club (bright), same nation or era
+          (dimmer amber), drawn between positionally-close linked players */}
+      {chemLinks.length > 0 && (
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="pointer-events-none absolute inset-0 z-[5] h-full w-full" aria-hidden>
+          {chemLinks.map((link, i) => {
+            const a = project(formation.slots[link.a].x, formation.slots[link.a].y);
+            const b = project(formation.slots[link.b].x, formation.slots[link.b].y);
+            const num = (s: string) => parseFloat(s);
+            return (
+              <line
+                key={i}
+                x1={num(a.left)} y1={num(a.top)} x2={num(b.left)} y2={num(b.top)}
+                stroke={link.strength === 3 ? "#2ee6a6" : "#ffcf5c"}
+                strokeWidth={link.strength === 3 ? 0.6 : 0.4}
+                strokeOpacity={link.strength === 3 ? 0.65 : 0.4}
+                strokeLinecap="round"
+              />
+            );
+          })}
+        </svg>
+      )}
+
       {/* slots */}
       {formation.slots.map((slot, i) => {
         const player = players[i];
@@ -234,23 +346,36 @@ export function Pitch({
           : info.draftable ? "draftable"
           : info.selected ? "selected" : "idle";
 
+        // drag can only be INITIATED from a filled, tappable card with nothing
+        // already tap-selected — once a source is picked (by tap or drag), the
+        // rest of the swap resolves through the normal onClick/onSlot path.
+        const draggable = interaction?.kind === "edit" && !interaction.moving && !!player && tappable;
+        const isDragSource = drag?.source === i;
+        const isLegalDropHover = drag !== null && drag.over === i && i !== drag.source && !info.dim;
+
         return (
           <div
             key={i}
+            data-slot-index={i}
             className="absolute z-10 -translate-x-1/2 -translate-y-1/2"
-            style={{ left: pos.left, top: pos.top, opacity: info.dim ? 0.3 : 1 }}
+            style={{ left: pos.left, top: pos.top, opacity: info.dim ? 0.3 : isDragSource ? 0.35 : 1 }}
           >
             <button
               type="button"
               disabled={!tappable}
               onClick={tappable ? () => interaction!.onSlot(i) : undefined}
+              onPointerDown={draggable ? (e) => onCardPointerDown(e, i, draggable) : undefined}
+              onPointerMove={draggable || drag?.source === i ? (e) => onCardPointerMove(e, i) : undefined}
+              onPointerUp={draggable || drag?.source === i ? (e) => onCardPointerUp(e, i) : undefined}
+              onPointerCancel={draggable || drag?.source === i ? () => onCardPointerCancel(i) : undefined}
               aria-label={player ? `${player.name}, ${slot.pos}` : `${slot.pos} slot`}
-              className={`relative block min-h-[44px] min-w-[44px] focus:outline-none ${tappable ? "cursor-pointer" : "cursor-default"}`}
+              className={`relative block min-h-[44px] min-w-[44px] rounded-2xl focus:outline-none ${tappable ? "cursor-pointer" : "cursor-default"} ${draggable ? "touch-none" : ""}`}
+              style={isLegalDropHover ? { boxShadow: "0 0 0 3px rgba(0,240,255,0.8)" } : undefined}
             >
               {/* captain armband */}
               {player && captainSlot === i && (
-                <span className="absolute -right-1.5 -top-1.5 z-30 grid h-5 w-5 place-items-center rounded-full font-display text-[0.6rem] font-extrabold text-[#041022]"
-                  style={{ background: "linear-gradient(150deg, #f2d472, #d4af37)", boxShadow: "0 2px 8px rgba(0,0,0,0.55)" }} title="Captain">C</span>
+                <span className="absolute -right-1.5 -top-1.5 z-30 grid h-5 w-5 place-items-center rounded-full font-display text-[0.6rem] font-extrabold text-[#04140c]"
+                  style={{ background: "linear-gradient(150deg, #7dfaff, #00f0ff)", boxShadow: "0 2px 8px rgba(0,0,0,0.55)" }} title="Captain">C</span>
               )}
 
               <AnimatePresence mode="popLayout">
@@ -299,6 +424,27 @@ export function Pitch({
           </div>
         );
       })}
+
+      {/* drag ghost — portalled to <body> so the pitch's 3D perspective
+          transform (which creates a containing block) can't clip/skew it */}
+      {drag && draggedPlayer && typeof document !== "undefined" &&
+        createPortal(
+          <div
+            aria-hidden
+            className="pointer-events-none fixed z-[300] w-16 -translate-x-1/2 -translate-y-1/2 scale-110 opacity-90"
+            style={{ left: drag.x, top: drag.y, containerType: "inline-size" }}
+          >
+            <LineupCard
+              name={draggedPlayer.name}
+              overall={draggedPlayer.overall}
+              colors={draggedPlayer.colors}
+              variant={variant}
+              showRating={showRatings}
+              widthClass="w-full"
+            />
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

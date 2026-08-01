@@ -1,24 +1,21 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { useRef, type PointerEvent as ReactPointerEvent } from "react";
+import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import type { GameMode, Player } from "@/lib/types";
+import { Flag } from "@/components/Flag";
 
-function initials(name: string): string {
-  const parts = name.split(" ");
-  return ((parts[0]?.[0] ?? "") + (parts[parts.length - 1]?.[0] ?? "")).toUpperCase();
+function surname(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  return parts[parts.length - 1] ?? name;
 }
 
 function ratingColor(ovr: number): string {
-  if (ovr >= 90) return "#f2d472";
-  if (ovr >= 85) return "#d4af37";
-  if (ovr >= 80) return "#22e0ff";
-  return "#9fb3d1";
+  if (ovr >= 90) return "#33ffab";
+  if (ovr >= 85) return "#00e676";
+  if (ovr >= 80) return "#00f0ff";
+  return "#94a3b8";
 }
-
-const ATTR_LABELS: [keyof Player["attributes"], string][] = [
-  ["pace", "PAC"], ["shooting", "SHO"], ["passing", "PAS"],
-  ["dribbling", "DRI"], ["defending", "DEF"], ["physical", "PHY"],
-];
 
 interface Props {
   player: Player;
@@ -29,97 +26,104 @@ interface Props {
   index?: number;
 }
 
+/** FUT-style minimal draft card: rating, position, surname, nation flag,
+ *  season — no invented club badge, no fabricated portrait. A 3D tilt
+ *  follows the pointer, like a physical card catching the light. */
 export function PlayerCard({ player, mode, onSelect, selected, compact, index = 0 }: Props) {
   const expert = mode === "expert";
-  const [c1, c2] = player.colors;
+  const [c1] = player.colors;
+  const rColor = ratingColor(player.overall);
+
+  const ref = useRef<HTMLButtonElement>(null);
+  const rx = useMotionValue(0);
+  const ry = useMotionValue(0);
+  const srx = useSpring(rx, { stiffness: 220, damping: 18 });
+  const sry = useSpring(ry, { stiffness: 220, damping: 18 });
+  const sheenX = useTransform(sry, [-10, 10], [0, 100]);
+  const sheenY = useTransform(srx, [10, -10], [0, 100]);
+  const sheenBg = useTransform([sheenX, sheenY], ([x, y]: number[]) =>
+    `radial-gradient(340px circle at ${x}% ${y}%, rgba(255,255,255,0.16), transparent 62%)`);
+
+  function onMove(e: ReactPointerEvent<HTMLButtonElement>) {
+    if (e.pointerType !== "mouse" && e.pointerType !== "pen") return; // touch: no jittery tilt
+    const el = ref.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const px = (e.clientX - r.left) / r.width - 0.5;
+    const py = (e.clientY - r.top) / r.height - 0.5;
+    rx.set(py * -14);
+    ry.set(px * 14);
+  }
+  function onLeave() {
+    rx.set(0);
+    ry.set(0);
+  }
 
   return (
     <motion.button
+      ref={ref}
       type="button"
       onClick={onSelect}
       disabled={!onSelect}
+      onPointerMove={onMove}
+      onPointerLeave={onLeave}
       initial={{ y: 18, scale: 0.97 }}
       animate={{ y: 0, scale: 1 }}
       transition={{ delay: index * 0.06, type: "spring", stiffness: 130, damping: 16 }}
-      whileHover={onSelect ? { y: -8, scale: 1.03 } : undefined}
+      whileHover={onSelect ? { y: -8, scale: 1.04 } : undefined}
       whileTap={onSelect ? { scale: 0.97 } : undefined}
-      className={`group relative w-full overflow-hidden rounded-2xl p-[1.5px] text-left transition-shadow ${
-        selected ? "ring-2 ring-gold" : ""
+      style={{ rotateX: srx, rotateY: sry, transformStyle: "preserve-3d", perspective: 900 }}
+      className={`group relative block aspect-[3/4] w-full overflow-hidden rounded-2xl p-[1.5px] text-left ${
+        selected ? "ring-2 ring-cyan" : ""
       } ${onSelect ? "cursor-pointer" : "cursor-default"}`}
-      style={{ background: `linear-gradient(150deg, ${c1}, ${c2})` }}
     >
-      <div className="relative h-full rounded-2xl bg-[#050e22]/92 p-3 shimmer">
-        {/* header row: rating + position */}
-        <div className="flex items-start justify-between">
+      <div
+        aria-hidden
+        className="absolute inset-0 rounded-2xl"
+        style={{ background: `linear-gradient(150deg, ${rColor}, ${c1})` }}
+      />
+      <div className="relative flex h-full flex-col rounded-2xl p-4"
+        style={{ background: "linear-gradient(165deg, #182233 0%, #0a0e17 78%)" }}>
+        {/* diagonal metallic sheen, follows the tilt */}
+        <motion.div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 rounded-2xl opacity-0 transition-opacity duration-200 group-hover:opacity-100"
+          style={{ background: sheenBg }}
+        />
+
+        {/* header: rating + position, nation flag */}
+        <div className="flex items-start justify-between" style={{ transform: "translateZ(30px)" }}>
           <div className="leading-none">
             {!expert ? (
-              <div className="font-display text-3xl font-extrabold" style={{ color: ratingColor(player.overall) }}>
+              <div className="font-display text-4xl font-extrabold" style={{ color: rColor }}>
                 {player.overall}
               </div>
             ) : (
-              <div className="font-display text-3xl font-extrabold text-muted">?</div>
+              <div className="font-display text-4xl font-extrabold text-muted">?</div>
             )}
-            <div className="mt-0.5 text-[0.6rem] font-bold tracking-widest text-muted">
+            <div className="mt-1 text-[0.62rem] font-bold tracking-widest text-muted">
               {player.position}
             </div>
           </div>
-          <div
-            className="grid h-12 w-12 shrink-0 place-items-center rounded-xl text-sm font-extrabold"
-            style={{ background: `linear-gradient(150deg, ${c1}, ${c2})`, color: "#fff" }}
-          >
-            {initials(player.name)}
+          <Flag nationality={player.nationality} className="text-2xl" />
+        </div>
+
+        {/* surname — the hero element */}
+        <div className="flex flex-1 items-center justify-center" style={{ transform: "translateZ(20px)" }}>
+          <div className="max-w-full truncate text-center font-display text-2xl font-extrabold uppercase leading-tight text-white">
+            {expert ? "???" : surname(player.name)}
           </div>
         </div>
 
-        {/* name */}
-        <div className="mt-2">
-          <div className="font-display text-[0.95rem] font-bold leading-tight">{player.name}</div>
-          <div className="mt-0.5 flex items-center gap-1.5 text-[0.65rem] text-muted">
-            <span>{player.nationality}</span>
-            <span className="opacity-40">•</span>
-            <span>{player.foot[0]}</span>
-          </div>
-        </div>
-
-        {/* club + season (always shown, this is the expert challenge) */}
-        <div className="mt-2 rounded-lg bg-white/5 px-2 py-1.5">
-          <div className="text-[0.72rem] font-bold text-white">{player.club}</div>
-          <div className="text-[0.62rem] text-cyan">{player.seasonLabel} · {player.league}</div>
-        </div>
-
-        {/* attributes — hidden in expert */}
-        {!expert && !compact && (
-          <div className="mt-2 grid grid-cols-3 gap-x-2 gap-y-1">
-            {ATTR_LABELS.map(([k, label]) => (
-              <div key={k} className="flex items-center justify-between text-[0.68rem]">
-                <span className="text-muted">{label}</span>
-                <span className="font-bold text-white">{player.attributes[k]}</span>
-              </div>
-            ))}
+        {/* season — real historical fact, not club branding */}
+        {!compact && (
+          <div className="text-center text-[0.66rem] font-bold uppercase tracking-[0.2em] text-white/45" style={{ transform: "translateZ(20px)" }}>
+            {expert ? player.position : player.seasonLabel}
           </div>
         )}
 
-        {/* footer: work rate / skill / weak foot (no goals-assists) */}
-        <div className="mt-2 flex items-center justify-between border-t border-white/8 pt-1.5 text-[0.62rem] text-muted">
-          {!expert ? (
-            <>
-              <span className="truncate">{player.workRates}</span>
-              <span className="flex shrink-0 gap-1.5">
-                <span>SM {player.skillMoves}★</span>
-                <span className="opacity-40">·</span>
-                <span>WF {player.weakFoot}★</span>
-              </span>
-            </>
-          ) : (
-            <>
-              <span className="text-cyan">{player.position}</span>
-              <span className="shrink-0 text-cyan">Expert Mode</span>
-            </>
-          )}
-        </div>
-
         {onSelect && (
-          <div className="pointer-events-none absolute inset-x-3 bottom-2 translate-y-3 rounded-lg bg-gold py-1 text-center text-[0.65rem] font-extrabold uppercase tracking-widest text-[#041022] opacity-0 transition-all group-hover:translate-y-0 group-hover:opacity-100">
+          <div className="pointer-events-none absolute inset-x-3 bottom-2 translate-y-3 rounded-lg bg-cyan py-1 text-center text-[0.65rem] font-extrabold uppercase tracking-widest text-[#041022] opacity-0 transition-all group-hover:translate-y-0 group-hover:opacity-100">
             Lock In
           </div>
         )}

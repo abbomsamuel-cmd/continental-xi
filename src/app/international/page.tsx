@@ -18,7 +18,7 @@ import { TeamBadge } from "@/components/TeamBadge";
 import { CrestLogo } from "@/components/CrestLogo";
 import { Pitch } from "@/components/Pitch";
 import { TiltCard } from "@/components/fx/TiltCard";
-import { WavingFlag } from "@/components/fx/WavingFlag";
+import { Flag } from "@/components/Flag";
 import { RoundTransition } from "@/components/fx/RoundTransition";
 import { Fireworks } from "@/components/fx/Fireworks";
 import { RainOverlay, CameraFlashes, Confetti, Sparks } from "@/components/fx/Atmosphere";
@@ -41,23 +41,23 @@ const THEMES: Record<IntlComp, {
 }> = {
   euro: {
     title: "UEFA EURO", sub: "European Championship", emoji: "🏆",
-    accent: "#37e0ff", accent2: "#8fb8ff", soft: "rgba(55,224,255,0.16)",
+    accent: "#ff3b57", accent2: "#1b3fd0", soft: "rgba(255,59,87,0.16)",
     panel: "euro-panel euro-grid",
     heading: "text-gradient-euro",
     blurb: "Sixteen historic national sides. Four groups. One summer of silver.",
     champs: ["Spain", "France", "Germany", "Italy", "Portugal", "Netherlands", "Denmark", "Greece"],
-    confetti: ["#37e0ff", "#dbe6ff", "#ffffff", "#1b4fff", "#8fb8ff"],
-    fireworks: ["#37e0ff", "#dbe6ff", "#ffffff", "#5b8cff"],
+    confetti: ["#ff3b57", "#ffffff", "#1b3fd0", "#ffffff", "#8fb8ff"],
+    fireworks: ["#ff3b57", "#ffffff", "#1b3fd0", "#5b8cff"],
   },
   copa: {
     title: "Copa América", sub: "CONMEBOL", emoji: "🏆",
-    accent: "#ffc93c", accent2: "#ff8a3d", soft: "rgba(255,201,60,0.16)",
+    accent: "#00e676", accent2: "#ffd700", soft: "rgba(0,230,118,0.16)",
     panel: "copa-panel copa-heat",
     heading: "text-gradient-copa",
     blurb: "Twelve legendary selecciones. Three groups. The oldest prize in football.",
     champs: ["Argentina", "Brazil", "Uruguay", "Chile", "Colombia", "Bolivia"],
-    confetti: ["#ffc93c", "#ff8a3d", "#17c97a", "#ffffff", "#fff2c9"],
-    fireworks: ["#ffc93c", "#ff8a3d", "#17c97a", "#ffffff"],
+    confetti: ["#00e676", "#ffd700", "#0ea5e9", "#ffffff", "#fff2c9"],
+    fireworks: ["#00e676", "#ffd700", "#0ea5e9", "#ffffff"],
   },
 };
 
@@ -498,7 +498,7 @@ function International() {
                       <div className="mt-1.5 flex items-end gap-1.5">
                         {flagSquads.map((s, fi) => (
                           <motion.span key={s.club} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 + fi * 0.08 }} title={s.club}>
-                            <WavingFlag colors={s.colors} width={40} />
+                            <Flag nationality={s.club} width={40} />
                           </motion.span>
                         ))}
                       </div>
@@ -572,7 +572,7 @@ function International() {
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2.5">
-                      <WavingFlag colors={sq.colors} width={46} />
+                      <Flag nationality={sq.country} width={46} />
                       <div>
                         <div className="font-display text-base font-extrabold leading-tight text-white">{sq.club}</div>
                         <div className="text-[0.65rem] font-bold" style={{ color: t.accent }}>{sq.season}</div>
@@ -812,8 +812,8 @@ function International() {
                     className={`flex flex-col items-center gap-2 rounded-2xl bg-black/25 p-4 ${team.id === intl.userKey ? "ring-1" : ""}`}
                     style={{ order: side === 0 ? 0 : 2, ...(team.id === intl.userKey ? { boxShadow: `0 0 22px ${t.soft}`, borderColor: t.accent } : {}) }}
                   >
-                    <WavingFlag colors={team.colors} width={54} />
-                    <TeamBadge colors={team.colors} code={team.short} size={44} />
+                    <Flag nationality={team.country} width={54} />
+                    <TeamBadge colors={team.colors} code={team.short} size={44} nationality={team.country} />
                     <div className="font-display text-sm font-extrabold text-white">{team.name} {team.season}</div>
                     {team.id === intl.userKey && <span className="chip" style={{ background: t.soft, color: t.accent }}>{tr("intl.yourNation")}</span>}
                   </motion.div>
@@ -867,7 +867,7 @@ function International() {
                     onClick={() => r && setModal({ result: r, title: `Group stage · MD ${f.matchday}` })}
                     className="flex items-center justify-between rounded-lg bg-white/4 px-2.5 py-2 text-left disabled:opacity-60">
                     <span className="flex min-w-0 items-center gap-1.5">
-                      <TeamBadge colors={opp.colors} code={opp.short} size={18} />
+                      <TeamBadge colors={opp.colors} code={opp.short} size={18} nationality={opp.country} />
                       <span className="truncate text-xs font-semibold">{opp.name} {opp.season}</span>
                     </span>
                     <span className={`font-display text-sm font-bold ${color}`}>{r ? `${uf}-${oa}` : `MD${f.matchday}`}</span>
@@ -1192,13 +1192,13 @@ function International() {
                     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.85 }}
                       className="mt-6 flex flex-wrap items-center justify-center gap-3">
                       <div className="flex items-center gap-2">
-                        <TeamBadge colors={uTeam.colors} code={uTeam.short} size={38} />
+                        <TeamBadge colors={uTeam.colors} code={uTeam.short} size={38} nationality={uTeam.country} />
                         <span className="font-display text-5xl font-black text-white sm:text-6xl">{userAgg}</span>
                       </div>
                       <span className="font-display text-3xl font-black text-white/30">–</span>
                       <div className="flex items-center gap-2">
                         <span className="font-display text-5xl font-black text-white sm:text-6xl">{oppAgg}</span>
-                        <TeamBadge colors={opp.colors} code={opp.short} size={38} />
+                        <TeamBadge colors={opp.colors} code={opp.short} size={38} nationality={opp.country} />
                       </div>
                       <div className="min-w-0 text-left">
                         <div className="truncate font-display text-base font-extrabold text-white">{label(intl, oppId)}</div>
@@ -1395,7 +1395,7 @@ function GroupCard({ intl, gi, theme }: { intl: IntlState; gi: number; theme: Th
                 <span className={`font-bold ${qualified ? "text-green" : "text-white/50"}`}>{i + 1}</span>
               </span>
               <span className="flex min-w-0 items-center gap-1.5">
-                <TeamBadge colors={team.colors} code={team.short} size={18} />
+                <TeamBadge colors={team.colors} code={team.short} size={18} nationality={team.country} />
                 <span className={`truncate font-semibold ${isUser ? "" : "text-white/90"}`} style={isUser ? { color: theme.accent } : undefined}>
                   {team.name} {team.season}{isUser ? " ★" : ""}
                 </span>
@@ -1431,7 +1431,7 @@ function IntlBracket({ intl, onTieClick }: {
 }) {
   const teams: Record<string, BracketTeam> = {};
   for (const [id, tm] of Object.entries(intl.teams)) {
-    teams[id] = { id, name: tm.name, short: tm.short, colors: tm.colors, season: tm.season != null ? String(tm.season) : undefined, isUser: id === intl.userKey };
+    teams[id] = { id, name: tm.name, short: tm.short, colors: tm.colors, season: tm.season != null ? String(tm.season) : undefined, isUser: id === intl.userKey, country: tm.country };
   }
   const rounds: KORoundName[] = intl.comp === "euro"
     ? ["Round of 16", "Quarter-final", "Semi-final", "Final"]

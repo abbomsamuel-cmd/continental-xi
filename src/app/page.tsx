@@ -71,9 +71,9 @@ function dailyConfig(key: string): { formation: string; mode: "classic" | "exper
 }
 
 const COMP_META = {
-  cl: { label: "Champions League", accent: "#22e0ff", href: "/tournament" },
-  euro: { label: "UEFA EURO", accent: "#37e0ff", href: "/international" },
-  copa: { label: "Copa América", accent: "#ffc93c", href: "/international" },
+  cl: { label: "Champions League", accent: "#00f0ff", href: "/tournament" },
+  euro: { label: "UEFA EURO", accent: "#ff3b57", href: "/international" },
+  copa: { label: "Copa América", accent: "#00e676", href: "/international" },
 } as const;
 
 /** icon + accent + translation keys; dates are static labels. */
@@ -132,12 +132,14 @@ function PlayTile({ tile, index }: { tile: Tile; index: number }) {
         href={tile.href}
         onClick={() => play("select")}
         className={`group relative flex h-full flex-col justify-between overflow-hidden rounded-3xl p-5 transition-transform duration-300 hover:-translate-y-1.5 sm:p-6 ${tile.minH}`}
-        style={{ background: tile.gradient, boxShadow: tile.glow, border: `1px solid ${tile.ring}` }}
+        style={{ background: tile.gradient, boxShadow: `${tile.glow}, 0 1px 0 rgba(255,255,255,0.18) inset, 0 26px 60px rgba(0,0,0,0.5)`, border: `1px solid ${tile.ring}` }}
       >
         {/* top-left studio light + moving diagonal shine */}
         <span aria-hidden className="pointer-events-none absolute inset-0"
           style={{ background: "radial-gradient(100% 60% at 12% -12%, rgba(255,255,255,0.32), transparent 55%)" }} />
         <span aria-hidden className="pointer-events-none absolute -inset-x-1/2 -top-1/2 h-[200%] w-[60%] -translate-x-1/3 rotate-12 bg-white/10 opacity-0 blur-xl transition-all duration-700 group-hover:translate-x-[220%] group-hover:opacity-100" />
+        {/* grounding vignette — sells depth like a console menu tile, not a flat web card */}
+        <span aria-hidden className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(140% 60% at 50% 118%, rgba(0,0,0,0.55), transparent 60%)" }} />
         {/* faint icon watermark */}
         <span aria-hidden className="pointer-events-none absolute -bottom-6 -right-3 select-none text-[7rem] leading-none opacity-15 sm:text-[9rem]">{tile.icon}</span>
 
@@ -149,9 +151,10 @@ function PlayTile({ tile, index }: { tile: Tile; index: number }) {
         </div>
 
         <div className="relative mt-auto pt-6">
-          <h3 className="font-display text-2xl font-black leading-none text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.35)] sm:text-3xl">{tile.title}</h3>
+          <h3 className="font-display text-2xl font-bold uppercase leading-none tracking-wide text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.35)] sm:text-3xl">{tile.title}</h3>
           <p className="mt-1.5 text-[0.82rem] font-semibold text-white/85">{tile.tag}</p>
-          <span className="mt-3.5 inline-flex items-center gap-2 rounded-full bg-white/22 px-4 py-1.5 text-[0.66rem] font-extrabold uppercase tracking-[0.15em] text-white backdrop-blur-sm transition-transform duration-300 group-hover:translate-x-1">
+          <span className="mt-3.5 inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-[0.66rem] font-extrabold uppercase tracking-[0.15em] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.4),0_4px_14px_rgba(0,0,0,0.35)] backdrop-blur-sm transition-transform duration-300 group-hover:translate-x-1"
+            style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.32), rgba(255,255,255,0.14))" }}>
             {tile.badge && <span className="rounded bg-white px-1.5 py-0.5 text-[0.5rem] font-black text-black">{tile.badge}</span>}
             {tile.cta} <span aria-hidden>→</span>
           </span>
@@ -257,12 +260,12 @@ export default function Home() {
   const champions = mounted
     ? [
         ...profile.drafts.filter((d) => d.result === "champion").map((d) => ({
-          key: `cl-${d.id}`, comp: "Champions Draft", accent: "#22e0ff",
+          key: `cl-${d.id}`, comp: "Champions Draft", accent: "#00f0ff",
           name: `${d.formation} · ${d.overall} OVR`, date: d.date, sub: `${d.players[0]?.name ?? ""} & co.`,
         })),
         ...(profile.intlResults ?? []).filter((r) => r.result === "champion").map((r, i) => ({
           key: `intl-${i}-${r.date}`, comp: r.comp === "euro" ? "UEFA EURO" : "Copa América",
-          accent: r.comp === "euro" ? "#37e0ff" : "#ffc93c",
+          accent: r.comp === "euro" ? "#ff3b57" : "#00e676",
           name: `${r.nation} ${r.year}`, date: r.date, sub: "International champions",
         })),
       ].sort((a, b) => +new Date(b.date) - +new Date(a.date)).slice(0, 4)

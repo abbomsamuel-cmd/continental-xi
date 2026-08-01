@@ -26,15 +26,15 @@ export function CareerSidebar() {
   const path = usePathname();
   const { lang } = useLang();
   return (
-    <aside className="hidden lg:fixed lg:left-0 lg:top-[4.75rem] lg:bottom-0 lg:z-30 lg:flex lg:w-56 lg:flex-col lg:border-r lg:border-white/8 lg:bg-[#070b16]/80 lg:px-3 lg:py-5">
-      <div className="px-3 pb-3 text-[0.55rem] font-bold uppercase tracking-[0.3em] text-gold/70">Career</div>
+    <aside className="hidden lg:fixed lg:left-0 lg:top-[4.75rem] lg:bottom-0 lg:z-30 lg:flex lg:w-56 lg:flex-col lg:border-r lg:border-white/8 lg:bg-[#0f0a24]/85 lg:px-3 lg:py-5">
+      <div className="px-3 pb-3 text-[0.55rem] font-bold uppercase tracking-[0.3em] text-career-purple/80">Career</div>
       <nav className="flex flex-col gap-0.5">
         {CAREER_NAV.map((it) => {
           const active = isActive(path, it.href);
           return (
             <Link key={it.id} href={it.href} onClick={() => play("hover")}
               className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
-                active ? "bg-gold/12 text-gold" : "text-white/55 hover:bg-white/5 hover:text-white"}`}>
+                active ? "bg-career-purple/18 text-career-gold" : "text-white/55 hover:bg-white/5 hover:text-white"}`}>
               <span aria-hidden className="w-4 text-center text-base leading-none">{it.icon}</span>
               {lang === "es" ? it.es : it.en}
             </Link>
@@ -50,13 +50,13 @@ export function CareerBottomNav() {
   const { lang } = useLang();
   const items = CAREER_NAV.filter((i) => i.primary);
   return (
-    <nav className="safe-bottom fixed inset-x-0 bottom-0 z-40 flex items-stretch border-t border-white/10 bg-[#070b16]/95 backdrop-blur lg:hidden">
+    <nav className="safe-bottom fixed inset-x-0 bottom-0 z-40 flex items-stretch border-t border-white/10 bg-[#0f0a24]/95 backdrop-blur lg:hidden">
       {items.map((it) => {
         const active = isActive(path, it.href);
         return (
           <Link key={it.id} href={it.href} onClick={() => play("click")}
             className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-[0.56rem] font-bold uppercase tracking-wide ${
-              active ? "text-gold" : "text-white/45"}`}>
+              active ? "text-career-gold" : "text-white/45"}`}>
             <span aria-hidden className="text-lg leading-none">{it.icon}</span>
             {lang === "es" ? it.es : it.en}
           </Link>

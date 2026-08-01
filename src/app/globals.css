@@ -1,33 +1,61 @@
 @import "tailwindcss";
 
 :root {
+  /* ---- broadcast-stadium base UI chrome (nav, buttons, home, draft,
+     squad, and the default Champions League Hub identity: deep navy +
+     electric cyan). EURO/Copa/Career keep their own accent families below,
+     layered on the same obsidian/stadium-blue base. ---- */
+  --obsidian: #07090e;
+  --obsidian-2: #030407;
+  --stadium-blue: #0f172a;
+  --slate: #0f172a;
+  --slate-2: #182338;
+  --emerald: #00e676; /* reserved for the Copa América hub, see below */
+  --emerald-dim: #00b85f;
+  --electric: #3b82f6;
+  --electric-dim: #2563d9;
+  --card-yellow: #ffb300;
+  --card-red: #ff3b30;
+  --off-white: #f8fafc;
+  --slate-grey: #94a3b8;
+
+  /* legacy tokens — kept for any component not yet migrated to the
+     tactical palette. Do not remove until every consumer (grep for
+     var(--gold), var(--midnight), var(--ink), var(--muted), var(--amber))
+     has moved off them. */
   --midnight: #061a40;
   --midnight-2: #030f26;
   --uefa: #003b8e;
   --gold: #d4af37;
   --gold-bright: #f2d472;
-  --cyan: #22e0ff;
-  --cyan-dim: #0fb5d6;
+  /* Champions League Hub primary — electric cyan, the CL/base default accent */
+  --cyan: #00f0ff;
+  --cyan-dim: #00b8c4;
   --ink: #eaf1ff;
   --muted: #9fb3d1;
   --danger: #ff5a6a;
   --green: #2ee6a6;
   --amber: #ffcf5c;
 
-  /* EURO identity — royal, high-tech Europe */
-  --euro-blue: #1b4fff;
-  --euro-cyan: #37e0ff;
-  --euro-silver: #dbe6ff;
+  /* EURO identity — royal blue + neon crimson, vibrant white */
+  --euro-blue: #1b3fd0;
+  --euro-cyan: #ff3b57;
+  --euro-silver: #ffffff;
   --euro-navy: #050d2e;
 
-  /* Copa identity — heat, passion, gold */
-  --copa-green: #17c97a;
-  --copa-gold: #ffc93c;
+  /* Copa América identity — emerald green, metallic gold, azure */
+  --copa-green: #00e676;
+  --copa-gold: #ffd700;
   --copa-navy: #06251a;
-  --copa-orange: #ff8a3d;
+  --copa-orange: #0ea5e9;
 
-  --background: var(--midnight-2);
-  --foreground: var(--ink);
+  /* Career Mode identity — dark amethyst/purple to gold */
+  --career-purple: #6d28d9;
+  --career-purple-dim: #4c1d95;
+  --career-gold: #ffd700;
+
+  --background: var(--obsidian);
+  --foreground: var(--off-white);
 
   /* ---- design system: spacing scale (4 → 64) ---- */
   --space-1: 4px;
@@ -59,6 +87,17 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-obsidian: var(--obsidian);
+  --color-stadium-blue: var(--stadium-blue);
+  --color-slate: var(--slate);
+  --color-emerald: var(--emerald);
+  --color-electric: var(--electric);
+  --color-career-purple: var(--career-purple);
+  --color-career-gold: var(--career-gold);
+  --color-card-yellow: var(--card-yellow);
+  --color-card-red: var(--card-red);
+  --color-off-white: var(--off-white);
+  --color-slate-grey: var(--slate-grey);
   --color-midnight: var(--midnight);
   --color-uefa: var(--uefa);
   --color-gold: var(--gold);
@@ -80,10 +119,10 @@ html {
 
 body {
   background:
-    radial-gradient(1200px 600px at 50% -10%, rgba(0, 59, 142, 0.4), transparent 60%),
-    radial-gradient(900px 500px at 100% 0%, rgba(34, 224, 255, 0.09), transparent 55%),
-    radial-gradient(700px 500px at 0% 30%, rgba(90, 60, 220, 0.08), transparent 60%),
-    linear-gradient(180deg, #061a40 0%, #030f26 55%, #020814 100%);
+    radial-gradient(1200px 600px at 50% -10%, rgba(0, 240, 255, 0.14), transparent 60%),
+    radial-gradient(900px 500px at 100% 0%, rgba(27, 63, 208, 0.14), transparent 55%),
+    radial-gradient(700px 500px at 0% 30%, rgba(0, 240, 255, 0.05), transparent 60%),
+    linear-gradient(180deg, #07090e 0%, #0f172a 55%, #030407 100%);
   background-attachment: fixed;
   color: var(--foreground);
   font-family: var(--font-sans);
@@ -94,7 +133,7 @@ body {
 /* ---------- Typography ---------- */
 .font-display {
   font-family: var(--font-display);
-  letter-spacing: -0.02em;
+  letter-spacing: 0.005em;
 }
 .text-gradient-gold {
   background: linear-gradient(120deg, var(--gold-bright), var(--gold) 45%, #b8912a);
@@ -104,6 +143,18 @@ body {
 }
 .text-gradient-cyan {
   background: linear-gradient(120deg, #ffffff, var(--cyan));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.text-gradient-emerald {
+  background: linear-gradient(120deg, #baffdd, var(--emerald) 45%, #049654);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.text-gradient-electric {
+  background: linear-gradient(120deg, #ffffff, var(--electric));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -139,14 +190,23 @@ body {
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 .glass-strong {
-  background: linear-gradient(160deg, rgba(10, 30, 66, 0.85), rgba(3, 15, 38, 0.92));
-  border: 1px solid rgba(212, 175, 55, 0.22);
+  background: linear-gradient(160deg, rgba(15, 23, 42, 0.85), rgba(3, 4, 7, 0.92));
+  border: 1px solid rgba(0, 240, 255, 0.18);
   backdrop-filter: blur(20px) saturate(1.4);
   -webkit-backdrop-filter: blur(20px) saturate(1.4);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 .gold-border {
   border: 1px solid rgba(212, 175, 55, 0.4);
+}
+/* tactical dark mode glass — obsidian/slate tint, used by the new base
+   chrome (nav, bottom dock, cards) in place of the old navy glass-strong */
+.glass-tactical {
+  background: linear-gradient(160deg, rgba(18, 24, 36, 0.8), rgba(10, 14, 23, 0.8));
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  backdrop-filter: blur(12px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.2);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 /* ---------- Buttons ---------- */
@@ -204,6 +264,21 @@ body {
 .btn-cyan:hover {
   box-shadow: 0 12px 44px rgba(34, 224, 255, 0.55);
 }
+/* tactical dark mode primary/secondary — new default CTA colors */
+.btn-emerald {
+  background: linear-gradient(120deg, #33ffab, var(--emerald));
+  box-shadow: 0 8px 30px rgba(0, 230, 118, 0.3);
+}
+.btn-emerald:hover {
+  box-shadow: 0 12px 44px rgba(0, 230, 118, 0.55);
+}
+.btn-electric {
+  background: linear-gradient(120deg, #7fb3ff, var(--electric));
+  box-shadow: 0 8px 30px rgba(59, 130, 246, 0.3);
+}
+.btn-electric:hover {
+  box-shadow: 0 12px 44px rgba(59, 130, 246, 0.55);
+}
 /* ---------- FAQ accordion ---------- */
 .faq-item > summary {
   list-style: none;
@@ -216,7 +291,7 @@ body {
 }
 .faq-item[open] .faq-plus {
   transform: rotate(45deg);
-  color: var(--gold);
+  color: var(--cyan);
 }
 .faq-item[open] > summary {
   border-bottom: 1px solid rgba(255, 255, 255, 0.07);
@@ -282,7 +357,7 @@ body {
 
 /* ---- nav dropdown menu ---- */
 .nav-menu {
-  background: linear-gradient(165deg, rgba(12, 26, 60, 0.98), rgba(4, 12, 32, 0.98));
+  background: linear-gradient(165deg, rgba(18, 24, 36, 0.98), rgba(5, 7, 13, 0.98));
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-3), inset 0 1px 0 rgba(255, 255, 255, 0.06);
@@ -305,8 +380,8 @@ body {
   color: #fff;
 }
 .nav-menu-item[data-active="true"] {
-  color: var(--gold);
-  background: rgba(212, 175, 55, 0.1);
+  color: var(--cyan);
+  background: rgba(0, 240, 255, 0.1);
 }
 /* slow attract pulse for primary CTAs */
 .btn-pulse {
@@ -326,7 +401,7 @@ body {
 .btn:focus-visible,
 a:focus-visible,
 button:focus-visible {
-  outline: 2px solid var(--gold);
+  outline: 2px solid var(--cyan);
   outline-offset: 2px;
 }
 
@@ -515,12 +590,13 @@ button:focus-visible {
   transform: translateZ(var(--z, 30px));
 }
 
-/* ---------- Champions League themed surfaces ---------- */
+/* ---------- Champions League Hub: deep navy + electric cyan ---------- */
 .cl-panel {
   background:
-    radial-gradient(120% 90% at 50% -20%, rgba(41, 98, 255, 0.28), transparent 60%),
-    linear-gradient(180deg, #0a1f6e 0%, #071343 60%, #050d2e 100%);
-  border: 1px solid rgba(120, 160, 255, 0.22);
+    radial-gradient(120% 90% at 50% -20%, rgba(0, 240, 255, 0.16), transparent 60%),
+    radial-gradient(70% 60% at 90% 10%, rgba(27, 63, 208, 0.16), transparent 60%),
+    linear-gradient(180deg, var(--slate) 0%, #0a1120 60%, var(--obsidian-2) 100%);
+  border: 1px solid rgba(0, 240, 255, 0.2);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.07);
 }
 .cl-streaks {
@@ -537,9 +613,9 @@ button:focus-visible {
   background: repeating-linear-gradient(
     115deg,
     transparent 0 14px,
-    rgba(34, 224, 255, 0.10) 14px 17px,
-    rgba(212, 175, 55, 0.10) 17px 20px,
-    rgba(120, 80, 255, 0.10) 20px 23px
+    rgba(0, 240, 255, 0.12) 14px 17px,
+    rgba(27, 63, 208, 0.12) 17px 20px,
+    rgba(148, 163, 184, 0.08) 20px 23px
   );
   transform: rotate(4deg);
   pointer-events: none;
@@ -558,18 +634,18 @@ button:focus-visible {
 }
 .cl-heading {
   font-family: var(--font-display);
-  font-weight: 800;
-  letter-spacing: 0.02em;
+  font-weight: 700;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
-/* ---------- EURO themed surfaces (royal / neon / glass) ---------- */
+/* ---------- EURO themed surfaces (royal blue + neon crimson) ---------- */
 .euro-panel {
   background:
-    radial-gradient(130% 90% at 50% -25%, rgba(27, 79, 255, 0.4), transparent 60%),
-    radial-gradient(70% 60% at 90% 10%, rgba(55, 224, 255, 0.14), transparent 60%),
+    radial-gradient(130% 90% at 50% -25%, rgba(27, 63, 208, 0.4), transparent 60%),
+    radial-gradient(70% 60% at 90% 10%, rgba(255, 59, 87, 0.14), transparent 60%),
     linear-gradient(180deg, #0a1c6e 0%, #06103f 55%, var(--euro-navy) 100%);
-  border: 1px solid rgba(140, 190, 255, 0.26);
+  border: 1px solid rgba(255, 59, 87, 0.26);
   box-shadow: 0 22px 60px rgba(2, 8, 40, 0.6), inset 0 1px 0 rgba(220, 235, 255, 0.12);
 }
 .euro-grid {
@@ -589,21 +665,21 @@ button:focus-visible {
   pointer-events: none;
 }
 .euro-neon {
-  box-shadow: 0 0 18px rgba(55, 224, 255, 0.35), 0 0 44px rgba(27, 79, 255, 0.25), inset 0 0 14px rgba(55, 224, 255, 0.08);
+  box-shadow: 0 0 18px rgba(255, 59, 87, 0.35), 0 0 44px rgba(27, 63, 208, 0.25), inset 0 0 14px rgba(255, 59, 87, 0.08);
 }
 
-/* ---------- Copa América themed surfaces (sunset / gold / heat) ---------- */
+/* ---------- Copa América themed surfaces (emerald / gold / azure) ---------- */
 .copa-panel {
   background:
-    radial-gradient(130% 90% at 50% -25%, rgba(255, 138, 61, 0.30), transparent 55%),
-    radial-gradient(80% 60% at 15% 5%, rgba(255, 201, 60, 0.18), transparent 60%),
-    linear-gradient(180deg, #14522f 0%, #0a3520 55%, var(--copa-navy) 100%);
-  border: 1px solid rgba(255, 201, 60, 0.32);
-  box-shadow: 0 22px 60px rgba(2, 20, 10, 0.65), inset 0 1px 0 rgba(255, 220, 130, 0.14);
+    radial-gradient(130% 90% at 50% -25%, rgba(0, 230, 118, 0.24), transparent 55%),
+    radial-gradient(80% 60% at 15% 5%, rgba(255, 215, 0, 0.16), transparent 60%),
+    linear-gradient(180deg, #0f4a2c 0%, #0a3520 55%, var(--copa-navy) 100%);
+  border: 1px solid rgba(255, 215, 0, 0.32);
+  box-shadow: 0 22px 60px rgba(2, 20, 10, 0.65), inset 0 1px 0 rgba(200, 255, 225, 0.14);
 }
 .copa-gold-border {
-  border: 1px solid rgba(255, 201, 60, 0.55);
-  box-shadow: 0 0 16px rgba(255, 201, 60, 0.25), inset 0 0 12px rgba(255, 201, 60, 0.06);
+  border: 1px solid rgba(255, 215, 0, 0.55);
+  box-shadow: 0 0 16px rgba(255, 215, 0, 0.25), inset 0 0 12px rgba(255, 215, 0, 0.06);
 }
 .copa-heat {
   position: relative;
@@ -614,10 +690,37 @@ button:focus-visible {
   inset: 0;
   border-radius: inherit;
   background:
-    repeating-linear-gradient(115deg, transparent 0 18px, rgba(255, 201, 60, 0.05) 18px 22px, rgba(255, 138, 61, 0.05) 22px 26px);
+    repeating-linear-gradient(115deg, transparent 0 18px, rgba(255, 215, 0, 0.05) 18px 22px, rgba(0, 230, 118, 0.06) 22px 26px);
   pointer-events: none;
   mask-image: linear-gradient(to top, #000, transparent 75%);
   -webkit-mask-image: linear-gradient(to top, #000, transparent 75%);
+}
+
+/* ---------- Career Mode themed surfaces (dark amethyst → gold) ---------- */
+.career-panel {
+  background:
+    radial-gradient(130% 90% at 50% -25%, rgba(109, 40, 217, 0.38), transparent 58%),
+    radial-gradient(80% 60% at 90% 0%, rgba(255, 215, 0, 0.14), transparent 60%),
+    linear-gradient(180deg, #2e1065 0%, #1a0b3d 55%, #0a0e17 100%);
+  border: 1px solid rgba(168, 130, 255, 0.3);
+  box-shadow: 0 22px 60px rgba(10, 4, 26, 0.65), inset 0 1px 0 rgba(220, 200, 255, 0.12);
+}
+.career-gold-border {
+  border: 1px solid rgba(255, 215, 0, 0.5);
+  box-shadow: 0 0 16px rgba(255, 215, 0, 0.22), inset 0 0 12px rgba(255, 215, 0, 0.06);
+}
+.btn-career {
+  background: linear-gradient(120deg, #a855f7, #6d28d9 55%, #ffd700);
+  box-shadow: 0 8px 30px rgba(109, 40, 217, 0.4);
+}
+.btn-career:hover {
+  box-shadow: 0 12px 44px rgba(109, 40, 217, 0.6);
+}
+.text-gradient-career {
+  background: linear-gradient(120deg, #d8b4fe, #a855f7 45%, #ffd700);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 /* ---------- Waving flag ---------- */
@@ -641,12 +744,12 @@ button:focus-visible {
   background: rgba(255, 255, 255, 0.03);
 }
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(var(--uefa), var(--midnight));
+  background: linear-gradient(var(--cyan-dim), var(--obsidian));
   border-radius: 999px;
   border: 2px solid transparent;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--gold);
+  background: var(--cyan);
 }
 
 /* ---------- animations ---------- */
@@ -766,10 +869,11 @@ button:focus-visible {
    compositing path. Solid panels stand in for the glass. */
 [data-fx="reduced"] .glass,
 [data-fx="reduced"] .glass-strong,
+[data-fx="reduced"] .glass-tactical,
 [data-fx="reduced"] .nav-menu {
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
-  background: rgba(7, 16, 40, 0.92);
+  background: rgba(10, 14, 23, 0.92);
 }
 /* Every infinite loop (pulses, breathes, shines, pans) runs once and stops.
    One-shot entrance animations still play; nothing loops forever on a phone. */
@@ -808,6 +912,7 @@ button:focus-visible {
 }
 [data-fx="off"] .glass,
 [data-fx="off"] .glass-strong,
+[data-fx="off"] .glass-tactical,
 [data-fx="off"] .nav-menu {
   backdrop-filter: none;
   -webkit-backdrop-filter: none;

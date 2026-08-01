@@ -1,18 +1,23 @@
 import type { Metadata, Viewport } from "next";
-import { Sora, Manrope } from "next/font/google";
+import { Oswald, Manrope } from "next/font/google";
 import "./globals.css";
+import "flag-icons/css/flag-icons.min.css";
 import { StadiumBackground } from "@/components/StadiumBackground";
 import { Ambience } from "@/components/fx/Ambience";
 import { NavBar } from "@/components/NavBar";
+import { BottomNav } from "@/components/BottomNav";
+import { AppMain } from "@/components/AppMain";
 import { SiteCredit } from "@/components/SiteCredit";
 import { EggToast } from "@/components/EggToast";
 import { MotionGate } from "@/components/MotionGate";
 import { LangProvider } from "@/lib/i18n";
 import { SITE_URL } from "@/lib/site";
 
-const display = Sora({
+// A bold, condensed broadcast-scoreboard face for headings and stat labels —
+// reads as sports HUD/graphics, not a generic startup sans.
+const display = Oswald({
   subsets: ["latin"],
-  weight: ["600", "700", "800"],
+  weight: ["500", "600", "700"],
   variable: "--font-display",
 });
 const sans = Manrope({
@@ -45,7 +50,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#061a40",
+  themeColor: "#0a0e17",
   width: "device-width",
   initialScale: 1,
   // cover lets env(safe-area-inset-*) work on notched phones; zoom stays enabled
@@ -62,7 +67,8 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             <StadiumBackground />
             <Ambience />
             <NavBar />
-            <main className="relative z-10">{children}</main>
+            <AppMain>{children}</AppMain>
+            <BottomNav />
             <SiteCredit />
             <EggToast />
           </MotionGate>

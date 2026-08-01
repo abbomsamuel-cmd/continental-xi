@@ -16,25 +16,25 @@ const PRES: Record<PitchVariant, {
   accent: string; emblem: string; title: string; topTag: string; footTag: string;
 }> = {
   cl: {
-    page: "radial-gradient(120% 90% at 50% 12%, #0a1c52, #02040f 78%)",
-    bg: "radial-gradient(120% 60% at 50% -10%, rgba(70,130,255,0.5), transparent 60%), radial-gradient(70% 45% at 88% 4%, rgba(150,100,255,0.22), transparent 62%), linear-gradient(180deg, #0a1f5c 0%, #071845 55%, #050f30 100%)",
-    grass: "repeating-linear-gradient(0deg, rgba(120,170,255,0.05) 0 46px, rgba(120,170,255,0.09) 46px 92px)",
-    line: "rgba(190,215,255,0.32)", frame: "rgba(212,175,55,0.5)",
-    accent: "#37e0ff", emblem: "🏆", title: "CHAMPIONS LEAGUE XI", topTag: "BUILD YOUR LEGACY", footTag: "CHOOSE LEGENDS. WRITE HISTORY.",
+    page: "radial-gradient(120% 90% at 50% 12%, #0d1420, #02040a 78%)",
+    bg: "radial-gradient(120% 60% at 50% -10%, rgba(0,240,255,0.22), transparent 60%), radial-gradient(70% 45% at 88% 4%, rgba(0,240,255,0.18), transparent 62%), linear-gradient(180deg, #121824 0%, #0d1320 55%, #05070d 100%)",
+    grass: "repeating-linear-gradient(0deg, rgba(148,163,184,0.05) 0 46px, rgba(148,163,184,0.09) 46px 92px)",
+    line: "rgba(226,232,240,0.28)", frame: "rgba(0,240,255,0.45)",
+    accent: "#00f0ff", emblem: "🏆", title: "CHAMPIONS LEAGUE XI", topTag: "BUILD YOUR LEGACY", footTag: "CHOOSE LEGENDS. WRITE HISTORY.",
   },
   euro: {
-    page: "radial-gradient(120% 90% at 50% 12%, #0a2a66, #04102e 80%)",
-    bg: "radial-gradient(120% 60% at 50% -8%, rgba(27,79,255,0.4), transparent 60%), linear-gradient(180deg, #12924c 0%, #0f8446 55%, #0c6f3b 100%)",
+    page: "radial-gradient(120% 90% at 50% 12%, #0a1a56, #04081e 80%)",
+    bg: "radial-gradient(120% 60% at 50% -8%, rgba(255,59,87,0.28), transparent 60%), linear-gradient(180deg, #12924c 0%, #0f8446 55%, #0c6f3b 100%)",
     grass: "repeating-linear-gradient(0deg, rgba(255,255,255,0.04) 0 46px, rgba(0,0,0,0.05) 46px 92px)",
-    line: "rgba(255,255,255,0.5)", frame: "rgba(120,160,255,0.6)",
-    accent: "#7fb0ff", emblem: "🏆", title: "EURO · STARTING XI", topTag: "YOUR NATION · YOUR XI", footTag: "YOUR NATION. YOUR XI. YOUR MOMENT.",
+    line: "rgba(255,255,255,0.5)", frame: "rgba(255,59,87,0.6)",
+    accent: "#ff3b57", emblem: "🏆", title: "EURO · STARTING XI", topTag: "YOUR NATION · YOUR XI", footTag: "YOUR NATION. YOUR XI. YOUR MOMENT.",
   },
   copa: {
     page: "radial-gradient(120% 90% at 50% 12%, #0c3a22, #04160c 80%)",
-    bg: "radial-gradient(120% 60% at 50% -8%, rgba(255,201,60,0.18), transparent 58%), linear-gradient(180deg, #126a3d 0%, #0c552f 55%, #073a20 100%)",
+    bg: "radial-gradient(120% 60% at 50% -8%, rgba(255,215,0,0.16), transparent 58%), linear-gradient(180deg, #0f6d43 0%, #0c552f 55%, #073a20 100%)",
     grass: "repeating-linear-gradient(0deg, rgba(255,236,190,0.045) 0 46px, rgba(0,0,0,0.06) 46px 92px)",
-    line: "rgba(255,236,190,0.4)", frame: "rgba(255,201,60,0.6)",
-    accent: "#ffc93c", emblem: "🏆", title: "COPA AMÉRICA XI", topTag: "ONE CONTINENT · ONE PASSION", footTag: "ONE CONTINENT. ONE PASSION. ONE TROPHY.",
+    line: "rgba(200,255,225,0.4)", frame: "rgba(0,230,118,0.6)",
+    accent: "#00e676", emblem: "🏆", title: "COPA AMÉRICA XI", topTag: "ONE CONTINENT · ONE PASSION", footTag: "ONE CONTINENT. ONE PASSION. ONE TROPHY.",
   },
 };
 
@@ -139,8 +139,8 @@ export function LineupPresentation({ compLabel, teamName, formation, players, ca
           <div className="flex shrink-0 items-center gap-3">
             <StatBlock label="Formation" value={formation.name} accent="#fff" />
             {tacticName && <StatBlock label="Tactic" value={tacticName} accent={p.accent} />}
-            <div className="grid h-10 w-10 place-items-center rounded-lg font-display text-lg font-extrabold text-[#08131f]"
-              style={{ background: "linear-gradient(150deg, #f7dd84, #d4af37)", boxShadow: "0 2px 10px rgba(212,175,55,0.4)" }}>{overall}</div>
+            <div className="grid h-10 w-10 place-items-center rounded-lg font-display text-lg font-extrabold text-[#04140c]"
+              style={{ background: "linear-gradient(150deg, #baffdd, #00f0ff)", boxShadow: "0 2px 10px rgba(0,240,255,0.4)" }}>{overall}</div>
           </div>
         </div>
 
@@ -175,8 +175,8 @@ export function LineupPresentation({ compLabel, teamName, formation, players, ca
                     style={{ left: at.left, top: at.top }}
                   >
                     {isCap && (
-                      <span className="absolute -right-1.5 -top-1.5 z-30 grid h-5 w-5 place-items-center rounded-full font-display text-[0.6rem] font-extrabold text-[#041022]"
-                        style={{ background: "linear-gradient(150deg, #f2d472, #d4af37)", boxShadow: "0 2px 8px rgba(0,0,0,0.55)" }}>C</span>
+                      <span className="absolute -right-1.5 -top-1.5 z-30 grid h-5 w-5 place-items-center rounded-full font-display text-[0.6rem] font-extrabold text-[#04140c]"
+                        style={{ background: "linear-gradient(150deg, #7dfaff, #00f0ff)", boxShadow: "0 2px 8px rgba(0,0,0,0.55)" }}>C</span>
                     )}
                     <LineupCard
                       name={pl.name}
@@ -188,7 +188,7 @@ export function LineupPresentation({ compLabel, teamName, formation, players, ca
                       clubLabel={pl.club}
                       variant={variant}
                       captain={isCap}
-                      slotGlow="rgba(242,212,114,0.85)"
+                      slotGlow="rgba(0,240,255,0.85)"
                       widthClass="w-[clamp(46px,13vw,60px)]"
                     />
                   </motion.div>
@@ -208,7 +208,7 @@ export function LineupPresentation({ compLabel, teamName, formation, players, ca
 
       <div className="relative z-20 mt-5 flex gap-3">
         {extrasIn ? (
-          <button className="btn btn-gold" onClick={onDone}>Continue →</button>
+          <button className="btn btn-cyan" onClick={onDone}>Continue →</button>
         ) : (
           <button className="btn btn-secondary btn-sm" onClick={onDone}>Skip</button>
         )}

@@ -93,7 +93,7 @@ export function CameraFlashes({ count = 14 }: { count?: number }) {
 /** Golden confetti rain for celebrations. */
 export function Confetti({
   count = 110,
-  colors = ["#d4af37", "#22e0ff", "#ffffff", "#f2d472", "#8a7bff"],
+  colors = ["#d4af37", "#00f0ff", "#ffffff", "#f2d472", "#8a7bff"],
 }: {
   count?: number;
   colors?: string[];

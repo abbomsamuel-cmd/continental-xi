@@ -24,7 +24,7 @@ export default function TimelinePage() {
     return (
       <div className="mx-auto max-w-md px-4 pt-32 text-center">
         <p className="text-white/55">{c("No active career.", "No hay carrera activa.")}</p>
-        <Link href="/career/new" className="btn btn-gold mt-4">⚽ {c("Create Your Player", "Crea Tu Jugador")}</Link>
+        <Link href="/career/new" className="btn btn-career mt-4">⚽ {c("Create Your Player", "Crea Tu Jugador")}</Link>
       </div>
     );
   }
@@ -71,7 +71,7 @@ function Timeline({ player }: { player: CareerPlayer }) {
         <div className="mt-4 rounded-2xl border border-dashed border-white/12 py-14 text-center">
           <div className="text-3xl">📖</div>
           <p className="mt-2 text-sm text-white/45">{c("Nothing written yet. Play your first chapter.", "Nada escrito aún. Juega tu primer capítulo.")}</p>
-          <Link href="/career/season" className="btn btn-gold mt-4">▶ {c("Play Chapter", "Jugar Capítulo")}</Link>
+          <Link href="/career/season" className="btn btn-career mt-4">▶ {c("Play Chapter", "Jugar Capítulo")}</Link>
         </div>
       ) : (
         <div className="mt-3 space-y-1.5">

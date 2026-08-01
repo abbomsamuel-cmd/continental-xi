@@ -32,7 +32,10 @@ export interface FeedLine {
 /*  Deterministic randomness                                           */
 /* ------------------------------------------------------------------ */
 
-function frac(n: number): number {
+/** Deterministic pseudo-random in [0,1) from a seed — shared across the
+ *  broadcast feed and the pitch-animation synthesis so the same match always
+ *  replays identically. */
+export function frac(n: number): number {
   const x = Math.sin(n) * 43758.5453;
   return x - Math.floor(x);
 }

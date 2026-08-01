@@ -724,7 +724,7 @@ function TournamentInner() {
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
           >
             <div className="absolute inset-0 bg-black/55" />
-            <Fireworks count={7} palette={["#d4af37", "#f2d472", "#22e0ff", "#ffffff"]} />
+            <Fireworks count={7} palette={["#00f0ff", "#7dfaff", "#c8d2e0", "#ffffff"]} />
             <CameraFlashes count={18} />
             <motion.div
               initial={{ scale: 0.7, y: 30, opacity: 0 }}
@@ -735,7 +735,7 @@ function TournamentInner() {
             >
               <div className="text-6xl" style={{ filter: "drop-shadow(0 0 30px rgba(212,175,55,0.5))" }}>🎆</div>
               <div className="cl-heading mt-2 text-[0.65rem] tracking-[0.4em] text-cyan">Champions Draft</div>
-              <div className="mt-1 font-display text-3xl font-extrabold text-gradient-gold sm:text-5xl">{burst}</div>
+              <div className="mt-1 font-display text-3xl font-extrabold text-gradient-cyan sm:text-5xl">{burst}</div>
               <div className="mt-2 text-sm text-white/70">{tournament.teams[USER_TEAM_ID].name}</div>
             </motion.div>
           </motion.div>
@@ -774,7 +774,7 @@ function TournamentInner() {
         {quickShow && (
           <QuickSim
             title={`Champions Draft · ${quickShow.title}`}
-            accent="#22e0ff" emblem="🏆"
+            accent="#00f0ff" emblem="🏆"
             data={quickShow.data}
             onDone={onQuickDone}
             onViewMatch={(r) => setModal({ result: r, title: "Match statistics" })}
@@ -802,8 +802,8 @@ function TournamentInner() {
               </p>
               <button onClick={() => { setQuickStopEarly((v) => !v); play("click"); }} aria-pressed={quickStopEarly}
                 className="mt-3 flex w-full items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition-colors"
-                style={{ borderColor: quickStopEarly ? "#22e0ff" : "rgba(255,255,255,0.12)", background: quickStopEarly ? "rgba(34,224,255,0.12)" : "transparent" }}>
-                <span className="grid h-5 w-5 shrink-0 place-items-center rounded-md border" style={{ borderColor: "#22e0ff", background: quickStopEarly ? "#22e0ff" : "transparent" }}>
+                style={{ borderColor: quickStopEarly ? "#00f0ff" : "rgba(255,255,255,0.12)", background: quickStopEarly ? "rgba(0,240,255,0.12)" : "transparent" }}>
+                <span className="grid h-5 w-5 shrink-0 place-items-center rounded-md border" style={{ borderColor: "#00f0ff", background: quickStopEarly ? "#00f0ff" : "transparent" }}>
                   {quickStopEarly && <span className="text-[0.6rem] font-black text-[#04101f]">✓</span>}
                 </span>
                 <span className="text-[0.74rem] font-semibold text-white/85">Stop if qualification or elimination is confirmed</span>
@@ -900,12 +900,12 @@ function CareerHub({ profile, intlActive }: { profile: ReturnType<typeof useGame
   const t = useT();
   const campaigns = [
     ...profile.drafts.map((d) => ({
-      key: `cl-${d.id}`, comp: "Champions League", accent: "#22e0ff",
+      key: `cl-${d.id}`, comp: "Champions League", accent: "#00f0ff",
       name: `${d.formation} · ${d.overall} OVR`, result: d.result ?? "league", date: d.date,
     })),
     ...(profile.intlResults ?? []).map((r, i) => ({
       key: `intl-${i}-${r.date}`, comp: r.comp === "euro" ? "UEFA EURO" : "Copa América",
-      accent: r.comp === "euro" ? "#37e0ff" : "#ffc93c",
+      accent: r.comp === "euro" ? "#ff3b57" : "#00e676",
       name: `${r.nation} ${r.year}`, result: r.result, date: r.date,
     })),
   ].sort((a, b) => +new Date(b.date) - +new Date(a.date));
@@ -924,7 +924,7 @@ function CareerHub({ profile, intlActive }: { profile: ReturnType<typeof useGame
         </h1>
         <p className="mt-2 max-w-lg text-sm text-muted">{t("tour.noCampaignBody")}</p>
         <div className="mt-5 flex flex-wrap gap-2.5">
-          <Link href="/draft" className="btn btn-gold btn-pulse" onClick={() => play("select")}>{t("tour.startNewDraft")}</Link>
+          <Link href="/draft" className="btn btn-cyan btn-pulse" onClick={() => play("select")}>{t("tour.startNewDraft")}</Link>
           <Link href="/international" className="btn btn-ghost" onClick={() => play("click")}>{t("home.leadNation")}</Link>
         </div>
       </div>
@@ -945,9 +945,9 @@ function CareerHub({ profile, intlActive }: { profile: ReturnType<typeof useGame
       {/* trophy cabinet */}
       <div className="mt-6 grid grid-cols-3 gap-3">
         {[
-          { label: "Champions League", n: clTitles, accent: "#22e0ff" },
-          { label: "UEFA EURO", n: euroTitles, accent: "#37e0ff" },
-          { label: "Copa América", n: copaTitles, accent: "#ffc93c" },
+          { label: "Champions League", n: clTitles, accent: "#00f0ff" },
+          { label: "UEFA EURO", n: euroTitles, accent: "#ff3b57" },
+          { label: "Copa América", n: copaTitles, accent: "#00e676" },
         ].map((t) => (
           <div key={t.label} className="glass rounded-2xl p-4 text-center">
             <div className="text-2xl" aria-hidden style={{ filter: t.n ? "none" : "grayscale(1) opacity(0.4)" }}>🏆</div>

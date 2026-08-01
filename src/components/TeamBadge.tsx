@@ -1,21 +1,28 @@
 "use client";
 
-/** Rounded-square club crest stand-in (original art) — gradient + short code,
- *  styled like the badges in Champions League graphics. */
+import { ClubCrest } from "@/components/ClubCrest";
+import { Flag } from "@/components/Flag";
+import { flagCodeFor } from "@/lib/flags";
+
+/** Team badge for tables, brackets and match cards. National teams (pass
+ *  `nationality`) get their real flag — a country's flag isn't invented club
+ *  IP, so there's no reason to use placeholder art there. Club teams (no
+ *  resolvable nationality) get the original enameled-shield crest. */
 export function TeamBadge({
-  colors, code, size = 44,
-}: { colors: [string, string]; code: string; size?: number }) {
+  colors, code, size = 44, nationality,
+}: { colors: [string, string]; code: string; size?: number; nationality?: string }) {
+  if (nationality && flagCodeFor(nationality)) {
+    return <Flag nationality={nationality} width={size} className="rounded-[15%] shadow-md" />;
+  }
   return (
-    <span
-      className="badge-crest shrink-0"
-      style={{
-        width: size,
-        height: size,
-        fontSize: size * 0.3,
-        background: `linear-gradient(150deg, ${colors[0]}, ${colors[1]})`,
-      }}
-    >
-      {code}
+    <span className="inline-grid shrink-0 place-items-center" style={{ width: size, height: size }}>
+      <ClubCrest colors={colors} width={size} className="[grid-area:1/1]" />
+      <span
+        className="[grid-area:1/1] font-display font-extrabold text-white"
+        style={{ fontSize: size * 0.26, textShadow: "0 1px 3px rgba(0,0,0,0.85)" }}
+      >
+        {code}
+      </span>
     </span>
   );
 }

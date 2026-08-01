@@ -225,7 +225,7 @@ export function LegacyCard({ player, onClose }: { player: CareerPlayer; onClose:
 
         {/* actions */}
         <div className="mt-6 flex flex-col gap-2">
-          <button onClick={share} disabled={busy} className="btn btn-gold w-full text-sm disabled:opacity-60">
+          <button onClick={share} disabled={busy} className="btn btn-career w-full text-sm disabled:opacity-60">
             {busy ? c("Rendering…", "Generando…") : done === "shared" ? c("Shared ✓", "Compartido ✓") : done === "downloaded" ? c("Saved ✓ — share again", "Guardado ✓ — compartir otra vez") : `📸 ${c("Share Legacy Card", "Compartir Tarjeta")}`}
           </button>
           <div className="flex gap-2">

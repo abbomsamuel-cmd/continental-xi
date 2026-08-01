@@ -19,18 +19,18 @@ import { play } from "@/lib/sound";
 /* per-competition presentation — same information, three different rooms */
 const COMP = {
   clubs: {
-    label: "Champions League", compLine: "CHAMPIONS LEAGUE", accent: "#22e0ff", accent2: "#d4af37",
-    soft: "rgba(34,224,255,0.14)", panel: "cl-panel cl-streaks", heading: "text-gradient-gold",
-    enter: "Enter League Phase →", bg: ["#0a1f52", "#02081b"] as [string, string], scene: null,
+    label: "Champions League", compLine: "CHAMPIONS LEAGUE", accent: "#00f0ff", accent2: "#c8d2e0",
+    soft: "rgba(0,240,255,0.14)", panel: "cl-panel cl-streaks", heading: "text-gradient-cyan",
+    enter: "Enter League Phase →", bg: ["#0a1120", "#02040a"] as [string, string], scene: null,
   },
   euro: {
-    label: "UEFA EURO", compLine: "UEFA EURO", accent: "#37e0ff", accent2: "#dbe6ff",
-    soft: "rgba(55,224,255,0.14)", panel: "euro-panel euro-grid", heading: "text-gradient-euro",
+    label: "UEFA EURO", compLine: "UEFA EURO", accent: "#ff3b57", accent2: "#1b3fd0",
+    soft: "rgba(255,59,87,0.14)", panel: "euro-panel euro-grid", heading: "text-gradient-euro",
     enter: "Enter Group Stage →", bg: ["#0a1c52", "#040a20"] as [string, string], scene: "euro",
   },
   copa: {
-    label: "Copa América", compLine: "COPA AMÉRICA", accent: "#ffc93c", accent2: "#17c97a",
-    soft: "rgba(255,201,60,0.14)", panel: "copa-panel copa-heat copa-gold-border", heading: "text-gradient-copa",
+    label: "Copa América", compLine: "COPA AMÉRICA", accent: "#00e676", accent2: "#ffd700",
+    soft: "rgba(0,230,118,0.14)", panel: "copa-panel copa-heat copa-gold-border", heading: "text-gradient-copa",
     enter: "Enter Group Stage →", bg: ["#0a3a24", "#04140b"] as [string, string], scene: "copa",
   },
 } as const;
@@ -266,6 +266,7 @@ export default function SquadPage() {
                 players={xi}
                 variant={pool === "clubs" ? "cl" : pool}
                 captainSlot={captainSlot >= 0 ? captainSlot : undefined}
+                showChemistry={mode === "view"}
                 interaction={
                   mode === "view"
                     ? null

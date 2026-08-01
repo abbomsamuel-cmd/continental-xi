@@ -8,7 +8,7 @@ import { TeamBadge } from "@/components/TeamBadge";
 import { Confetti } from "@/components/fx/Atmosphere";
 import { useFxLevel } from "@/lib/fx";
 
-export interface BracketTeam { id: string; name: string; short: string; colors: [string, string]; season?: string; isUser?: boolean }
+export interface BracketTeam { id: string; name: string; short: string; colors: [string, string]; season?: string; isUser?: boolean; country?: string }
 
 interface Props {
   ties: KOTie[];
@@ -26,19 +26,19 @@ const SHORT: Record<string, string> = { "Play-off": "Play-offs", "Round of 16": 
 
 const PAL: Record<PitchVariant, { accent: string; panel: string; card: string; border: string; line: string; glow: string; confetti: string[] }> = {
   cl: {
-    accent: "#37e0ff", panel: "cl-panel cl-streaks",
-    card: "linear-gradient(160deg, rgba(18,40,110,0.92), rgba(7,18,55,0.96))", border: "rgba(120,160,255,0.28)",
-    line: "rgba(120,160,255,0.55)", glow: "rgba(212,175,55,0.45)", confetti: ["#37e0ff", "#d4af37", "#ffffff", "#5b8cff"],
+    accent: "#00f0ff", panel: "cl-panel cl-streaks",
+    card: "linear-gradient(160deg, rgba(24,34,50,0.92), rgba(10,14,23,0.96))", border: "rgba(0,240,255,0.28)",
+    line: "rgba(0,240,255,0.5)", glow: "rgba(0,240,255,0.45)", confetti: ["#00f0ff", "#00f0ff", "#ffffff", "#7dfaff"],
   },
   euro: {
-    accent: "#7fb0ff", panel: "euro-panel euro-grid",
-    card: "linear-gradient(160deg, rgba(14,40,110,0.92), rgba(6,16,58,0.96))", border: "rgba(140,190,255,0.3)",
-    line: "rgba(160,200,255,0.55)", glow: "rgba(55,224,255,0.4)", confetti: ["#37e0ff", "#dbe6ff", "#ffffff", "#1b4fff"],
+    accent: "#ff3b57", panel: "euro-panel euro-grid",
+    card: "linear-gradient(160deg, rgba(14,40,110,0.92), rgba(6,16,58,0.96))", border: "rgba(255,59,87,0.3)",
+    line: "rgba(255,59,87,0.5)", glow: "rgba(255,59,87,0.4)", confetti: ["#ff3b57", "#ffffff", "#1b3fd0", "#ffffff"],
   },
   copa: {
-    accent: "#ffc93c", panel: "copa-panel copa-heat copa-gold-border",
-    card: "linear-gradient(160deg, rgba(16,80,48,0.92), rgba(7,44,26,0.96))", border: "rgba(255,201,60,0.34)",
-    line: "rgba(255,222,138,0.5)", glow: "rgba(255,201,60,0.5)", confetti: ["#ffc93c", "#ff8a3d", "#17c97a", "#ffffff"],
+    accent: "#00e676", panel: "copa-panel copa-heat copa-gold-border",
+    card: "linear-gradient(160deg, rgba(16,80,48,0.92), rgba(7,44,26,0.96))", border: "rgba(0,230,118,0.34)",
+    line: "rgba(255,215,0,0.5)", glow: "rgba(0,230,118,0.5)", confetti: ["#00e676", "#ffd700", "#0ea5e9", "#ffffff"],
   },
 };
 
@@ -62,7 +62,7 @@ function TeamRow({ team, goals, won, decided, accent, big }: {
     <div className={`flex items-center justify-between gap-1.5 px-2 py-1.5 ${won ? "font-extrabold" : decided ? "opacity-45" : ""}`}
       style={{ color: won ? accent : "#fff" }}>
       <span className="flex min-w-0 items-center gap-1.5">
-        <TeamBadge colors={team.colors} code={team.short} size={big ? 20 : 16} />
+        <TeamBadge colors={team.colors} code={team.short} size={big ? 20 : 16} nationality={team.country} />
         <span className={`truncate ${big ? "text-[0.72rem]" : "text-[0.6rem]"} font-bold leading-tight`}>{label(team)}{team.isUser ? " ★" : ""}</span>
       </span>
       <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="font-display text-[0.72rem] font-extrabold tabular-nums">{goals ?? ""}</motion.span>

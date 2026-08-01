@@ -10,9 +10,9 @@ import { TeamBadge } from "@/components/TeamBadge";
 import { play } from "@/lib/sound";
 
 const COMP_META: Record<LoggedMatch["comp"], { label: string; accent: string; chip: string }> = {
-  cl: { label: "Champions Draft", accent: "#22e0ff", chip: "rgba(34,224,255,0.14)" },
-  euro: { label: "UEFA EURO", accent: "#37e0ff", chip: "rgba(55,224,255,0.14)" },
-  copa: { label: "Copa América", accent: "#ffc93c", chip: "rgba(255,201,60,0.14)" },
+  cl: { label: "Champions Draft", accent: "#00f0ff", chip: "rgba(0,240,255,0.14)" },
+  euro: { label: "UEFA EURO", accent: "#ff3b57", chip: "rgba(255,59,87,0.14)" },
+  copa: { label: "Copa América", accent: "#00e676", chip: "rgba(0,230,118,0.14)" },
 };
 
 /** Rebuild the minimal team lookup MatchModal needs from a logged entry. */

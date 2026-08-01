@@ -8,7 +8,7 @@ import { FORMATIONS, FORMATION_CATEGORIES, formationCategory, formationShapeNote
 import { Pitch } from "@/components/Pitch";
 import { tacticById } from "@/lib/tactics";
 import { DraftRoundView } from "@/components/DraftRoundView";
-import { WavingFlag } from "@/components/fx/WavingFlag";
+import { Flag } from "@/components/Flag";
 import { Sparks } from "@/components/fx/Atmosphere";
 import { COMP_SQUADS } from "@/lib/engine/international";
 import { SQUADS } from "@/lib/players";
@@ -28,14 +28,14 @@ const COMP_THEME: Record<DraftPool, {
 }> = {
   clubs: {
     label: "Champions League", sub: "Club · Europe", emoji: "🏆",
-    accent: "#22e0ff", soft: "rgba(34,224,255,0.14)",
-    panel: "cl-panel cl-streaks", heading: "text-gradient-gold",
+    accent: "#00f0ff", soft: "rgba(0,240,255,0.14)",
+    panel: "cl-panel cl-streaks", heading: "text-gradient-cyan",
     note: "Every rating is season-specific — your XI is built from player quality, position suitability, tactics and experience.",
     noteIcon: "🔗",
   },
   euro: {
     label: "UEFA EURO", sub: "International · UEFA", emoji: "🇪🇺",
-    accent: "#37e0ff", soft: "rgba(55,224,255,0.14)",
+    accent: "#ff3b57", soft: "rgba(255,59,87,0.14)",
     panel: "euro-panel euro-grid", heading: "text-gradient-euro",
     note: "National-team football — your XI is judged on attack, midfield, defence, goalkeeper, experience and balance.",
     noteIcon: "🏟️",
@@ -43,7 +43,7 @@ const COMP_THEME: Record<DraftPool, {
   },
   copa: {
     label: "Copa América", sub: "International · CONMEBOL", emoji: "🌎",
-    accent: "#ffc93c", soft: "rgba(255,201,60,0.14)",
+    accent: "#00e676", soft: "rgba(0,230,118,0.14)",
     panel: "copa-panel copa-heat copa-gold-border", heading: "text-gradient-copa",
     note: "Pure footballing quality decides how far your selección goes — plus the tactics you choose.",
     noteIcon: "🎉",
@@ -121,7 +121,7 @@ export default function DraftPage() {
                 <div className="mt-1 text-[0.68rem] text-white/60">{squadCount} {tr("common.historicSquads")}</div>
                 {flagSquads && flagSquads.length > 0 && (
                   <div className="mt-2 flex gap-1">
-                    {flagSquads.map((s) => <WavingFlag key={s!.club} colors={s!.colors} width={26} />)}
+                    {flagSquads.map((s) => <Flag key={s!.club} nationality={s!.club} width={26} />)}
                   </div>
                 )}
               </button>

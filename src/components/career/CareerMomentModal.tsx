@@ -73,7 +73,7 @@ export function CareerMomentModal({ momentId, player, onResolve }: {
                 <p className="mt-1.5 text-sm leading-relaxed text-white/70">{es ? (choice.outEs ?? choice.outEn) : (choice.outEn ?? choice.outEs)}</p>
               )}
             </div>
-            <button onClick={() => { play("click"); onResolve(choice.id); }} className="btn btn-gold mt-5 w-full">{es ? "Continuar" : "Continue"} →</button>
+            <button onClick={() => { play("click"); onResolve(choice.id); }} className="btn btn-career mt-5 w-full">{es ? "Continuar" : "Continue"} →</button>
           </>
         )}
       </motion.div>

@@ -11,6 +11,8 @@ import {
   refereeName, attendance, type FeedLine, type FeedKind,
 } from "@/lib/broadcast";
 import { useGame } from "@/lib/store";
+import { FORMATIONS } from "@/lib/formations";
+import { MatchPitchCanvas } from "@/components/match/MatchPitchCanvas";
 import { useFxLevel } from "@/lib/fx";
 import {
   play, startAmbience, stopAmbience, swellAmbience, hushAmbience, setAmbienceTension,
@@ -52,19 +54,19 @@ const VARIANTS: Record<BroadcastVariant, {
   introGlow: string;
 }> = {
   cl: {
-    accent: "#d4af37", soft: "rgba(212,175,55,0.16)",
-    page: "radial-gradient(120% 90% at 50% 15%, #0a1b4d, #020714 78%)",
+    accent: "#00f0ff", soft: "rgba(0,240,255,0.16)",
+    page: "radial-gradient(120% 90% at 50% 15%, #121824, #05070d 78%)",
     emblem: "★", compLabel: "Champions Draft",
-    introGlow: "rgba(41,98,255,0.4)",
+    introGlow: "rgba(0,240,255,0.4)",
   },
   euro: {
-    accent: "#37e0ff", soft: "rgba(55,224,255,0.15)",
+    accent: "#ff3b57", soft: "rgba(255,59,87,0.15)",
     page: "radial-gradient(120% 90% at 50% 15%, #081b56, #030818 78%)",
     emblem: "✦", compLabel: "UEFA EURO",
-    introGlow: "rgba(27,79,255,0.45)",
+    introGlow: "rgba(27,63,208,0.45)",
   },
   copa: {
-    accent: "#ffc93c", soft: "rgba(255,201,60,0.15)",
+    accent: "#00e676", soft: "rgba(0,230,118,0.15)",
     page: "radial-gradient(120% 90% at 50% 15%, #0a3a24, #02120a 78%)",
     emblem: "◆", compLabel: "Copa América",
     introGlow: "rgba(23,201,122,0.4)",
@@ -566,7 +568,7 @@ function FeedCard({ line, latest, v }: { line: FeedLine; latest: boolean; v: (ty
 interface RatedPlayer { name: string; position?: string; team: 0 | 1 }
 
 function ratingColor(x: number): string {
-  return x >= 8 ? "#d4af37" : x >= 7 ? "#2ee6a6" : x >= 6 ? "#eaf1ff" : "#ff5a6a";
+  return x >= 8 ? "#00f0ff" : x >= 7 ? "#2ee6a6" : x >= 6 ? "#eaf1ff" : "#ff5a6a";
 }
 
 function RatingsPanel({
@@ -591,7 +593,7 @@ function RatingsPanel({
           <div key={`${p.team}-${p.name}`} className="flex items-center gap-2.5">
             <span className="h-4 w-1 shrink-0 rounded-full" style={{ background: sides[p.team].colors[0] }} />
             {p.position && <span className="w-8 shrink-0 text-[0.55rem] font-bold uppercase text-white/40">{p.position}</span>}
-            <span className={`min-w-0 flex-1 truncate text-[0.72rem] font-semibold ${finished && r.motm === p.name ? "text-gold" : "text-white/85"}`}>
+            <span className={`min-w-0 flex-1 truncate text-[0.72rem] font-semibold ${finished && r.motm === p.name ? "text-cyan" : "text-white/85"}`}>
               {p.name}{finished && r.motm === p.name ? " ⭐" : ""}
             </span>
             <div className="h-1.5 w-16 overflow-hidden rounded-full bg-white/8 sm:w-24">
@@ -808,7 +810,7 @@ function FullTimeBoard({
           <span>xG {r.stats.xg[0].toFixed(2)}–{r.stats.xg[1].toFixed(2)}</span>
         </div>
 
-        <button className="btn btn-gold btn-pulse mt-5" onClick={onContinue}>{continueLabel}</button>
+        <button className="btn btn-cyan btn-pulse mt-5" onClick={onContinue}>{continueLabel}</button>
       </div>
       {/* players strip: top three performers */}
       <div className="flex justify-center gap-2 border-t border-white/8 bg-black/25 px-3 py-2">
@@ -871,6 +873,19 @@ export function LiveMatch({
 
   const endMinute = useMemo(() => Math.max(90, ...r.events.map((e) => e.minute)), [r]);
   const feed = useMemo(() => buildFeed(r, home, away), [r]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // starting XIs aren't threaded through as props today — the user's own
+  // formation comes straight from the store, an AI opponent gets a plausible
+  // formation deterministically picked from the match seed (presentation
+  // only, purely for the pitch canvas; never touches engine/tournament data)
+  const homeFormation = useMemo(
+    () => (home.isUser ? useGame.getState().formation ?? FORMATIONS[0] : FORMATIONS[Math.floor(frac(matchSeed(r) + 11) * FORMATIONS.length)]),
+    [r, home.isUser],
+  );
+  const awayFormation = useMemo(
+    () => (away.isUser ? useGame.getState().formation ?? FORMATIONS[0] : FORMATIONS[Math.floor(frac(matchSeed(r) + 29) * FORMATIONS.length)]),
+    [r, away.isUser],
+  );
   const story = useMemo(() => matchStory(r, home, away, title), [r]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // players for ratings: the user's XI (from the store) + every opponent name
@@ -1120,6 +1135,11 @@ export function LiveMatch({
           {tab === "overview" && (
             <div className="grid gap-3 md:grid-cols-[1.3fr_1fr]">
               <div className="space-y-3">
+                <MatchPitchCanvas
+                  result={r} home={home} away={away}
+                  homeFormation={homeFormation} awayFormation={awayFormation}
+                  minute={minute} paused={paused || !introDone}
+                />
                 <MomentumChart r={r} minute={minute} endMinute={endMinute} home={home} away={away} v={v} />
                 <div ref={feedRef} className="glass max-h-[34vh] overflow-y-auto rounded-2xl p-3">
                   <AnimatePresence initial={false}>

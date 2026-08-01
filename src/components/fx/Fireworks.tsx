@@ -17,7 +17,7 @@ function frac(n: number): number {
  */
 export function Fireworks({
   count = 6,
-  palette = ["#ffd76b", "#f2d472", "#22e0ff", "#ffffff", "#ff8a3d"],
+  palette = ["#ffd76b", "#f2d472", "#00f0ff", "#ffffff", "#ff8a3d"],
 }: {
   count?: number;
   palette?: string[];

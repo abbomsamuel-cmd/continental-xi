@@ -17,7 +17,7 @@ export default function CareerStatsPage() {
     return (
       <div className="mx-auto max-w-md px-4 pt-32 text-center">
         <p className="text-white/55">{c("No active career.", "No hay carrera activa.")}</p>
-        <Link href="/career/new" className="btn btn-gold mt-4">⚽ {c("Create Your Player", "Crea Tu Jugador")}</Link>
+        <Link href="/career/new" className="btn btn-career mt-4">⚽ {c("Create Your Player", "Crea Tu Jugador")}</Link>
       </div>
     );
   }

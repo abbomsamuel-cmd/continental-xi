@@ -37,6 +37,8 @@ const DICT: Record<string, Entry> = {
   /* ---- navigation ---- */
   "nav.home": { en: "Home", es: "Inicio" },
   "nav.draft": { en: "Draft", es: "Sorteo" },
+  "nav.squad": { en: "Squad", es: "Plantilla" },
+  "nav.stats": { en: "Stats", es: "Estadísticas" },
   "nav.tournament": { en: "Tournament", es: "Torneo" },
   "nav.international": { en: "International", es: "Selecciones" },
   "nav.daily": { en: "Daily", es: "Diario" },

@@ -37,7 +37,7 @@ export interface ShareXIOpts {
 const FONT = "system-ui, -apple-system, 'Segoe UI', sans-serif";
 
 const GRASS: Record<string, [string, string]> = {
-  cl: ["#0a1f5c", "#050f30"],
+  cl: ["#0f172a", "#07090e"],
   euro: ["#12924c", "#0c6f3b"],
   copa: ["#126a3d", "#073a20"],
 };
@@ -49,19 +49,19 @@ const CARD: Record<string, {
   pos: string; name: string; season: string; hairline: string; accent0: string; accent1: string;
 }> = {
   cl: {
-    radius: 0.045, card0: "#101f4e", card1: "#070f2c", border: "rgba(96,150,255,0.75)",
-    rating0: "#f7e39a", rating1: "#d4af37", ratingInk: "#231a04",
-    pos: "#8fc1ff", name: "#f4f7ff", season: "#9db9f5", hairline: "rgba(215,228,255,0.55)", accent0: "#2f6bff", accent1: "#37e0ff",
+    radius: 0.045, card0: "#182233", card1: "#0a0e17", border: "rgba(0,240,255,0.55)",
+    rating0: "#baffff", rating1: "#00f0ff", ratingInk: "#04222b",
+    pos: "#93e8ff", name: "#f4f7ff", season: "#9db9f5", hairline: "rgba(215,228,255,0.55)", accent0: "#1b3fd0", accent1: "#00f0ff",
   },
   euro: {
-    radius: 0.13, card0: "#ffffff", card1: "#e9eefb", border: "rgba(148,162,192,0.9)",
+    radius: 0.13, card0: "#ffffff", card1: "#e9eefb", border: "rgba(255,59,87,0.6)",
     rating0: "#3a6cf0", rating1: "#1b3fd0", ratingInk: "#ffffff",
-    pos: "#1b3fd0", name: "#0c1f60", season: "#41569e", hairline: "rgba(140,155,185,0.55)", accent0: "#1b3fd0", accent1: "#4f7dff",
+    pos: "#1b3fd0", name: "#0c1f60", season: "#41569e", hairline: "rgba(140,155,185,0.55)", accent0: "#1b3fd0", accent1: "#ff3b57",
   },
   copa: {
-    radius: 0.08, card0: "#0f5a33", card1: "#062d18", border: "rgba(224,186,88,0.8)",
-    rating0: "#f7e39a", rating1: "#d9a92f", ratingInk: "#2a1d03",
-    pos: "#ffd98f", name: "#fff8e8", season: "#f0cf8f", hairline: "rgba(240,207,143,0.5)", accent0: "#d4af37", accent1: "#17c97a",
+    radius: 0.08, card0: "#0f5a33", card1: "#062d18", border: "rgba(255,215,0,0.8)",
+    rating0: "#fff2c0", rating1: "#ffd700", ratingInk: "#2a1d03",
+    pos: "#7dffc4", name: "#fff8e8", season: "#f0cf8f", hairline: "rgba(255,215,0,0.5)", accent0: "#ffd700", accent1: "#00e676",
   },
 };
 

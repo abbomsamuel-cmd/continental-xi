@@ -22,14 +22,14 @@ type Theme = { motes: string[]; spotA: string; spotB: string };
 
 // keyed by the first path segment; each screen owns a colour temperature
 const THEMES: Record<string, Theme> = {
-  "": { motes: ["#d4af37", "#22e0ff", "#ffffff"], spotA: "rgba(212,175,55,0.16)", spotB: "rgba(34,224,255,0.12)" },
-  draft: { motes: ["#d4af37", "#7fb0ff", "#ffffff"], spotA: "rgba(41,98,255,0.16)", spotB: "rgba(212,175,55,0.13)" },
-  tournament: { motes: ["#d4af37", "#22e0ff", "#ffffff"], spotA: "rgba(212,175,55,0.17)", spotB: "rgba(34,224,255,0.12)" },
-  squad: { motes: ["#d4af37", "#7fb0ff", "#ffffff"], spotA: "rgba(41,98,255,0.15)", spotB: "rgba(212,175,55,0.12)" },
-  history: { motes: ["#9fb3d1", "#22e0ff", "#ffffff"], spotA: "rgba(34,224,255,0.12)", spotB: "rgba(41,98,255,0.12)" },
-  stats: { motes: ["#d4af37", "#22e0ff", "#ffffff"], spotA: "rgba(212,175,55,0.15)", spotB: "rgba(34,224,255,0.1)" },
-  daily: { motes: ["#22e0ff", "#7ff0ff", "#ffffff"], spotA: "rgba(34,224,255,0.16)", spotB: "rgba(41,98,255,0.12)" },
-  international: { motes: ["#37e0ff", "#ffc93c", "#ffffff"], spotA: "rgba(55,224,255,0.14)", spotB: "rgba(255,201,60,0.12)" },
+  "": { motes: ["#d4af37", "#00f0ff", "#ffffff"], spotA: "rgba(0,240,255,0.16)", spotB: "rgba(27,63,208,0.12)" },
+  draft: { motes: ["#d4af37", "#00f0ff", "#ffffff"], spotA: "rgba(27,63,208,0.16)", spotB: "rgba(0,240,255,0.13)" },
+  tournament: { motes: ["#d4af37", "#00f0ff", "#ffffff"], spotA: "rgba(0,240,255,0.17)", spotB: "rgba(27,63,208,0.12)" },
+  squad: { motes: ["#d4af37", "#00f0ff", "#ffffff"], spotA: "rgba(27,63,208,0.15)", spotB: "rgba(0,240,255,0.12)" },
+  history: { motes: ["#9fb3d1", "#00f0ff", "#ffffff"], spotA: "rgba(0,240,255,0.12)", spotB: "rgba(27,63,208,0.12)" },
+  stats: { motes: ["#d4af37", "#00f0ff", "#ffffff"], spotA: "rgba(0,240,255,0.15)", spotB: "rgba(27,63,208,0.1)" },
+  daily: { motes: ["#00f0ff", "#7dfaff", "#ffffff"], spotA: "rgba(0,240,255,0.16)", spotB: "rgba(27,63,208,0.12)" },
+  international: { motes: ["#ff3b57", "#00e676", "#ffffff"], spotA: "rgba(255,59,87,0.14)", spotB: "rgba(0,230,118,0.12)" },
 };
 
 export function Ambience() {

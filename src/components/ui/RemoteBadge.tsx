@@ -55,7 +55,8 @@ export function RemoteBadge({
       loading="lazy"
       decoding="async"
       onError={() => setFailed(true)}
-      className={`object-contain drop-shadow-md ${className}`}
+      title={clubName}
+      className={`select-none object-contain drop-shadow-md ${className}`}
       style={{ width, height: "auto", aspectRatio: "1 / 1", ...style }}
     />
   );

@@ -10,6 +10,8 @@ import { useC, formAccent, formLabel } from "@/lib/career/copy";
 import { useCareer, useCurrentPlayer } from "@/lib/career/store";
 import { groupIntoChapters, YEARS_PER_CHAPTER, type TimelineChapter } from "@/lib/career/chapters";
 import { careerStatus, statusToneColor } from "@/lib/career/status";
+import { CareerProgression } from "@/components/career/CareerProgression";
+import { careerRecords, legacyScore } from "@/lib/career/legacy";
 import { rollChapter, finalizeChapter, intlOf, type ChapterRun, type RunChoices } from "@/lib/career/run";
 import { RECOVERY_CHOICES, type RecoveryChoice } from "@/lib/career/injuries";
 import { choiceOf, type CareerEventDef } from "@/lib/career/events";
@@ -101,6 +103,7 @@ function Career({ player }: { player: CareerPlayer }) {
   const startAge = player.age - player.seasons.length;
   const chapters = groupIntoChapters(player.seasons, startAge);
   const intl = intlOf(player);
+  const legacy = legacyScore(player, careerRecords(player), intl.caps, intl.goals);
 
   const hist = player.seasons;
   const ovrDelta = hist.length >= 2 ? hist[hist.length - 1].overall - hist[hist.length - 2].overall : 0;
@@ -153,6 +156,7 @@ function Career({ player }: { player: CareerPlayer }) {
 
         {/* ============ LEFT — player + trophies + current action ============ */}
         <div className="space-y-3">
+          <CareerProgression tier={legacy.tier} score={legacy.score} />
           <div className="rounded-2xl border border-white/10 bg-[#0c0c10] p-4 sm:p-5">
             {/* identity */}
             <div className="flex items-start gap-3">

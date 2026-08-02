@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AnimatedCounter } from "@/components/AnimatedCounter";
 import { CameraFlashes } from "@/components/fx/Atmosphere";
@@ -315,8 +315,6 @@ interface Tile {
    *  trademarks, so they're never reproduced here — see the note in
    *  TrophyArt.tsx. Falls back to `icon` when a mode has no trophy. */
   art?: TrophyId;
-  pos: { x: number; y: number }; // percent position within the hero
-  size?: "lg" | "md";
 }
 
 /** Emblem for a mode: its trophy art if it has one, else its glyph. */
@@ -325,51 +323,96 @@ function ModeEmblem({ tile, size }: { tile: Tile; size: number }) {
   return <span style={{ fontSize: size * 0.78, lineHeight: 1 }}>{tile.icon}</span>;
 }
 
-function ModePin({ tile, onEnter, index }: { tile: Tile; onEnter: (tile: Tile) => void; index: number }) {
-  // depth from screen position: pins low in the frame are near the camera
-  // and render large, pins up by the horizon are far and render small —
-  // the same perspective the ground plane underneath them is using
-  const depth = Math.max(0, Math.min(1, (tile.pos.y - HORIZON - 6) / 50));
-  const scale = 0.72 + depth * 0.46;
-
-  // NOTE: positioning lives on this wrapper, never on the motion element —
-  // Framer Motion owns `transform` on anything it animates and would
-  // otherwise wipe out the centering and the depth scale.
+/** One card in the rail. The active card lifts, brightens and shows its
+ *  strapline; the others sit back so the eye lands on one thing. */
+function ModeCard({
+  tile, active, onEnter, onFocus,
+}: { tile: Tile; active: boolean; onEnter: (t: Tile) => void; onFocus: () => void }) {
   return (
-    <div
-      className="absolute"
+    <motion.button
+      type="button"
+      onClick={() => { play("select"); onEnter(tile); }}
+      onPointerEnter={onFocus}
+      onFocus={onFocus}
+      animate={{ y: active ? -14 : 0, scale: active ? 1.06 : 0.94 }}
+      transition={{ type: "spring", stiffness: 260, damping: 24 }}
+      className="group relative flex w-[122px] shrink-0 snap-center flex-col items-center gap-2 rounded-2xl px-3 py-3.5 text-center sm:w-[138px]"
       style={{
-        left: `${tile.pos.x}%`,
-        top: `${tile.pos.y}%`,
-        transform: `translate(-50%, -50%) scale(${scale})`,
-        zIndex: 10 + Math.round(depth * 10),
+        background: active ? "rgba(11,20,36,0.9)" : "rgba(9,16,28,0.62)",
+        border: `1px solid ${active ? tile.ring : "rgba(148,170,205,0.16)"}`,
+        boxShadow: active ? `${tile.glow}, inset 0 1px 0 rgba(255,255,255,0.1)` : "0 8px 22px rgba(0,0,0,0.45)",
+        backdropFilter: "blur(10px)",
       }}
+      aria-current={active ? "true" : undefined}
     >
-      <motion.button
-        type="button"
-        onClick={() => { play("select"); onEnter(tile); }}
-        initial={{ opacity: 0, y: 18 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.25 + index * 0.09, type: "spring", stiffness: 160, damping: 18 }}
-        className="group flex flex-col items-center gap-2"
-      >
-        {/* the pin's own shadow on the grass — plants it on the pitch */}
-        <span aria-hidden className="pointer-events-none absolute left-1/2 -z-10 h-4 -translate-x-1/2 rounded-[50%]"
-          style={{ bottom: -10, width: tile.size === "lg" ? 92 : 62, background: "radial-gradient(50% 50% at 50% 50%, rgba(0,0,0,0.55), transparent 70%)" }} />
-        <span
-          className={`relative flex shrink-0 items-center justify-center rounded-full text-2xl transition-transform duration-300 group-hover:scale-110 group-active:scale-95 sm:text-3xl ${tile.size === "lg" ? "h-20 w-20 sm:h-24 sm:w-24" : "h-14 w-14 sm:h-16 sm:w-16"}`}
-          style={{ background: tile.gradient, boxShadow: `${tile.glow}, 0 0 0 2px ${tile.ring} inset` }}
+      <ModeEmblem tile={tile} size={active ? 40 : 34} />
+      <span className="whitespace-nowrap text-[0.58rem] font-bold uppercase leading-tight tracking-[0.13em] text-white">
+        {tile.title}
+      </span>
+      {tile.badge && (
+        <span className="absolute -right-1 -top-1 rounded-full bg-white px-1.5 py-0.5 text-[0.48rem] font-black text-black">
+          {tile.badge}
+        </span>
+      )}
+      {active && (
+        <span aria-hidden className="pointer-events-none absolute -bottom-3 left-1/2 h-3 w-[86%] -translate-x-1/2 rounded-[50%] blur-md"
+          style={{ background: tile.ring }} />
+      )}
+    </motion.button>
+  );
+}
+
+/** The mode rail — one clean row of cards standing on the grass, instead of
+ *  markers scattered across it. Scroll-snaps on touch, arrows on desktop, and
+ *  the stadium relights to whichever mode is centred. */
+function ModeRail({
+  tiles, active, setActive, onEnter,
+}: {
+  tiles: Tile[];
+  active: number;
+  setActive: (i: number) => void;
+  onEnter: (t: Tile) => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  const go = (dir: -1 | 1) => {
+    const next = Math.max(0, Math.min(tiles.length - 1, active + dir));
+    setActive(next);
+    ref.current?.querySelectorAll("button")[next]?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+    play("click");
+  };
+
+  return (
+    <div className="absolute inset-x-0 z-20" style={{ bottom: "15%" }}>
+      <div className="relative mx-auto flex max-w-4xl items-center gap-2 px-3">
+        <button type="button" onClick={() => go(-1)} aria-label="Previous mode" disabled={active === 0}
+          className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/15 bg-black/45 text-lg text-white backdrop-blur-sm transition hover:bg-black/65 disabled:opacity-25 md:flex">
+          &lsaquo;
+        </button>
+
+        <div ref={ref}
+          className="flex flex-1 snap-x snap-mandatory items-end justify-start gap-2.5 overflow-x-auto px-2 pb-4 pt-6 [scrollbar-width:none] md:justify-center [&::-webkit-scrollbar]:hidden">
+          {tiles.map((tile, i) => (
+            <ModeCard key={tile.title} tile={tile} active={i === active} onEnter={onEnter} onFocus={() => setActive(i)} />
+          ))}
+        </div>
+
+        <button type="button" onClick={() => go(1)} aria-label="Next mode" disabled={active === tiles.length - 1}
+          className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/15 bg-black/45 text-lg text-white backdrop-blur-sm transition hover:bg-black/65 disabled:opacity-25 md:flex">
+          &rsaquo;
+        </button>
+      </div>
+
+      <AnimatePresence mode="wait">
+        <motion.p
+          key={tiles[active]?.title}
+          initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
+          transition={{ duration: 0.2 }}
+          className="mt-1 px-6 text-center text-[0.72rem] font-medium text-white/70"
         >
-          <span aria-hidden className="absolute inset-0 animate-ping rounded-full opacity-25" style={{ background: tile.ring }} />
-          <span className="relative"><ModeEmblem tile={tile} size={tile.size === "lg" ? 52 : 34} /></span>
-          {tile.badge && (
-            <span className="absolute -right-1 -top-1 rounded-full bg-white px-1.5 py-0.5 text-[0.5rem] font-black text-black">{tile.badge}</span>
-          )}
-        </span>
-        <span className="whitespace-nowrap rounded-full bg-black/55 px-3 py-1 text-[0.62rem] font-bold uppercase tracking-[0.14em] text-white backdrop-blur-sm">
-          {tile.title}
-        </span>
-      </motion.button>
+          {tiles[active]?.tag}
+        </motion.p>
+      </AnimatePresence>
     </div>
   );
 }
@@ -411,6 +454,7 @@ export default function Home() {
   const mounted = useHydrated();
   const router = useRouter();
   const [entering, setEntering] = useState<Tile | null>(null);
+  const [activeMode, setActiveMode] = useState(1); // Champions League leads
   const t = useT();
   const profile = useGame((s) => s.profile);
   const tournament = useGame((s) => s.tournament);
@@ -526,28 +570,28 @@ export default function Home() {
       cta: anyCareer ? t("home.tile.continue") : t("home.tile.play"), badge: anyCareer ? undefined : t("home.tile.new"),
       gradient: "linear-gradient(150deg, #2e1065 0%, #4c1d95 48%, #6d28d9 78%, #ffd700 145%)",
       glow: "0 14px 46px rgba(109,40,217,0.4)", ring: "rgba(216,180,254,0.5)",
-      art: "ballon-dor", pos: { x: 22, y: 74 },
+      art: "ballon-dor",
     },
     {
       href: "/draft", icon: "🏆", kicker: t("home.tile.cl.kicker"), title: "Champions League",
       tag: t("home.tile.cl.tag"), cta: t("home.tile.play"),
       gradient: "linear-gradient(150deg, #05070d 0%, #0f172a 45%, #0e5f6b 85%, #00f0ff 145%)",
       glow: "0 14px 46px rgba(0,240,255,0.32)", ring: "rgba(0,240,255,0.5)",
-      art: "champions-league", pos: { x: 50, y: 57 }, size: "lg",
+      art: "champions-league",
     },
     {
       href: "/international?comp=euro", icon: "🇪🇺", kicker: t("home.tile.euro.kicker"), title: "UEFA EURO",
       tag: t("home.tile.euro.tag"), cta: t("home.tile.play"),
       gradient: "linear-gradient(150deg, #050d2e 0%, #10236e 45%, #1b3fd0 78%, #ff3b57 145%)",
       glow: "0 14px 40px rgba(255,59,87,0.32)", ring: "rgba(255,59,87,0.5)",
-      art: "euro", pos: { x: 78, y: 74 },
+      art: "euro",
     },
     {
       href: "/international?comp=copa", icon: "🌎", kicker: t("home.tile.copa.kicker"), title: "Copa América",
       tag: t("home.tile.copa.tag"), cta: t("home.tile.play"),
       gradient: "linear-gradient(150deg, #06251a 0%, #0a3520 45%, #0f6d43 78%, #ffd700 145%)",
       glow: "0 14px 40px rgba(255,215,0,0.3)", ring: "rgba(255,215,0,0.5)",
-      art: "copa-america", pos: { x: 19, y: 46 },
+      art: "copa-america",
     },
     {
       href: "/daily", icon: "📅", kicker: t("home.tile.daily.kicker"), title: t("home.daily.kicker"),
@@ -555,7 +599,7 @@ export default function Home() {
       cta: dailyPlayed ? t("home.daily.viewResult") : t("home.tile.play"),
       gradient: "linear-gradient(150deg, #451a03 0%, #78350f 45%, #b45309 80%, #ffd700 145%)",
       glow: "0 14px 40px rgba(255,215,0,0.3)", ring: "rgba(255,215,0,0.5)",
-      art: "domestic-cup", pos: { x: 81, y: 46 },
+      art: "domestic-cup",
     },
   ];
 
@@ -598,11 +642,9 @@ export default function Home() {
           </motion.div>
         </div>
 
-        {/* the modes — markers standing out on the grass around you, each
-            scaled by how far down the pitch it sits */}
-        {tiles.map((tile, i) => (
-          <ModePin key={tile.title} tile={tile} onEnter={setEntering} index={i} />
-        ))}
+        {/* the modes — one clean rail on the grass rather than markers
+            scattered across it */}
+        <ModeRail tiles={tiles} active={activeMode} setActive={setActiveMode} onEnter={setEntering} />
 
         {/* the near edge of the pitch falls into shadow, and the page
             continues out of that shadow — the two gradients below meet at

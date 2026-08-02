@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { useGame } from "@/lib/store";
 import { useT } from "@/lib/i18n";
 import { play } from "@/lib/sound";
+import { FormationPreview } from "@/components/FormationPreview";
 
 function todayKey(): string {
   const d = new Date();
@@ -56,6 +57,11 @@ export default function DailyPage() {
             <div className="text-[0.6rem] font-bold uppercase tracking-widest text-muted">{t("daily.mode")}</div>
             <div className="font-display text-2xl font-extrabold text-cyan">{modeLabel}</div>
           </div>
+        </div>
+
+        {/* the shape you'll actually be drafting into */}
+        <div className="mx-auto mt-5 max-w-[230px]">
+          <FormationPreview formation={cfg.formation} accent="#00f0ff" />
         </div>
 
         <p className="mt-4 text-xs italic text-white/50">{t("daily.oneAttempt")}</p>

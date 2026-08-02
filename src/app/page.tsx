@@ -8,6 +8,7 @@ import { AnimatedCounter } from "@/components/AnimatedCounter";
 import { CameraFlashes } from "@/components/fx/Atmosphere";
 import { TeamBadge } from "@/components/TeamBadge";
 import { ReportBug } from "@/components/ReportBug";
+import { TrophyArt, type TrophyId } from "@/components/career/TrophyArt";
 import { useGame } from "@/lib/store";
 import { useCurrentPlayer } from "@/lib/career/store";
 import { useHydrated } from "@/lib/useHydrated";
@@ -28,13 +29,30 @@ import { USER_TEAM_ID, teamLabel } from "@/lib/engine/tournament";
 const STAND_ROOFLINE = "M-40 260 L-40 30 Q 130 55 260 95 Q 430 55 600 50 Q 770 55 940 95 Q 1070 55 1200 30 L1200 260 Z";
 const STAND_ROOFLINE_STROKE = "M-40 30 Q 130 55 260 95 Q 430 55 600 50 Q 770 55 940 95 Q 1070 55 1200 30";
 
+/** The roofline curve pushed down by `o` — used for the tier steps, so
+ *  every deck follows the same sweep as the roof above it. */
+function tierLine(o: number): string {
+  return `M-40 ${30 + o} Q 130 ${55 + o} 260 ${95 + o} Q 430 ${55 + o} 600 ${50 + o} Q 770 ${55 + o} 940 ${95 + o} Q 1070 ${55 + o} 1200 ${30 + o}`;
+}
+
 function StandBand() {
+  // the crowd has to fill the WHOLE bowl, right down to the pitch edge —
+  // scattering it only across the upper rows leaves the lower decks
+  // looking like empty navy paint
   const crowd = useMemo(() => {
     const rng = (seed: number) => { const x = Math.sin(seed * 999) * 43758.5453; return x - Math.floor(x); };
-    return Array.from({ length: fxCount(130) }, (_, i) => {
+    const tint = ["rgba(226,236,252,0.62)", "rgba(196,214,242,0.55)", "rgba(255,246,224,0.45)"];
+    return Array.from({ length: fxCount(460) }, (_, i) => {
       const x = rng(i + 50) * 1280 - 40;
-      const y = 40 + rng(i) * 120;
-      return { x, y, r: 1 + rng(i + 90) * 1, d: 2 + rng(i + 130) * 4, delay: rng(i + 170) * 5 };
+      // biased toward the lower decks, which sit nearer the camera
+      const y = 46 + Math.pow(rng(i), 0.78) * 206;
+      return {
+        x, y,
+        r: 0.9 + rng(i + 90) * 1.15,
+        d: 2 + rng(i + 130) * 4,
+        delay: rng(i + 170) * 5,
+        fill: tint[i % tint.length],
+      };
     });
   }, []);
   const roofLights = useMemo(() => {
@@ -79,12 +97,26 @@ function StandBand() {
           <circle key={i} cx={l.x} cy={l.y} r={2} fill="#dfeeff" style={{ animation: "floodFlicker 7s linear infinite", animationDelay: `${l.delay}s` }} />
         ))}
 
+        {/* the seating decks, each following the roof's sweep */}
+        <g clipPath="url(#standClip)">
+          {[58, 112, 168].map((o) => (
+            <path key={o} d={tierLine(o)} stroke="rgba(10,20,36,0.85)" strokeWidth="7" fill="none" />
+          ))}
+          {[58, 112, 168].map((o) => (
+            <path key={`hi-${o}`} d={tierLine(o - 3)} stroke="rgba(148,178,220,0.16)" strokeWidth="1.5" fill="none" />
+          ))}
+        </g>
+
         <g clipPath="url(#standClip)">
           {crowd.map((d, i) => (
-            <circle key={i} cx={d.x} cy={d.y} r={d.r} fill="rgba(220,230,245,0.55)"
+            <circle key={i} cx={d.x} cy={d.y} r={d.r} fill={d.fill}
               style={{ animation: `crowdFlicker ${d.d}s ease-in-out infinite`, animationDelay: `${d.delay}s` }} />
           ))}
         </g>
+
+        {/* the lit fascia ring above the pitch, and the dark wall below it */}
+        <path d={tierLine(196)} stroke="url(#ledGrad)" strokeWidth="9" fill="none" opacity="0.55" />
+        <path d={tierLine(214)} stroke="rgba(3,8,18,0.9)" strokeWidth="22" fill="none" />
 
         <style>{`
           @keyframes crowdFlicker { 0%,100% { opacity: 0.25; } 50% { opacity: 0.85; } }
@@ -232,8 +264,19 @@ interface Tile {
   glow: string;
   ring: string;
   badge?: string;
+  /** Original-art silverware standing in for the competition, from the
+   *  app's own TrophyArt set. Real competition logos are registered
+   *  trademarks, so they're never reproduced here — see the note in
+   *  TrophyArt.tsx. Falls back to `icon` when a mode has no trophy. */
+  art?: TrophyId;
   pos: { x: number; y: number }; // percent position within the hero
   size?: "lg" | "md";
+}
+
+/** Emblem for a mode: its trophy art if it has one, else its glyph. */
+function ModeEmblem({ tile, size }: { tile: Tile; size: number }) {
+  if (tile.art) return <TrophyArt id={tile.art} size={size} title={tile.title} />;
+  return <span style={{ fontSize: size * 0.78, lineHeight: 1 }}>{tile.icon}</span>;
 }
 
 function ModePin({ tile, onEnter, index }: { tile: Tile; onEnter: (tile: Tile) => void; index: number }) {
@@ -272,7 +315,7 @@ function ModePin({ tile, onEnter, index }: { tile: Tile; onEnter: (tile: Tile) =
           style={{ background: tile.gradient, boxShadow: `${tile.glow}, 0 0 0 2px ${tile.ring} inset` }}
         >
           <span aria-hidden className="absolute inset-0 animate-ping rounded-full opacity-25" style={{ background: tile.ring }} />
-          <span className="relative">{tile.icon}</span>
+          <span className="relative"><ModeEmblem tile={tile} size={tile.size === "lg" ? 52 : 34} /></span>
           {tile.badge && (
             <span className="absolute -right-1 -top-1 rounded-full bg-white px-1.5 py-0.5 text-[0.5rem] font-black text-black">{tile.badge}</span>
           )}
@@ -306,7 +349,7 @@ function ModeTransition({ tile, onDone }: { tile: Tile; onDone: () => void }) {
         transition={{ type: "spring", stiffness: 180, damping: 16, delay: 0.1 }}
         className="relative text-center"
       >
-        <div className="text-6xl drop-shadow-[0_10px_30px_rgba(0,0,0,0.5)]">{tile.icon}</div>
+        <div className="flex justify-center drop-shadow-[0_10px_30px_rgba(0,0,0,0.5)]"><ModeEmblem tile={tile} size={92} /></div>
         <div className="mt-4 font-display text-2xl font-black uppercase tracking-wide text-white drop-shadow-[0_4px_16px_rgba(0,0,0,0.5)] sm:text-4xl">
           {tile.title}
         </div>
@@ -437,28 +480,28 @@ export default function Home() {
       cta: anyCareer ? t("home.tile.continue") : t("home.tile.play"), badge: anyCareer ? undefined : t("home.tile.new"),
       gradient: "linear-gradient(150deg, #2e1065 0%, #4c1d95 48%, #6d28d9 78%, #ffd700 145%)",
       glow: "0 14px 46px rgba(109,40,217,0.4)", ring: "rgba(216,180,254,0.5)",
-      pos: { x: 22, y: 74 },
+      art: "ballon-dor", pos: { x: 22, y: 74 },
     },
     {
       href: "/draft", icon: "🏆", kicker: t("home.tile.cl.kicker"), title: "Champions League",
       tag: t("home.tile.cl.tag"), cta: t("home.tile.play"),
       gradient: "linear-gradient(150deg, #05070d 0%, #0f172a 45%, #0e5f6b 85%, #00f0ff 145%)",
       glow: "0 14px 46px rgba(0,240,255,0.32)", ring: "rgba(0,240,255,0.5)",
-      pos: { x: 50, y: 57 }, size: "lg",
+      art: "champions-league", pos: { x: 50, y: 57 }, size: "lg",
     },
     {
       href: "/international?comp=euro", icon: "🇪🇺", kicker: t("home.tile.euro.kicker"), title: "UEFA EURO",
       tag: t("home.tile.euro.tag"), cta: t("home.tile.play"),
       gradient: "linear-gradient(150deg, #050d2e 0%, #10236e 45%, #1b3fd0 78%, #ff3b57 145%)",
       glow: "0 14px 40px rgba(255,59,87,0.32)", ring: "rgba(255,59,87,0.5)",
-      pos: { x: 78, y: 74 },
+      art: "euro", pos: { x: 78, y: 74 },
     },
     {
       href: "/international?comp=copa", icon: "🌎", kicker: t("home.tile.copa.kicker"), title: "Copa América",
       tag: t("home.tile.copa.tag"), cta: t("home.tile.play"),
       gradient: "linear-gradient(150deg, #06251a 0%, #0a3520 45%, #0f6d43 78%, #ffd700 145%)",
       glow: "0 14px 40px rgba(255,215,0,0.3)", ring: "rgba(255,215,0,0.5)",
-      pos: { x: 19, y: 46 },
+      art: "copa-america", pos: { x: 19, y: 46 },
     },
     {
       href: "/daily", icon: "📅", kicker: t("home.tile.daily.kicker"), title: t("home.daily.kicker"),
@@ -466,7 +509,7 @@ export default function Home() {
       cta: dailyPlayed ? t("home.daily.viewResult") : t("home.tile.play"),
       gradient: "linear-gradient(150deg, #451a03 0%, #78350f 45%, #b45309 80%, #ffd700 145%)",
       glow: "0 14px 40px rgba(255,215,0,0.3)", ring: "rgba(255,215,0,0.5)",
-      pos: { x: 81, y: 46 },
+      art: "domestic-cup", pos: { x: 81, y: 46 },
     },
   ];
 

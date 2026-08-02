@@ -118,9 +118,12 @@ html {
 }
 
 body {
+  /* a hint of pitch turf under everything — this is a football game, not a
+     generic tech dashboard — plus the existing cyan/navy stadium-light wash */
   background:
-    radial-gradient(1200px 600px at 50% -10%, rgba(0, 240, 255, 0.14), transparent 60%),
-    radial-gradient(900px 500px at 100% 0%, rgba(27, 63, 208, 0.14), transparent 55%),
+    radial-gradient(1200px 600px at 50% -10%, rgba(0, 240, 255, 0.13), transparent 60%),
+    radial-gradient(900px 500px at 100% 0%, rgba(27, 63, 208, 0.13), transparent 55%),
+    radial-gradient(1000px 700px at 50% 120%, rgba(0, 230, 118, 0.1), transparent 65%),
     radial-gradient(700px 500px at 0% 30%, rgba(0, 240, 255, 0.05), transparent 60%),
     linear-gradient(180deg, #07090e 0%, #0f172a 55%, #030407 100%);
   background-attachment: fixed;

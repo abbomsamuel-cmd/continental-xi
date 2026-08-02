@@ -74,7 +74,7 @@ export function StadiumBackground() {
       const beams = lite ? 2 : 3;
       for (let i = 0; i < beams; i++) {
         const cx = w * (0.2 + 0.3 * i) + Math.sin(t * 0.0004 + i) * w * 0.12;
-        const hue = i % 2 === 0 ? "34, 224, 255" : "212, 175, 55";
+        const hue = i % 2 === 0 ? "0, 240, 255" : "0, 230, 118";
         const grad = ctx.createLinearGradient(cx, 0, cx, h);
         grad.addColorStop(0, `rgba(${hue}, 0.11)`);
         grad.addColorStop(0.5, `rgba(${hue}, 0.025)`);
@@ -126,7 +126,7 @@ export function StadiumBackground() {
           p.y += p.vy;
           p.x += p.vx;
           if (p.y < -10) { p.y = h + 10; p.x = Math.random() * w; }
-          ctx.fillStyle = `rgba(${Math.random() > 0.5 ? "212,175,55" : "34,224,255"},${p.a * 0.4})`;
+          ctx.fillStyle = `rgba(${Math.random() > 0.5 ? "0,230,118" : "0,240,255"},${p.a * 0.4})`;
         }
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);

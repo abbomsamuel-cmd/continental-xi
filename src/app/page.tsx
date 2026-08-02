@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useMemo } from "react";
 import { motion } from "framer-motion";
 import { AnimatedCounter } from "@/components/AnimatedCounter";
 import { CameraFlashes } from "@/components/fx/Atmosphere";
@@ -16,28 +17,46 @@ import { getAllPlayers, SQUADS } from "@/lib/players";
 import { USER_TEAM_ID, teamLabel } from "@/lib/engine/tournament";
 
 /* ------------------------------------------------------------------ */
-/*  Stadium scene behind the hub — tiered stands, floodlight pylons.    */
+/*  Stadium scene behind the hub — you're in the stands looking down    */
+/*  at a lit pitch; the mode tiles below read as "matches on tonight".  */
 /* ------------------------------------------------------------------ */
 function StadiumScene() {
+  // a filled-in crowd — small flickering dots scattered across the stand
+  // tiers, denser near the front rows, so the bowl reads as occupied
+  const crowd = useMemo(() => {
+    const rng = (seed: number) => { const x = Math.sin(seed * 999) * 43758.5453; return x - Math.floor(x); };
+    return Array.from({ length: 140 }, (_, i) => {
+      const row = i % 5;
+      const y = 178 + row * 16 + rng(i) * 6;
+      const x = rng(i + 50) * 1240 - 20;
+      return { x, y, r: 1.1 + rng(i + 90) * 1.1, d: 2 + rng(i + 130) * 4, delay: rng(i + 170) * 5 };
+    });
+  }, []);
+
   return (
-    <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[70vh] overflow-hidden" aria-hidden>
-      <div className="aurora absolute -left-1/4 top-0 h-2/3 w-2/3 rounded-full opacity-40"
-        style={{ background: "radial-gradient(circle, rgba(27,79,255,0.5), transparent 65%)" }} />
-      <div className="aurora absolute -right-1/4 top-1/4 h-2/3 w-2/3 rounded-full opacity-30"
-        style={{ background: "radial-gradient(circle, rgba(212,175,55,0.4), transparent 65%)", animationDelay: "-8s" }} />
-      <svg viewBox="0 0 1200 420" preserveAspectRatio="xMidYMax slice" className="slow-pan absolute inset-x-0 bottom-0 h-2/3 w-full opacity-70">
+    <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[74vh] overflow-hidden" aria-hidden>
+      <div className="aurora absolute -left-1/4 top-0 h-2/3 w-2/3 rounded-full opacity-30"
+        style={{ background: "radial-gradient(circle, rgba(27,79,255,0.45), transparent 65%)" }} />
+      <div className="aurora absolute -right-1/4 top-1/4 h-2/3 w-2/3 rounded-full opacity-35"
+        style={{ background: "radial-gradient(circle, rgba(0,230,118,0.35), transparent 65%)", animationDelay: "-8s" }} />
+      <svg viewBox="0 0 1200 460" preserveAspectRatio="xMidYMax slice" className="slow-pan absolute inset-x-0 bottom-0 h-full w-full opacity-90">
         <defs>
           <linearGradient id="standsGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#0a2258" /><stop offset="100%" stopColor="#040d24" />
+            <stop offset="0%" stopColor="#0a2036" /><stop offset="100%" stopColor="#050d17" />
           </linearGradient>
           <linearGradient id="beamGrad" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="rgba(235,245,255,0.5)" /><stop offset="100%" stopColor="rgba(235,245,255,0)" />
           </linearGradient>
+          <linearGradient id="turfGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#0f6b3a" /><stop offset="100%" stopColor="#0a3d22" />
+          </linearGradient>
         </defs>
+
+        {/* floodlight pylons, sweeping down over the bowl */}
         {[{ x: 150, sway: "beamSwayA" }, { x: 1050, sway: "beamSwayB" }].map((p) => (
           <g key={p.x}>
-            <rect x={p.x - 4} y={130} width={8} height={140} fill="#071233" />
-            <rect x={p.x - 30} y={118} width={60} height={18} rx={4} fill="#0a1c4a" />
+            <rect x={p.x - 4} y={130} width={8} height={140} fill="#071227" />
+            <rect x={p.x - 30} y={118} width={60} height={18} rx={4} fill="#0a1a30" />
             {[-20, -8, 4, 16].map((dx) => (
               <circle key={dx} cx={p.x + dx + 2} cy={127} r={3.1} fill="#dfeeff" style={{ animation: "floodFlicker 7s linear infinite" }} />
             ))}
@@ -46,12 +65,40 @@ function StadiumScene() {
               style={{ transformOrigin: `${p.x}px 136px`, animation: `${p.sway} 9s ease-in-out infinite` }} />
           </g>
         ))}
-        <path d="M-20 268 Q 600 170 1220 268 L 1220 320 Q 600 232 -20 320 Z" fill="url(#standsGrad)" opacity="0.9" />
-        <path d="M-20 292 Q 600 200 1220 292" stroke="rgba(140,180,255,0.30)" strokeWidth="2.5" fill="none" strokeDasharray="3 9" />
-        <path d="M-20 340 Q 600 252 1220 340 L 1220 420 L -20 420 Z" fill="#030a1c" />
+
+        {/* tiered stands */}
+        <path d="M-20 268 Q 600 170 1220 268 L 1220 320 Q 600 232 -20 320 Z" fill="url(#standsGrad)" opacity="0.95" />
+        <path d="M-20 292 Q 600 200 1220 292" stroke="rgba(148,163,184,0.28)" strokeWidth="2.5" fill="none" strokeDasharray="3 9" />
+
+        {/* the crowd — small flickering points across the tiers */}
+        <g>
+          {crowd.map((d, i) => (
+            <circle key={i} cx={d.x} cy={d.y} r={d.r} fill="rgba(220,230,245,0.55)"
+              style={{ animation: `crowdFlicker ${d.d}s ease-in-out infinite`, animationDelay: `${d.delay}s` }} />
+          ))}
+        </g>
+
+        {/* the pitch — real turf, seen from the stands, framed by the tunnel mouth */}
+        <path d="M-20 340 Q 600 252 1220 340 L 1220 460 L -20 460 Z" fill="url(#turfGrad)" />
+        {/* mown stripes, converging toward the halfway line for a perspective read */}
+        <g opacity="0.35">
+          {Array.from({ length: 9 }).map((_, i) => (
+            <polygon key={i}
+              points={`${340 + i * 62},346 ${400 + i * 62},346 ${1220},458 ${940 + i * 5},458`}
+              fill={i % 2 === 0 ? "rgba(255,255,255,0.06)" : "transparent"} />
+          ))}
+        </g>
+        {/* halfway line + centre circle, curved to match the stand's perspective */}
+        <path d="M-20 372 Q 600 300 1220 372" stroke="rgba(255,255,255,0.55)" strokeWidth="2" fill="none" />
+        <ellipse cx="600" cy="352" rx="46" ry="14" stroke="rgba(255,255,255,0.5)" strokeWidth="2" fill="none" />
+        <circle cx="600" cy="352" r="2.2" fill="rgba(255,255,255,0.65)" />
+        {/* touchline glow where the floodlights hit the grass */}
+        <ellipse cx="600" cy="400" rx="360" ry="60" fill="rgba(0,230,118,0.12)" />
+
         <style>{`
           @keyframes beamSwayA { 0%,100% { transform: rotate(-6deg); } 50% { transform: rotate(7deg); } }
           @keyframes beamSwayB { 0%,100% { transform: rotate(6deg); } 50% { transform: rotate(-7deg); } }
+          @keyframes crowdFlicker { 0%,100% { opacity: 0.25; } 50% { opacity: 0.85; } }
         `}</style>
       </svg>
     </div>

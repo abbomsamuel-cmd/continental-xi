@@ -185,7 +185,7 @@ const DICT: Record<string, Entry> = {
   "home.career.ageClub": { en: "Age {age} · {club}", es: "Edad {age} · {club}" },
   "home.career.retiredTag": { en: "Retired", es: "Retirado" },
   "home.career.arcLabel": { en: "Academy → Legend", es: "Cantera → Leyenda" },
-  "home.play.kicker": { en: "Choose your game", es: "Elige tu juego" },
+  "home.play.kicker": { en: "Kick-off tonight", es: "Hoy se juega" },
   "home.play.title.a": { en: "Pick your ", es: "Elige tu " },
   "home.tile.play": { en: "Play", es: "Jugar" },
   "home.tile.continue": { en: "Continue", es: "Continuar" },

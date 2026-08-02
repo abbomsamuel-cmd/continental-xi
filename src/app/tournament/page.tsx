@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useGame } from "@/lib/store";
 import { LeagueTable } from "@/components/LeagueTable";
+import { StadiumScreen } from "@/components/StadiumScreen";
 import { MatchModal } from "@/components/MatchModal";
 import { KnockoutBracket } from "@/components/KnockoutBracket";
 import { TrophyCelebration } from "@/components/TrophyCelebration";
@@ -602,7 +603,9 @@ function TournamentInner() {
       {isLeague ? (
         <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_300px]">
           <div>
-            <LeagueTable rows={table} tournament={tournament} />
+            <StadiumScreen title="League Phase" accent="#00f0ff">
+              <LeagueTable rows={table} tournament={tournament} />
+            </StadiumScreen>
           </div>
           <div className="space-y-4 lg:sticky lg:top-24 lg:self-start">
             <div className="glass rounded-2xl p-4">
@@ -630,7 +633,9 @@ function TournamentInner() {
             <p className="mt-1 text-muted">{tournament.exit?.text}</p>
             <p className="mt-1 text-sm text-cyan">Only the top 24 advance — you missed the knockouts.</p>
           </div>
-          <LeagueTable rows={table} tournament={tournament} />
+          <StadiumScreen title="Final Standings" accent="#00f0ff">
+            <LeagueTable rows={table} tournament={tournament} />
+          </StadiumScreen>
         </div>
       ) : (
         <div className="mt-8 space-y-6">

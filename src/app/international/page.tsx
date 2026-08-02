@@ -14,6 +14,7 @@ import { MatchPreview, GoldenBootRace, HeadlinesPanel, type PreviewTeam } from "
 import type { KOTie, KORoundName, MatchResult, Player, RawSquad, TableRow } from "@/lib/types";
 import { MatchModal } from "@/components/MatchModal";
 import { PremiumBracket, type BracketTeam } from "@/components/PremiumBracket";
+import { StadiumScreen } from "@/components/StadiumScreen";
 import { TeamBadge } from "@/components/TeamBadge";
 import { CrestLogo } from "@/components/CrestLogo";
 import { Pitch } from "@/components/Pitch";
@@ -1438,16 +1439,18 @@ function IntlBracket({ intl, onTieClick }: {
     : ["Quarter-final", "Semi-final", "Final"];
   return (
     <div className="mt-6">
-      <PremiumBracket
-        ties={intl.ties}
-        teams={teams}
-        userKey={intl.userKey}
-        champion={intl.champion}
-        variant={intl.comp}
-        rounds={rounds}
-        thirdPlace
-        onTieClick={onTieClick}
-      />
+      <StadiumScreen title="Knockout Bracket" accent={intl.comp === "euro" ? "#ff3b57" : "#00e676"}>
+        <PremiumBracket
+          ties={intl.ties}
+          teams={teams}
+          userKey={intl.userKey}
+          champion={intl.champion}
+          variant={intl.comp}
+          rounds={rounds}
+          thirdPlace
+          onTieClick={onTieClick}
+        />
+      </StadiumScreen>
     </div>
   );
 }

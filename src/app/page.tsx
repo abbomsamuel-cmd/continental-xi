@@ -181,6 +181,52 @@ function GrassField() {
   );
 }
 
+/** The goal at the far end, standing on the horizon where the grass meets
+ *  the stands. Lit from the floodlights above so the net catches the light
+ *  the way it does at night — it's the thing that makes the pitch read as
+ *  a pitch rather than a green plane. */
+function GoalMouth() {
+  return (
+    <div
+      className="pointer-events-none absolute left-1/2 -translate-x-1/2"
+      style={{ bottom: `${100 - HORIZON}%`, width: "min(26vw, 300px)" }}
+      aria-hidden
+    >
+      {/* floodlight bloom behind the goal, sitting on the grass */}
+      <div
+        className="absolute left-1/2 -translate-x-1/2"
+        style={{ bottom: "-14%", width: "170%", height: "70%", background: "radial-gradient(50% 60% at 50% 70%, rgba(190,225,255,0.28), transparent 70%)" }}
+      />
+      <svg viewBox="0 0 120 74" className="relative w-full" style={{ overflow: "visible" }}>
+        <defs>
+          <linearGradient id="goalPost" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#ffffff" />
+            <stop offset="100%" stopColor="#c3d4e8" />
+          </linearGradient>
+        </defs>
+
+        {/* the net — a fine mesh, dense enough to read as fabric, faint
+            enough that the stands stay visible through it */}
+        <g stroke="rgba(226,240,255,0.34)" strokeWidth="0.45">
+          {Array.from({ length: 19 }).map((_, i) => (
+            <line key={`v${i}`} x1={7 + i * 5.9} y1={7} x2={9 + i * 5.6} y2={70} />
+          ))}
+          {Array.from({ length: 9 }).map((_, i) => (
+            <line key={`h${i}`} x1={7 + i * 0.25} y1={9 + i * 7.6} x2={113 - i * 0.25} y2={9 + i * 7.6} />
+          ))}
+        </g>
+
+        {/* frame: two posts and the crossbar, catching the light */}
+        <rect x="4.6" y="5" width="4" height="66" rx="1.6" fill="url(#goalPost)" />
+        <rect x="111.4" y="5" width="4" height="66" rx="1.6" fill="url(#goalPost)" />
+        <rect x="4.6" y="4.2" width="110.8" height="4.2" rx="2" fill="url(#goalPost)" />
+        {/* highlight along the top of the bar */}
+        <rect x="6" y="4.6" width="108" height="1.1" rx="0.55" fill="rgba(255,255,255,0.9)" />
+      </svg>
+    </div>
+  );
+}
+
 /** First-person presence — you don't see an avatar, you see your own
  *  shadow cast on the grass at your feet, which is what sells "I am
  *  standing here" without putting a character in front of the camera. */
@@ -529,6 +575,7 @@ export default function Home() {
       <section className="relative h-[100dvh] min-h-[640px] overflow-hidden">
         <StandBand />
         <GrassField />
+        <GoalMouth />
         <StandingShadow />
 
         <div className="absolute left-4 top-20 z-20 sm:left-6 sm:top-24">

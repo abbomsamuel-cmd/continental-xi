@@ -4,6 +4,7 @@ import type {
 import type { Rng } from "../rng";
 import { shuffle } from "../rng";
 import { CLUB_REGISTRY } from "../data/clubs";
+import { shortCode } from "../club-key";
 import { SQUADS } from "../players";
 import { simulateMatch, penaltyShootout, type EngineTeamContext, type ShootoutSide } from "./match";
 import { pickAiTactic, type TacticId } from "../tactics";
@@ -27,12 +28,6 @@ function seasonForClub(rng: Rng, club: string): number {
 /** Display label for an opponent, e.g. "Real Madrid 2017". */
 export function teamLabel(team: SimTeam): string {
   return team.season ? `${team.name} ${team.season}` : team.name;
-}
-
-function shortCode(name: string): string {
-  const words = name.split(/\s+/).filter((w) => !["FC", "CF", "de", "La"].includes(w));
-  if (words.length === 1) return words[0].slice(0, 3).toUpperCase();
-  return words.map((w) => w[0]).join("").slice(0, 3).toUpperCase();
 }
 
 /** Build the 36-team field: the user squad + 35 registry clubs, seeded into 4 pots of 9. */

@@ -5,8 +5,8 @@ import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import type { GameMode, Player } from "@/lib/types";
 import { Flag } from "@/components/Flag";
 import { ClubCrest } from "@/components/ClubCrest";
-import { RemoteBadge } from "@/components/RemoteBadge";
-import { clubBadgeUrlFor, flagUrlFor } from "@/lib/badge-sources";
+import { RemoteBadge } from "@/components/ui/RemoteBadge";
+import { flagUrlFor } from "@/lib/badge-sources";
 import { SHIELD_CLIP, CARD_MOSAIC } from "@/lib/cardShape";
 
 function surname(name: string): string {
@@ -55,7 +55,6 @@ export function PlayerCard({ player, mode, onSelect, selected, compact, index = 
   // an explicit URL on the player wins; otherwise ask the shared source map,
   // which is empty until someone hooks one up
   const flagSrc = player.nationFlagUrl ?? flagUrlFor(player.nationality);
-  const crestSrc = player.clubBadgeUrl ?? clubBadgeUrlFor(player.club);
 
   const ref = useRef<HTMLButtonElement>(null);
   const rx = useMotionValue(0);
@@ -147,10 +146,10 @@ export function PlayerCard({ player, mode, onSelect, selected, compact, index = 
               away before you've had a chance to guess the player */}
           {!expert && !compact && (
             <RemoteBadge
-              src={crestSrc}
+              src={player.clubBadgeUrl}
+              clubName={player.club}
               alt={player.club}
               width="2.4rem"
-              className="object-contain drop-shadow-md"
             >
               <div className="relative grid place-items-center drop-shadow-md" style={{ width: "2.4rem" }}>
                 <ClubCrest colors={player.colors} seed={player.club} width="100%" textBacking />

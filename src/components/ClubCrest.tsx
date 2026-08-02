@@ -14,6 +14,8 @@
  * generic kit design, both of which long predate every club using them.
  */
 
+import { shortCode } from "@/lib/club-key";
+
 /* ---------------------------------------------------------- patterns -- */
 
 type Pattern = "chief" | "stripes" | "hoops" | "halved" | "diagonal" | "band";
@@ -108,14 +110,6 @@ function hash(s: string): number {
     h = Math.imul(h, 16777619);
   }
   return h >>> 0;
-}
-
-/** Short code as the tournament engine builds it, so a crest resolves the
- *  same whether the caller has the club's name or just its three letters. */
-function shortCode(name: string): string {
-  const words = name.split(/\s+/).filter((w) => !["FC", "CF", "de", "La"].includes(w));
-  if (words.length === 1) return words[0].slice(0, 3).toUpperCase();
-  return words.map((w) => w[0]).join("").slice(0, 3).toUpperCase();
 }
 
 const BY_CODE: Record<string, Pattern> = {};

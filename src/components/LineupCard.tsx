@@ -29,7 +29,7 @@ import type { PitchVariant } from "@/components/Pitch";
 import { Flag } from "@/components/Flag";
 import { flagCodeFor } from "@/lib/flags";
 import { ClubCrest } from "@/components/ClubCrest";
-import { RemoteBadge } from "@/components/RemoteBadge";
+import { RemoteBadge } from "@/components/ui/RemoteBadge";
 import { SHIELD_CLIP, CARD_MOSAIC } from "@/lib/cardShape";
 import { fxLevel } from "@/lib/fx";
 
@@ -246,7 +246,7 @@ export function LineupCard({
               </RemoteBadge>
               {badgeKind === "crest"
                 ? (
-                  <RemoteBadge src={clubBadgeUrl} alt={clubLabel ?? ""} width="13cqw">
+                  <RemoteBadge src={clubBadgeUrl} clubName={clubLabel} alt={clubLabel ?? ""} width="13cqw">
                     <MiniBadge colors={colors} kind="crest" w="13cqw" club={clubLabel} />
                   </RemoteBadge>
                 )

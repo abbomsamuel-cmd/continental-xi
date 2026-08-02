@@ -4,6 +4,7 @@ import { useRef, type PointerEvent as ReactPointerEvent } from "react";
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import type { GameMode, Player } from "@/lib/types";
 import { Flag } from "@/components/Flag";
+import { SHIELD_CLIP } from "@/lib/cardShape";
 
 function surname(name: string): string {
   const parts = name.trim().split(/\s+/);
@@ -73,22 +74,22 @@ export function PlayerCard({ player, mode, onSelect, selected, compact, index = 
       whileHover={onSelect ? { y: -8, scale: 1.04 } : undefined}
       whileTap={onSelect ? { scale: 0.97 } : undefined}
       style={{ rotateX: srx, rotateY: sry, transformStyle: "preserve-3d", perspective: 900 }}
-      className={`group relative block aspect-[3/4] w-full overflow-hidden rounded-2xl p-[1.5px] text-left ${
+      className={`group relative block aspect-[3/4] w-full p-[1.5px] text-left ${
         selected ? "ring-2 ring-cyan" : ""
       } ${onSelect ? "cursor-pointer" : "cursor-default"}`}
     >
       <div
         aria-hidden
-        className="absolute inset-0 rounded-2xl"
-        style={{ background: `linear-gradient(150deg, ${rColor}, ${c1})` }}
+        className="absolute inset-0"
+        style={{ background: `linear-gradient(150deg, ${rColor}, ${c1})`, clipPath: SHIELD_CLIP }}
       />
-      <div className="relative flex h-full flex-col rounded-2xl p-4"
-        style={{ background: "linear-gradient(165deg, #182233 0%, #0a0e17 78%)" }}>
+      <div className="relative flex h-full flex-col px-4 pb-[15%] pt-4"
+        style={{ background: "linear-gradient(165deg, #182233 0%, #0a0e17 78%)", clipPath: SHIELD_CLIP }}>
         {/* diagonal metallic sheen, follows the tilt */}
         <motion.div
           aria-hidden
-          className="pointer-events-none absolute inset-0 rounded-2xl opacity-0 transition-opacity duration-200 group-hover:opacity-100"
-          style={{ background: sheenBg }}
+          className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
+          style={{ background: sheenBg, clipPath: SHIELD_CLIP }}
         />
 
         {/* header: rating + position, nation flag */}

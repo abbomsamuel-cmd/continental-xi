@@ -1,11 +1,13 @@
 "use client";
 
 /**
- * ContinentalXI Player Card V7 — a clean broadcast badge.
+ * ContinentalXI Player Card V8 — a shield-silhouette broadcast badge.
  *
  * A layered lineup tile built to read at a glance on the pitch and still look
  * like a graphic-design piece up close:
- *   · one clean rounded rating badge (rating + position stacked), no chamfer
+ *   · a shield card shape (chamfered top, tapered base) — a generic trading
+ *     card format, not a trace of any specific real card design
+ *   · one clean rounded rating badge (rating + position stacked)
  *   · real nation flag + original club crest, top right
  *   · the surname as the hero element
  *   · a season pill sitting just above a CLUB-COLOUR ribbon along the base —
@@ -13,9 +15,9 @@
  *     different clubs at a glance
  *   · a soft holographic sheen and a thin competition glow around the whole tile
  *
- *   cl    obsidian/slate · cyan edge · cyan rating · sharp corners
- *   euro  white · royal-blue ink · silver edge · rounded corners
- *   copa  emerald/slate · gold edge · warm light · soft corners
+ *   cl    obsidian/slate · cyan edge · cyan rating
+ *   euro  white · royal-blue ink · silver edge
+ *   copa  emerald/slate · gold edge · warm light
  *
  * Sizing: card width is set in `cqw` of the PITCH; every inner measure is in
  * `cqw` of the CARD, so the same design scales from the builder to the share
@@ -27,6 +29,7 @@ import type { PitchVariant } from "@/components/Pitch";
 import { Flag } from "@/components/Flag";
 import { flagCodeFor } from "@/lib/flags";
 import { ClubCrest } from "@/components/ClubCrest";
+import { SHIELD_CLIP } from "@/lib/cardShape";
 import { fxLevel } from "@/lib/fx";
 
 export type BadgeKind = "crest" | "flag";
@@ -133,7 +136,10 @@ function RatingNumber({ value }: { value: number }) {
 /** The club-colour ribbon along the base — the player's own identity colours. */
 function ClubRibbon({ colors, accent }: { colors: [string, string]; accent: string }) {
   return (
-    <span aria-hidden className="absolute inset-x-0 bottom-0 overflow-hidden" style={{ height: "8.5cqw" }}>
+    // sits just above the shield's tapered point (which starts ~28% up from
+    // the base) so the ribbon stays full-width instead of getting clipped
+    // down to a sliver near the tip
+    <span aria-hidden className="absolute inset-x-0 overflow-hidden" style={{ height: "8.5cqw", bottom: "27%" }}>
       {/* competition accent hairline riding on top of the club ribbon */}
       <span className="absolute inset-x-0 top-0" style={{ height: "1.6cqw", background: accent }} />
       {/* two-tone club colours, split on a diagonal */}
@@ -201,16 +207,16 @@ export function LineupCard({
         <span className="mt-0.5 max-w-[56px] truncate text-[0.47rem] font-extrabold leading-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]">{sur}</span>
       </div>
 
-      {/* DESKTOP / TABLET — the broadcast tile */}
+      {/* DESKTOP / TABLET — the broadcast tile (shield silhouette) */}
       <div className={`hidden ${widthClass} lineup-card-v5 sm:block`} style={{ containerType: "inline-size" }} title={label}>
         <div
-          className={`relative flex flex-col overflow-hidden ${selected ? "cardv5-selected" : ""}`}
+          className={`relative p-[3.5%] ${selected ? "cardv5-selected" : ""}`}
           style={{
-            aspectRatio: "1 / 1.3", borderRadius: s.radius, background: s.card,
-            border: `1px solid ${edge}`, boxShadow: s.shadow,
+            aspectRatio: "1 / 1.3", clipPath: SHIELD_CLIP, background: edge, boxShadow: s.shadow,
             ["--sel" as string]: slotGlow,
           }}
         >
+        <div className="relative flex h-full flex-col overflow-hidden" style={{ background: s.card, clipPath: SHIELD_CLIP }}>
           {/* soft studio light from above */}
           <span aria-hidden className="pointer-events-none absolute inset-0"
             style={{ background: "radial-gradient(120% 44% at 50% -12%, rgba(255,255,255,0.16), transparent 60%)" }} />
@@ -245,7 +251,7 @@ export function LineupCard({
           </div>
 
           {/* season, sitting just above the club-colour ribbon */}
-          <div className="relative flex justify-center" style={{ paddingBottom: "11.5cqw" }}>
+          <div className="relative flex justify-center" style={{ paddingBottom: "34cqw" }}>
             {seasonLabel && (
               <span className="rounded-full font-bold leading-none" style={{ fontSize: "6.8cqw", letterSpacing: "0.1em", color: s.season, padding: "1.2cqw 3.4cqw", background: "rgba(255,255,255,0.07)" }}>
                 {seasonLabel}
@@ -253,6 +259,7 @@ export function LineupCard({
             )}
           </div>
           <ClubRibbon colors={colors} accent={s.accent} />
+        </div>
         </div>
       </div>
     </>

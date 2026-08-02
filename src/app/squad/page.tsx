@@ -10,6 +10,8 @@ import { LineupPresentation } from "@/components/LineupPresentation";
 import { formationCanHold } from "@/lib/formations";
 import { EuroScene, CopaScene } from "@/components/fx/Scenes";
 import { suitability } from "@/lib/suitability";
+import { BroadcastMatchup } from "@/components/BroadcastMatchup";
+import { TacticalPanel } from "@/components/TacticalPanel";
 import { TACTICS, tacticById, tacticFit, tacticFitBand, tacticFitReasons, tacticMatchupSummary, type TacticId } from "@/lib/tactics";
 import { shareXI, type ShareFormat } from "@/lib/share-xi";
 import { POSITION_GROUP } from "@/lib/formations";
@@ -249,7 +251,34 @@ export default function SquadPage() {
         </div>
 
         {/* ===================== B. TEAM SNAPSHOT ===================== */}
-        <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,560px)_1fr]">
+        <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,560px)_1fr] xl:grid-cols-[210px_minmax(0,560px)_1fr]">
+          {/* broadcast rail — only on wide screens, where there's room beside
+              the pitch without squeezing it */}
+          <div className="hidden flex-col gap-4 self-start xl:flex">
+            <BroadcastMatchup
+              side="left"
+              teamName={teamName || `${profileName}'s XI`}
+              overall={analysis?.overall}
+              tacticId={setup?.tactic as TacticId | undefined}
+              tacticFit={analysis?.breakdown.tacticFit}
+              accent={c.accent}
+            />
+            {analysis && formation && (
+              <TacticalPanel
+                phases={[
+                  { label: "Attack", value: analysis.attack },
+                  { label: "Midfield", value: analysis.midfield },
+                  { label: "Defense", value: analysis.defense },
+                  { label: "Keeper", value: analysis.goalkeeper },
+                ]}
+                tacticId={setup?.tactic as TacticId | undefined}
+                tacticFit={analysis.breakdown.tacticFit}
+                formation={formation}
+                players={xi}
+                accent={c.accent}
+              />
+            )}
+          </div>
           <div>
             <div className={`glass rounded-2xl p-2.5 sm:p-3 ${mode !== "view" ? "ring-2" : ""}`}
               style={mode !== "view" ? { boxShadow: `0 0 26px ${c.soft}` } : undefined}>

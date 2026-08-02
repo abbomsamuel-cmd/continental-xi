@@ -140,96 +140,177 @@ const HORIZON = 30;
  *  between the pitch and the rest of the page is invisible. */
 const PAGE_SEAM = "#04070e";
 
-function GrassField() {
-  return (
-    <div
-      className="pointer-events-none absolute inset-0 overflow-hidden"
-      aria-hidden
-      style={{ perspective: "620px", perspectiveOrigin: `50% ${HORIZON}%` }}
-    >
-      {/* the ground plane: hinged along the horizon line and laid down
-          toward the camera, so everything on it gets real perspective */}
-      <div
-        className="absolute left-1/2 w-[320%] -translate-x-1/2"
-        style={{
-          top: `${HORIZON}%`,
-          height: "400%",
-          transformOrigin: "50% 0%",
-          transform: "rotateX(76deg)",
-          background: [
-            // mown stripes — these converge toward the horizon on their own
-            "repeating-linear-gradient(90deg, rgba(255,255,255,0.06) 0 90px, rgba(0,0,0,0.05) 90px 180px)",
-            // lit near the stands, falling into shadow in the foreground
-            "linear-gradient(180deg, #12703f 0%, #0c4d2b 38%, #072a18 100%)",
-          ].join(", "),
-        }}
-      >
-        {/* markings live in the same 3D plane, so they share the perspective */}
-        <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full opacity-60">
-          <line x1="0" y1="14" x2="100" y2="14" stroke="rgba(255,255,255,0.55)" strokeWidth="0.35" />
-          <circle cx="50" cy="14" r="13" stroke="rgba(255,255,255,0.5)" strokeWidth="0.35" fill="none" />
-          <circle cx="50" cy="14" r="0.5" fill="rgba(255,255,255,0.6)" />
-          <rect x="24" y="-14" width="52" height="17" stroke="rgba(255,255,255,0.4)" strokeWidth="0.35" fill="none" />
-        </svg>
-      </div>
+/**
+ * The pitch, drawn as one projected scene.
+ *
+ * Everything — turf, mown bands, every marking, the goal — goes through the
+ * same ground-plane projection below, so they genuinely share a vanishing
+ * point instead of being separate layers that only roughly agree. World
+ * coordinates are (x across 0..1, v from the far goal line 0 to the near
+ * edge 1); the projection converts those to the SVG's own box.
+ */
+const SCENE_W = 1000;
+const SCENE_H = 700;
+/** Camera distance at the far goal line and at the near edge. The ratio sets
+ *  how hard the pitch converges — smaller near value = deeper perspective. */
+const D_FAR = 0.5;
+const D_NEAR = 0.16;
+/** Half-width of the pitch at the near edge, in viewBox units. Wider than the
+ *  box on purpose, so the turf runs off both sides at the viewer's feet. */
+const HALF_NEAR = 1180;
+/** Headroom above the far goal line, for the goal frame and the hoarding —
+ *  without it the crossbar projects to a negative Y and gets clipped. */
+const Y_TOP = 118;
 
-      {/* floodlight wash spilling down from the stands onto the turf */}
-      <div className="absolute inset-x-0" style={{ top: `${HORIZON}%`, height: "45%", background: "radial-gradient(70% 100% at 50% 0%, rgba(0,240,255,0.16), transparent 70%)" }} />
-      {/* haze along the horizon so the far grass melts into the bowl */}
-      <div className="absolute inset-x-0" style={{ top: `${HORIZON - 6}%`, height: "16%", background: "linear-gradient(180deg, rgba(10,26,48,0.85), transparent)" }} />
-    </div>
-  );
+const camF = (v: number) => 1 / (D_NEAR + (D_FAR - D_NEAR) * (1 - v));
+const F0 = camF(0);
+const F1 = camF(1);
+
+/** Screen Y for a depth v (0 = far goal line, 1 = nearest turf). */
+function sceneY(v: number): number {
+  return Y_TOP + ((camF(v) - F0) / (F1 - F0)) * (SCENE_H - Y_TOP);
+}
+/** Screen X for a point across the pitch at depth v. */
+function sceneX(x: number, v: number): number {
+  return SCENE_W / 2 + (x - 0.5) * 2 * (HALF_NEAR * (camF(v) / F1));
+}
+/** A closed run of world points as an SVG polygon `points` string. */
+function scenePoly(pts: [number, number][]): string {
+  return pts.map(([x, v]) => `${sceneX(x, v).toFixed(1)},${sceneY(v).toFixed(1)}`).join(" ");
+}
+/** An ellipse-in-perspective: a circle on the ground, sampled and projected. */
+function sceneCircle(cxw: number, cvw: number, rx: number, rv: number, n = 48): string {
+  return scenePoly(Array.from({ length: n }, (_, i) => {
+    const a = (i / n) * Math.PI * 2;
+    return [cxw + Math.cos(a) * rx, cvw + Math.sin(a) * rv] as [number, number];
+  }));
 }
 
-/** The goal at the far end, standing on the horizon where the grass meets
- *  the stands. Lit from the floodlights above so the net catches the light
- *  the way it does at night — it's the thing that makes the pitch read as
- *  a pitch rather than a green plane. */
-function GoalMouth() {
+function PitchScene() {
+  const LINE = "rgba(238,246,255,0.62)";
+
+  // mown bands run ACROSS the pitch, so they read as bands compressing toward
+  // the far end rather than a sunburst radiating from the goal
+  const bands = Array.from({ length: 11 }, (_, i) => [i / 11, (i + 1) / 11] as const);
+
   return (
-    <div
-      className="pointer-events-none absolute left-1/2 -translate-x-1/2"
-      style={{ bottom: `${100 - HORIZON}%`, width: "min(26vw, 300px)" }}
-      aria-hidden
-    >
-      {/* floodlight bloom behind the goal, sitting on the grass */}
-      <div
-        className="absolute left-1/2 -translate-x-1/2"
-        style={{ bottom: "-14%", width: "170%", height: "70%", background: "radial-gradient(50% 60% at 50% 70%, rgba(190,225,255,0.28), transparent 70%)" }}
-      />
-      <svg viewBox="0 0 120 74" className="relative w-full" style={{ overflow: "visible" }}>
+    <div className="pointer-events-none absolute inset-x-0 bottom-0" style={{ top: `${HORIZON}%` }} aria-hidden>
+      <svg viewBox={`0 0 ${SCENE_W} ${SCENE_H}`} preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
         <defs>
-          <linearGradient id="goalPost" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#ffffff" />
-            <stop offset="100%" stopColor="#c3d4e8" />
+          <linearGradient id="turf" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#1c7a49" />
+            <stop offset="35%" stopColor="#17693e" />
+            <stop offset="100%" stopColor="#0a3a20" />
           </linearGradient>
+          <linearGradient id="hoard" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#0d1b2f" /><stop offset="100%" stopColor="#060e1c" />
+          </linearGradient>
+          <radialGradient id="flood" cx="0.5" cy="0" r="0.85">
+            <stop offset="0%" stopColor="rgba(190,225,255,0.30)" />
+            <stop offset="55%" stopColor="rgba(120,190,255,0.08)" />
+            <stop offset="100%" stopColor="transparent" />
+          </radialGradient>
         </defs>
 
-        {/* the net — a fine mesh, dense enough to read as fabric, faint
-            enough that the stands stay visible through it */}
-        <g stroke="rgba(226,240,255,0.34)" strokeWidth="0.45">
-          {Array.from({ length: 19 }).map((_, i) => (
-            <line key={`v${i}`} x1={7 + i * 5.9} y1={7} x2={9 + i * 5.6} y2={70} />
-          ))}
-          {Array.from({ length: 9 }).map((_, i) => (
-            <line key={`h${i}`} x1={7 + i * 0.25} y1={9 + i * 7.6} x2={113 - i * 0.25} y2={9 + i * 7.6} />
+        {/* turf */}
+        <rect x="0" y="0" width={SCENE_W} height={SCENE_H} fill="url(#turf)" />
+
+        {/* mown bands across the pitch */}
+        <g>
+          {bands.map(([a, b], i) => (
+            i % 2 === 0 ? (
+              <polygon key={i} fill="rgba(255,255,255,0.032)"
+                points={scenePoly([[-0.6, a], [1.6, a], [1.6, b], [-0.6, b]])} />
+            ) : null
           ))}
         </g>
 
-        {/* frame: two posts and the crossbar, catching the light */}
-        <rect x="4.6" y="5" width="4" height="66" rx="1.6" fill="url(#goalPost)" />
-        <rect x="111.4" y="5" width="4" height="66" rx="1.6" fill="url(#goalPost)" />
-        <rect x="4.6" y="4.2" width="110.8" height="4.2" rx="2" fill="url(#goalPost)" />
-        {/* highlight along the top of the bar */}
-        <rect x="6" y="4.6" width="108" height="1.1" rx="0.55" fill="rgba(255,255,255,0.9)" />
+        {/* the floodlit wash, brightest where the lights hit near the far end */}
+        <rect x="0" y="0" width={SCENE_W} height={SCENE_H} fill="url(#flood)" />
+
+        {/* markings */}
+        <g fill="none" stroke={LINE} strokeWidth="2.4" strokeLinejoin="round">
+          {/* touchlines + far goal line */}
+          <polygon points={scenePoly([[0.02, 0], [0.98, 0], [0.98, 1], [0.02, 1]])} />
+          {/* penalty area and six-yard box at the far end */}
+          <polygon points={scenePoly([[0.19, 0], [0.81, 0], [0.81, 0.2], [0.19, 0.2]])} />
+          <polygon points={scenePoly([[0.36, 0], [0.64, 0], [0.64, 0.075], [0.36, 0.075]])} />
+          {/* the D — the arc outside the penalty area */}
+          <polyline points={scenePoly(
+            Array.from({ length: 26 }, (_, i) => {
+              const a = Math.PI * (0.06 + (i / 25) * 0.88);
+              return [0.5 + Math.cos(a) * 0.115, 0.2 + Math.sin(a) * 0.09] as [number, number];
+            })
+          )} />
+          {/* halfway line and centre circle, near the viewer */}
+          <polyline points={scenePoly([[0.02, 0.9], [0.98, 0.9]])} />
+          <polygon points={sceneCircle(0.5, 0.9, 0.16, 0.09)} />
+        </g>
+        {/* penalty spot and centre spot */}
+        <g fill={LINE}>
+          <circle cx={sceneX(0.5, 0.13)} cy={sceneY(0.13)} r="2.6" />
+          <circle cx={sceneX(0.5, 0.9)} cy={sceneY(0.9)} r="3.4" />
+        </g>
+
+        {/* advertising hoarding along the far touchline — this is what stops
+            the grass butting into the stands as a hard horizontal seam */}
+        <polygon points={scenePoly([[-0.35, -0.055], [1.35, -0.055], [1.35, 0], [-0.35, 0]])} fill="url(#hoard)" />
+        <polyline points={scenePoly([[-0.35, -0.055], [1.35, -0.055]])} stroke="rgba(0,240,255,0.45)" strokeWidth="2" fill="none" />
+
+        {/* the goal, standing ON the far goal line */}
+        <GoalPosts />
+
+        {/* the turf falls into shadow at the viewer's feet */}
+        <rect x="0" y={SCENE_H * 0.72} width={SCENE_W} height={SCENE_H * 0.28} fill="url(#footShadow)" />
+        <defs>
+          <linearGradient id="footShadow" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="rgba(3,10,6,0)" /><stop offset="100%" stopColor="rgba(3,10,6,0.55)" />
+          </linearGradient>
+        </defs>
       </svg>
     </div>
   );
 }
 
-/** First-person presence — you don't see an avatar, you see your own
- *  shadow cast on the grass at your feet, which is what sells "I am
- *  standing here" without putting a character in front of the camera. */
+/** Goal frame + net, planted on the far goal line and sized off the same
+ *  projection so it sits in the scene rather than floating over it. */
+function GoalPosts() {
+  const LX = 0.395, RX = 0.605;      // posts, slightly wider than true scale so it reads
+  const x1 = sceneX(LX, 0), x2 = sceneX(RX, 0);
+  const base = sceneY(0);
+  const h = (x2 - x1) * 0.34;         // crossbar height off the goal width
+  const top = base - h;
+  const post = Math.max(2.6, (x2 - x1) * 0.022);
+
+  const verticals = 15;
+  const horizontals = 7;
+
+  return (
+    <g>
+      {/* net mesh */}
+      <g stroke="rgba(226,240,255,0.30)" strokeWidth="0.7">
+        {Array.from({ length: verticals }).map((_, i) => {
+          const x = x1 + ((x2 - x1) * i) / (verticals - 1);
+          return <line key={`v${i}`} x1={x} y1={top} x2={x + (x - (x1 + x2) / 2) * 0.06} y2={base} />;
+        })}
+        {Array.from({ length: horizontals }).map((_, i) => {
+          const y = top + (h * i) / (horizontals - 1);
+          const k = (i / (horizontals - 1)) * 0.03;
+          return <line key={`h${i}`} x1={x1 - (x2 - x1) * k} y1={y} x2={x2 + (x2 - x1) * k} y2={y} />;
+        })}
+      </g>
+      {/* frame */}
+      <g fill="#eef4ff">
+        <rect x={x1 - post / 2} y={top} width={post} height={h} rx={post / 2} />
+        <rect x={x2 - post / 2} y={top} width={post} height={h} rx={post / 2} />
+        <rect x={x1 - post / 2} y={top - post / 2} width={x2 - x1 + post} height={post} rx={post / 2} />
+      </g>
+      {/* the goal's shadow on the grass */}
+      <ellipse cx={(x1 + x2) / 2} cy={base + 2} rx={(x2 - x1) * 0.6} ry={h * 0.05} fill="rgba(0,0,0,0.35)" />
+    </g>
+  );
+}
+
 function StandingShadow() {
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[26%] overflow-hidden" aria-hidden>
@@ -618,8 +699,7 @@ export default function Home() {
       {/* ===================== PITCH HERO — you're the player, modes are options around you ===================== */}
       <section className="relative h-[100dvh] min-h-[640px] overflow-hidden">
         <StandBand />
-        <GrassField />
-        <GoalMouth />
+        <PitchScene />
         <StandingShadow />
 
         <div className="absolute left-4 top-20 z-20 sm:left-6 sm:top-24">

@@ -959,9 +959,3 @@ input, select, textarea {
 @media (max-height: 500px) and (orientation: landscape) {
   .land-tight { padding-top: 4.5rem !important; }
 }
-
-/* Home "Choose your game" tiles — gentle rise entrance. Transform only, so the
-   tile is always fully opaque even if the animation frame is throttled. */
-@keyframes tileRise { from { transform: translateY(14px); } to { transform: translateY(0); } }
-.tile-rise { animation: tileRise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
-@media (prefers-reduced-motion: reduce) { .tile-rise { animation: none; } }

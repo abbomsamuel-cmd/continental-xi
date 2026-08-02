@@ -682,7 +682,10 @@ const artLigue1 = (): ReactElement => (
 /** The everyday knockout cup: open bowl, round handles, tall stem. */
 const artDomesticCup = (): ReactElement => (
   <>
-    <defs><Metal id="tr-dcp-s" c={SILVER} /></defs>
+    <defs>
+      <Metal id="tr-dcp-s" c={SILVER} />
+      <Metal id="tr-dcp-r" c={AZURE} />
+    </defs>
     <Shadow rx={12} />
     <path d="M20.6 48.4h22.8v4.4H20.6z" fill={PL_BODY} />
     <rect x="20.6" y="48.4" width="22.8" height="1.5" fill={PL_TOP} />
@@ -692,6 +695,9 @@ const artDomesticCup = (): ReactElement => (
     <path d="M21.4 17.6c-5.6.8-7.4 6.8-4.4 11.6" fill="none" stroke="url(#tr-dcp-s)" strokeWidth="2.7" strokeLinecap="round" />
     <path d="M42.6 17.6c5.6.8 7.4 6.8 4.4 11.6" fill="none" stroke="url(#tr-dcp-s)" strokeWidth="2.7" strokeLinecap="round" />
     <path d="M21.6 15.4h20.8v5.8c0 8.8-5 14.4-10.4 16.4-5.4-2-10.4-7.6-10.4-16.4z" fill="url(#tr-dcp-s)" />
+    <path d={starPath(32, 22, 3.4, 1.4)} fill="url(#tr-dcp-r)" opacity="0.6" />
+    <path d="M22.2 26.4c3.4 2.4 12.2 2.4 19.6 0l1 3.3c-4.6 2.5-15 2.5-21.6 0z" fill="url(#tr-dcp-r)" />
+    <path d="M22.2 26.4c3.4 2.4 12.2 2.4 19.6 0l.4 1.3c-4.4 2.3-14.4 2.3-18.8 0z" fill="#fff" opacity="0.25" />
     <rect x="19.4" y="12.2" width="25.2" height="3.5" rx="1.75" fill="url(#tr-dcp-s)" />
     <path d="M25.4 18.4c0 7.4.8 12.2 2.4 14.8" fill="none" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" opacity="0.42" />
   </>

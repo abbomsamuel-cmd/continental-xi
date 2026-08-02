@@ -260,7 +260,7 @@ function Celebration({ honours, onDone, c, es }: {
   useEffect(() => { const t = setTimeout(onDone, 2600); return () => clearTimeout(t); }, [onDone]);
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onDone}
-      className="fixed inset-0 z-[60] grid place-items-center bg-black/70 backdrop-blur-sm">
+      className="fixed inset-0 z-[60] grid place-items-center bg-black/90 backdrop-blur-sm">
       <motion.div initial={{ scale: 0.7, y: 20 }} animate={{ scale: 1, y: 0 }} transition={{ type: "spring", stiffness: 220, damping: 18 }}
         className="mx-4 rounded-3xl border border-gold/30 bg-gradient-to-b from-[#171205] to-[#0a0e1c] p-8 text-center shadow-2xl">
         <div className="text-[0.6rem] font-bold uppercase tracking-[0.4em] text-gold/70">{c("Silverware", "Título")}</div>
@@ -268,7 +268,7 @@ function Celebration({ honours, onDone, c, es }: {
           {honours.slice(0, 4).map((h, i) => (
             <motion.div key={h.id + i} initial={{ scale: 0, rotate: -20 }} animate={{ scale: 1, rotate: 0 }}
               transition={{ delay: 0.1 + i * 0.12, type: "spring", stiffness: 260, damping: 14 }} className="flex flex-col items-center">
-              <TrophyArt id={h.id} size={64} />
+              <TrophyArt id={h.id} size={76} />
               <span className="mt-1.5 max-w-[7rem] text-[0.66rem] font-bold text-gold">{es ? h.es : h.en}</span>
             </motion.div>
           ))}

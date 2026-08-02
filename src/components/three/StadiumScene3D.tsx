@@ -130,7 +130,7 @@ export default function StadiumScene3D({
   entering?: boolean;
 }) {
   return (
-    <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[74vh] overflow-hidden" aria-hidden>
+    <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[85vh] min-h-[600px] overflow-hidden" aria-hidden>
       <Canvas dpr={[1, 2]} gl={{ antialias: true, alpha: true }} camera={{ position: [0, 4, 16], fov: 50 }}>
         <fog attach="fog" args={["#050910", 18, 42]} />
         <Suspense fallback={null}>

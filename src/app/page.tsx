@@ -3,8 +3,8 @@
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { useMemo, useRef, useState } from "react";
-import { motion, AnimatePresence, useMotionValue, useSpring } from "framer-motion";
+import { forwardRef, useEffect, useMemo, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { AnimatedCounter } from "@/components/AnimatedCounter";
 import { CameraFlashes } from "@/components/fx/Atmosphere";
 import { TeamBadge } from "@/components/TeamBadge";
@@ -66,7 +66,7 @@ function StadiumSceneFallback() {
   }, []);
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[74vh] overflow-hidden" aria-hidden>
+    <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[85vh] min-h-[600px] overflow-hidden" aria-hidden>
       <div className="aurora absolute -left-1/4 top-0 h-2/3 w-2/3 rounded-full opacity-30"
         style={{ background: "radial-gradient(circle, rgba(27,79,255,0.45), transparent 65%)" }} />
       <div className="aurora absolute -right-1/4 top-1/4 h-2/3 w-2/3 rounded-full opacity-35"
@@ -187,7 +187,8 @@ function SectionHeading({ kicker, title, right }: { kicker: string; title: React
 }
 
 /* ------------------------------------------------------------------ */
-/*  The PLAY tiles — big, saturated, obvious. Icon + title + 3 words.   */
+/*  The mode carousel — one competition fills the hero, swipe for the   */
+/*  next, like turning to look at a different stand.                    */
 /* ------------------------------------------------------------------ */
 interface Tile {
   href: string;
@@ -200,68 +201,44 @@ interface Tile {
   glow: string;
   ring: string;
   badge?: string;
-  span: string;   // grid span classes
-  minH: string;
 }
 
-function PlayTile({ tile, index, onEnter }: { tile: Tile; index: number; onEnter: (tile: Tile) => void }) {
-  // a real 3D tilt toward the pointer — the tile is a piece of the stadium,
-  // not a flat web card
-  const ref = useRef<HTMLButtonElement>(null);
-  const rx = useMotionValue(0);
-  const ry = useMotionValue(0);
-  const srx = useSpring(rx, { stiffness: 200, damping: 20 });
-  const sry = useSpring(ry, { stiffness: 200, damping: 20 });
-
-  function onMove(e: React.PointerEvent<HTMLButtonElement>) {
-    if (e.pointerType !== "mouse" && e.pointerType !== "pen") return;
-    const el = ref.current;
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    const px = (e.clientX - r.left) / r.width - 0.5;
-    const py = (e.clientY - r.top) / r.height - 0.5;
-    rx.set(py * -6);
-    ry.set(px * 6);
-  }
-  function onLeave() { rx.set(0); ry.set(0); }
-
-  return (
-    <div className={`${tile.span} tile-rise`} style={{ animationDelay: `${index * 70}ms`, perspective: 1000 }}>
+const ModeSlide = forwardRef<HTMLButtonElement, { tile: Tile; onEnter: (tile: Tile) => void }>(
+  function ModeSlide({ tile, onEnter }, ref) {
+    return (
       <motion.button
         ref={ref}
         type="button"
-        onPointerMove={onMove}
-        onPointerLeave={onLeave}
         onClick={() => { play("select"); onEnter(tile); }}
-        style={{ rotateX: srx, rotateY: sry, transformStyle: "preserve-3d" }}
-        whileHover={{ scale: 1.015 }}
-        className={`group relative flex h-full w-full flex-col justify-between overflow-hidden rounded-2xl p-5 text-left sm:p-6 ${tile.minH}`}
+        whileTap={{ scale: 0.985 }}
+        className="group relative flex h-full w-[86%] shrink-0 snap-center flex-col justify-end overflow-hidden rounded-3xl p-6 text-left sm:w-[62%] sm:p-9 lg:w-[52%]"
       >
-        <span aria-hidden className="pointer-events-none absolute inset-0 rounded-2xl"
-          style={{ background: tile.gradient, boxShadow: `${tile.glow}, 0 1px 0 rgba(255,255,255,0.14) inset, 0 16px 36px rgba(0,0,0,0.4)`, border: `1px solid ${tile.ring}`, transform: "translateZ(0px)" }} />
-        {/* grounding vignette — sells depth without a busy watermark */}
-        <span aria-hidden className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(140% 60% at 50% 118%, rgba(0,0,0,0.45), transparent 60%)" }} />
+        {/* the stadium shows through, tinted by this mode's own colour — */}
+        {/* not an opaque card stacked on top of the scene */}
+        <span aria-hidden className="pointer-events-none absolute inset-0 rounded-3xl"
+          style={{ background: tile.gradient, opacity: 0.82, boxShadow: `${tile.glow}, 0 1px 0 rgba(255,255,255,0.14) inset, 0 24px 60px rgba(0,0,0,0.5)`, border: `1px solid ${tile.ring}` }} />
+        <span aria-hidden className="pointer-events-none absolute inset-0 rounded-3xl" style={{ background: "radial-gradient(140% 70% at 50% 118%, rgba(0,0,0,0.5), transparent 60%)" }} />
         <span aria-hidden className="pointer-events-none absolute -inset-x-1/2 -top-1/2 h-[200%] w-[60%] -translate-x-1/3 rotate-12 bg-white/10 opacity-0 blur-xl transition-all duration-700 group-hover:translate-x-[220%] group-hover:opacity-100" />
 
-        <div className="relative flex items-start justify-between gap-2" style={{ transform: "translateZ(28px)" }}>
-          <span className="text-3xl drop-shadow-[0_4px_12px_rgba(0,0,0,0.4)] sm:text-4xl">{tile.icon}</span>
-          <span className="rounded-full bg-black/30 px-2.5 py-1 text-[0.52rem] font-bold uppercase tracking-[0.2em] text-white/90">
+        <div className="relative flex items-start justify-between gap-2">
+          <span className="text-4xl drop-shadow-[0_4px_12px_rgba(0,0,0,0.4)] sm:text-5xl">{tile.icon}</span>
+          <span className="rounded-full bg-black/30 px-2.5 py-1 text-[0.56rem] font-bold uppercase tracking-[0.2em] text-white/90">
             {tile.kicker}
           </span>
         </div>
 
-        <div className="relative mt-auto pt-6" style={{ transform: "translateZ(20px)" }}>
-          <h3 className="font-display text-xl font-semibold uppercase leading-none tracking-wide text-white sm:text-2xl">{tile.title}</h3>
-          <p className="mt-1.5 text-[0.8rem] font-medium text-white/80">{tile.tag}</p>
-          <span className="mt-3.5 inline-flex items-center gap-2 rounded-lg bg-black/30 px-3.5 py-1.5 text-[0.64rem] font-bold uppercase tracking-[0.12em] text-white transition-transform duration-300 group-hover:translate-x-1">
+        <div className="relative mt-auto pt-8">
+          <h3 className="font-display text-2xl font-semibold uppercase leading-none tracking-wide text-white sm:text-4xl">{tile.title}</h3>
+          <p className="mt-2 text-[0.85rem] font-medium text-white/80 sm:text-base">{tile.tag}</p>
+          <span className="mt-4 inline-flex items-center gap-2 rounded-lg bg-black/30 px-4 py-2 text-[0.7rem] font-bold uppercase tracking-[0.12em] text-white transition-transform duration-300 group-hover:translate-x-1">
             {tile.badge && <span className="rounded bg-white px-1.5 py-0.5 text-[0.5rem] font-black text-black">{tile.badge}</span>}
             {tile.cta} <span aria-hidden>→</span>
           </span>
         </div>
       </motion.button>
-    </div>
-  );
-}
+    );
+  },
+);
 
 /** Full-screen "walking out to the pitch" beat between picking a mode and
  *  actually arriving — a brief cinematic instead of an instant page jump. */
@@ -300,6 +277,9 @@ export default function Home() {
   const mounted = useHydrated();
   const router = useRouter();
   const [entering, setEntering] = useState<Tile | null>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const slideRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const t = useT();
   const profile = useGame((s) => s.profile);
   const tournament = useGame((s) => s.tournament);
@@ -415,28 +395,24 @@ export default function Home() {
       cta: anyCareer ? t("home.tile.continue") : t("home.tile.play"), badge: anyCareer ? undefined : t("home.tile.new"),
       gradient: "linear-gradient(150deg, #2e1065 0%, #4c1d95 48%, #6d28d9 78%, #ffd700 145%)",
       glow: "0 14px 46px rgba(109,40,217,0.4)", ring: "rgba(216,180,254,0.5)",
-      span: "sm:col-span-2 lg:col-span-2", minH: "min-h-[210px] sm:min-h-[240px]",
     },
     {
       href: "/draft", icon: "🏆", kicker: t("home.tile.cl.kicker"), title: "Champions League",
       tag: t("home.tile.cl.tag"), cta: t("home.tile.play"),
       gradient: "linear-gradient(150deg, #05070d 0%, #0f172a 45%, #0e5f6b 85%, #00f0ff 145%)",
       glow: "0 14px 46px rgba(0,240,255,0.32)", ring: "rgba(0,240,255,0.5)",
-      span: "sm:col-span-2 lg:col-span-2", minH: "min-h-[210px] sm:min-h-[240px]",
     },
     {
       href: "/international?comp=euro", icon: "🇪🇺", kicker: t("home.tile.euro.kicker"), title: "UEFA EURO",
       tag: t("home.tile.euro.tag"), cta: t("home.tile.play"),
       gradient: "linear-gradient(150deg, #050d2e 0%, #10236e 45%, #1b3fd0 78%, #ff3b57 145%)",
       glow: "0 14px 40px rgba(255,59,87,0.32)", ring: "rgba(255,59,87,0.5)",
-      span: "lg:col-span-1", minH: "min-h-[190px]",
     },
     {
       href: "/international?comp=copa", icon: "🌎", kicker: t("home.tile.copa.kicker"), title: "Copa América",
       tag: t("home.tile.copa.tag"), cta: t("home.tile.play"),
       gradient: "linear-gradient(150deg, #06251a 0%, #0a3520 45%, #0f6d43 78%, #ffd700 145%)",
       glow: "0 14px 40px rgba(255,215,0,0.3)", ring: "rgba(255,215,0,0.5)",
-      span: "lg:col-span-1", minH: "min-h-[190px]",
     },
     {
       href: "/daily", icon: "📅", kicker: t("home.tile.daily.kicker"), title: t("home.daily.kicker"),
@@ -444,9 +420,31 @@ export default function Home() {
       cta: dailyPlayed ? t("home.daily.viewResult") : t("home.tile.play"),
       gradient: "linear-gradient(150deg, #451a03 0%, #78350f 45%, #b45309 80%, #ffd700 145%)",
       glow: "0 14px 40px rgba(255,215,0,0.3)", ring: "rgba(255,215,0,0.5)",
-      span: "sm:col-span-2 lg:col-span-2", minH: "min-h-[190px]",
     },
   ];
+
+  // which slide is centered in the carousel — drives the jump-dot highlight
+  // and re-tints the shared stadium backdrop as you browse
+  useEffect(() => {
+    const root = scrollerRef.current;
+    if (!root) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        const visible = entries.filter((e) => e.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+        if (!visible) return;
+        const i = slideRefs.current.findIndex((el) => el === visible.target);
+        if (i >= 0) setActiveIndex(i);
+      },
+      { root, threshold: [0.6], rootMargin: "0px -10% 0px -10%" },
+    );
+    for (const el of slideRefs.current) if (el) io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
+  function goTo(i: number) {
+    const clamped = Math.max(0, Math.min(tiles.length - 1, i));
+    slideRefs.current[clamped]?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+  }
 
   return (
     <>
@@ -460,30 +458,69 @@ export default function Home() {
       )}
     </AnimatePresence>
     <div className="relative pb-24">
-      <StadiumMasthead
-        theme={entering ? themeForHref(entering.href) : { primary: "#00f0ff", secondary: "#0f172a" }}
-        entering={!!entering}
-      />
-      <div className="mx-auto max-w-7xl px-4 pt-24 sm:pt-28 lg:px-6">
-        {/* ===================== HUB MASTHEAD ===================== */}
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <motion.div initial={{ y: 14 }} animate={{ y: 0 }}>
+      {/* ===================== STADIUM HERO — backdrop + HUD + mode carousel ===================== */}
+      <section className="relative h-[85vh] min-h-[600px] overflow-hidden">
+        <StadiumMasthead
+          theme={entering ? themeForHref(entering.href) : themeForHref(tiles[activeIndex].href)}
+          entering={!!entering}
+        />
+
+        <div className="absolute left-4 top-20 z-10 sm:left-6 sm:top-24">
+          <motion.div initial={{ y: 14, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
             <div className="cl-heading text-[0.6rem] tracking-[0.45em] text-cyan">{t("home.kicker")}</div>
-            <h1 className="mt-1 font-display text-3xl font-black sm:text-5xl">
+            <h1 className="mt-1 font-display text-2xl font-black drop-shadow-[0_4px_18px_rgba(0,0,0,0.6)] sm:text-4xl">
               {t("home.welcome")} <span className="text-gradient-gold">{mounted ? profile.name : "Manager"}</span>
             </h1>
           </motion.div>
           <motion.div
-            initial={{ y: 14 }} animate={{ y: 0 }} transition={{ delay: 0.1 }}
-            className="flex items-center gap-2.5"
+            initial={{ y: 14, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.1 }}
+            className="mt-3 flex items-center gap-2.5"
           >
-            <span className="flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[0.72rem] font-bold" style={{ background: "linear-gradient(135deg, rgba(242,212,114,0.22), rgba(212,175,55,0.1))", border: "1px solid rgba(242,212,114,0.4)" }}>
+            <span className="flex items-center gap-1.5 rounded-full bg-black/40 px-3.5 py-2 text-[0.72rem] font-bold backdrop-blur-sm" style={{ border: "1px solid rgba(242,212,114,0.4)" }}>
               🏆 <span className="font-display text-base font-black text-gold">{mounted ? profile.trophies : 0}</span> <span className="text-gold/80">{t("home.trophiesLabel")}</span>
             </span>
-            <span className="flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[0.72rem] font-bold" style={{ background: "rgba(34,224,255,0.12)", border: "1px solid rgba(34,224,255,0.35)" }}>
+            <span className="flex items-center gap-1.5 rounded-full bg-black/40 px-3.5 py-2 text-[0.72rem] font-bold backdrop-blur-sm" style={{ border: "1px solid rgba(34,224,255,0.35)" }}>
               🎖️ <span className="font-display text-base font-black text-cyan">{mounted ? profile.achievements.length : 0}</span><span className="text-cyan/70">/{ACHIEVEMENTS.length}</span>
             </span>
           </motion.div>
+        </div>
+
+        {/* the mode picker — swipe/drag horizontally, like turning to look at a different stand */}
+        <div
+          ref={scrollerRef}
+          className="absolute inset-x-0 bottom-14 flex h-[64%] gap-4 overflow-x-auto px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden snap-x snap-mandatory sm:px-8"
+        >
+          <div className="shrink-0 basis-[7%] sm:basis-[19%] lg:basis-[24%]" aria-hidden="true" />
+          {tiles.map((tile, i) => (
+            <ModeSlide key={tile.title} ref={(el) => { slideRefs.current[i] = el; }} tile={tile} onEnter={setEntering} />
+          ))}
+          <div className="shrink-0 basis-[7%] sm:basis-[19%] lg:basis-[24%]" aria-hidden="true" />
+        </div>
+
+        <button type="button" onClick={() => goTo(activeIndex - 1)} aria-label="Previous mode"
+          className="absolute left-3 top-[46%] z-10 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-xl text-white backdrop-blur-sm transition-colors hover:bg-black/60 md:flex">
+          ‹
+        </button>
+        <button type="button" onClick={() => goTo(activeIndex + 1)} aria-label="Next mode"
+          className="absolute right-3 top-[46%] z-10 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-xl text-white backdrop-blur-sm transition-colors hover:bg-black/60 md:flex">
+          ›
+        </button>
+
+        {/* jump dots — direct access without re-swiping through everything */}
+        <div className="absolute inset-x-0 bottom-4 z-10 flex justify-center gap-2">
+          {tiles.map((tile, i) => (
+            <button key={tile.title} type="button" onClick={() => goTo(i)} aria-label={tile.title}
+              className="h-2 rounded-full transition-all"
+              style={{ width: i === activeIndex ? 22 : 8, background: i === activeIndex ? "#ffffff" : "rgba(255,255,255,0.35)" }} />
+          ))}
+        </div>
+      </section>
+
+      <div className="mx-auto max-w-7xl px-4 pt-8 sm:pt-10 lg:px-6">
+        {/* quick links, moved down from the old mode-picker header */}
+        <div className="flex justify-end gap-2">
+          <Link href="/history" onClick={() => play("click")} className="glass flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[0.66rem] font-extrabold uppercase tracking-wider text-white/75 transition-colors hover:text-white">📜 {t("home.more.history")}</Link>
+          <Link href="/stats" onClick={() => play("click")} className="glass flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[0.66rem] font-extrabold uppercase tracking-wider text-white/75 transition-colors hover:text-white">👔 {t("home.more.profile")}</Link>
         </div>
 
         {/* ===================== AT A GLANCE — status first, dashboard-style ===================== */}
@@ -536,30 +573,6 @@ export default function Home() {
             </div>
           </motion.section>
         )}
-
-        {/* ===================== CHOOSE YOUR GAME — the bento ===================== */}
-        <section className="mt-6">
-          <div className="mb-4 flex items-end justify-between">
-            <div>
-              <div className="cl-heading text-[0.6rem] tracking-[0.4em] text-cyan">{t("home.play.kicker")}</div>
-              <h2 className="mt-1 font-display text-xl font-black sm:text-2xl">
-                {t("home.play.title.a")}<span className="text-gradient-gold">{t("home.comps.title.b")}</span>
-              </h2>
-            </div>
-            <div className="hidden gap-2 sm:flex">
-              <Link href="/history" onClick={() => play("click")} className="glass flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[0.66rem] font-extrabold uppercase tracking-wider text-white/75 transition-colors hover:text-white">📜 {t("home.more.history")}</Link>
-              <Link href="/stats" onClick={() => play("click")} className="glass flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[0.66rem] font-extrabold uppercase tracking-wider text-white/75 transition-colors hover:text-white">👔 {t("home.more.profile")}</Link>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {tiles.map((tile, i) => <PlayTile key={tile.title} tile={tile} index={i} onEnter={setEntering} />)}
-          </div>
-          {/* secondary links on mobile */}
-          <div className="mt-3 flex gap-2 sm:hidden">
-            <Link href="/history" onClick={() => play("click")} className="glass flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-[0.68rem] font-extrabold uppercase tracking-wider text-white/75">📜 {t("home.more.history")}</Link>
-            <Link href="/stats" onClick={() => play("click")} className="glass flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-[0.68rem] font-extrabold uppercase tracking-wider text-white/75">👔 {t("home.more.profile")}</Link>
-          </div>
-        </section>
 
         {/* ===================== CHAMPIONS + NEWS — denser side-by-side ===================== */}
         <div className="mt-14 grid gap-8 lg:grid-cols-2 lg:items-start">

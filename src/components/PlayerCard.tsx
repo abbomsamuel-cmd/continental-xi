@@ -4,11 +4,20 @@ import { useRef, type PointerEvent as ReactPointerEvent } from "react";
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import type { GameMode, Player } from "@/lib/types";
 import { Flag } from "@/components/Flag";
+import { ClubCrest } from "@/components/ClubCrest";
 import { SHIELD_CLIP, CARD_MOSAIC } from "@/lib/cardShape";
 
 function surname(name: string): string {
   const parts = name.trim().split(/\s+/);
   return parts[parts.length - 1] ?? name;
+}
+
+/** First and last initial — "Thierry Henry" → "TH", "Ronaldinho" → "R". */
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0][0].toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
 /** The six attributes in the order every football card has shown them. */
@@ -118,8 +127,29 @@ export function PlayerCard({ player, mode, onSelect, selected, compact, index = 
           <Flag nationality={player.nationality} className="text-2xl" />
         </div>
 
-        {/* surname — the hero element */}
-        <div className="flex flex-1 items-center justify-center" style={{ transform: "translateZ(20px)" }}>
+        {/* monogram + surname — no portrait, so the player's initials are set
+            on their club's own crest, which carries that club's real kit
+            pattern. Hidden in expert mode, where the crest would give the
+            club away before you've guessed. */}
+        <div className="flex flex-1 flex-col items-center justify-center gap-1.5" style={{ transform: "translateZ(20px)" }}>
+          {!expert && !compact && (
+            <div className="relative grid place-items-center" style={{ width: "44%" }}>
+              <ClubCrest colors={player.colors} seed={player.club} width="100%" textBacking />
+              <span
+                className="absolute font-display font-black leading-none"
+                style={{
+                  fontSize: "1.05rem",
+                  background: "linear-gradient(180deg, #ffffff 10%, #cfdcec 55%, #8593ab 100%)",
+                  WebkitBackgroundClip: "text",
+                  backgroundClip: "text",
+                  color: "transparent",
+                  textShadow: "0 1px 2px rgba(0,0,0,0.55)",
+                }}
+              >
+                {initials(player.name)}
+              </span>
+            </div>
+          )}
           <div className="max-w-full truncate text-center font-display text-2xl font-extrabold uppercase leading-tight text-white">
             {expert ? "???" : surname(player.name)}
           </div>

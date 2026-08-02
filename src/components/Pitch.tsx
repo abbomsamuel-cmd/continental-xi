@@ -7,6 +7,7 @@ import type { Formation, Player, Position } from "@/lib/types";
 import { suitability } from "@/lib/suitability";
 import { computeChemistryLinks } from "@/lib/chemistry";
 import { LineupCard, EmptyTile, type SlotState } from "@/components/LineupCard";
+import { projectSlot, projectPoint, projectPath } from "@/lib/pitch-projection";
 
 /** Pixel distance a pointer must travel before a press becomes a drag —
  *  below this it resolves as a normal tap (the guaranteed-working fallback). */
@@ -114,12 +115,10 @@ function PitchMosaic({ variant }: { variant: PitchVariant }) {
   );
 }
 
-// Map tactical coords (x,y 0-100, y=attack) into an inset play area. V6 uses a
-// TALL band (0.84 of the height) so the enlarged cards never crowd vertically,
-// paired with the hand-tuned formation coordinates in lib/formations.ts.
-function project(x: number, y: number): { left: string; top: string } {
-  return { left: `${8 + x * 0.84}%`, top: `${5 + (100 - y) * 0.84}%` };
-}
+// Positions come from lib/pitch-projection.ts — the board is drawn in
+// perspective, so the same projection has to serve the cards, the painted
+// markings, the chemistry lines and scripts/overlap-check.ts.
+const project = projectSlot;
 
 interface DragState {
   source: number;
@@ -288,24 +287,44 @@ export function Pitch({
         <div className="pointer-events-none absolute left-1/2 top-[46.5%] h-40 w-40 -translate-x-1/2 -translate-y-1/2 rounded-full" aria-hidden
           style={{ background: `radial-gradient(circle, ${board.accent}1c, transparent 68%)` }} />
 
-        {/* pitch markings — subtle, with a soft competition-accent glow */}
-        <svg viewBox="0 0 100 140" className="absolute inset-0 h-full w-full" preserveAspectRatio="none"
+        {/* pitch markings — projected, so the touchlines converge toward the
+            far end and the centre circle reads as an ellipse. Same projection
+            the cards use, so a card at a slot lands exactly on its spot. */}
+        <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full" preserveAspectRatio="none"
           style={{ filter: `drop-shadow(0 0 2.5px ${board.accent}88)` }}>
-          <g fill="none" stroke={board.line} strokeWidth={0.55}>
-            <rect x="5" y="5" width="90" height="130" rx="1" />
-            <line x1="5" y1="70" x2="95" y2="70" />
-            <circle cx="50" cy="70" r="11" />
-            <circle cx="50" cy="70" r="0.7" fill={board.line} />
-            <rect x="29" y="5" width="42" height="19" />
-            <rect x="29" y="116" width="42" height="19" />
-            <rect x="40" y="5" width="20" height="7" />
-            <rect x="40" y="128" width="20" height="7" />
-            <path d="M 42 24 A 9 9 0 0 0 58 24" />
-            <path d="M 42 116 A 9 9 0 0 1 58 116" />
-            <path d="M 5 9 A 4 4 0 0 0 9 5" />
-            <path d="M 91 5 A 4 4 0 0 0 95 9" />
-            <path d="M 9 135 A 4 4 0 0 0 5 131" />
-            <path d="M 95 131 A 4 4 0 0 0 91 135" />
+          {/* mown bands, converging with the perspective */}
+          <g opacity="0.5">
+            {Array.from({ length: 8 }).map((_, i) => (
+              i % 2 === 0 ? (
+                <polygon key={i} fill="rgba(255,255,255,0.035)"
+                  points={projectPath([[0, i * 12.5], [100, i * 12.5], [100, (i + 1) * 12.5], [0, (i + 1) * 12.5]])} />
+              ) : null
+            ))}
+          </g>
+          <g fill="none" stroke={board.line} strokeWidth={0.5} strokeLinejoin="round">
+            {/* touchlines + goal lines */}
+            <polygon points={projectPath([[2, 1], [98, 1], [98, 99], [2, 99]])} />
+            {/* halfway line */}
+            <polyline points={projectPath([[2, 50], [98, 50]])} />
+            {/* penalty boxes and six-yard boxes, near and far */}
+            <polygon points={projectPath([[24, 1], [76, 1], [76, 16], [24, 16]])} />
+            <polygon points={projectPath([[24, 99], [76, 99], [76, 84], [24, 84]])} />
+            <polygon points={projectPath([[38, 1], [62, 1], [62, 6], [38, 6]])} />
+            <polygon points={projectPath([[38, 99], [62, 99], [62, 94], [38, 94]])} />
+            {/* centre circle — sampled round, so perspective makes it an ellipse */}
+            <polygon points={projectPath(
+              Array.from({ length: 40 }, (_, i) => {
+                const a = (i / 40) * Math.PI * 2;
+                return [50 + Math.cos(a) * 13, 50 + Math.sin(a) * 9] as [number, number];
+              })
+            )} />
+          </g>
+          {/* centre spot + penalty spots */}
+          <g fill={board.line}>
+            {([[50, 50], [50, 11], [50, 89]] as [number, number][]).map(([x, y], i) => {
+              const q = projectPoint(x, y);
+              return <circle key={i} cx={q.leftPct} cy={q.topPct} r={0.45} />;
+            })}
           </g>
         </svg>
       </div>
@@ -315,13 +334,12 @@ export function Pitch({
       {chemLinks.length > 0 && (
         <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="pointer-events-none absolute inset-0 z-[5] h-full w-full" aria-hidden>
           {chemLinks.map((link, i) => {
-            const a = project(formation.slots[link.a].x, formation.slots[link.a].y);
-            const b = project(formation.slots[link.b].x, formation.slots[link.b].y);
-            const num = (s: string) => parseFloat(s);
+            const a = projectPoint(formation.slots[link.a].x, formation.slots[link.a].y);
+            const b = projectPoint(formation.slots[link.b].x, formation.slots[link.b].y);
             return (
               <line
                 key={i}
-                x1={num(a.left)} y1={num(a.top)} x2={num(b.left)} y2={num(b.top)}
+                x1={a.leftPct} y1={a.topPct} x2={b.leftPct} y2={b.topPct}
                 stroke={link.strength === 3 ? "#2ee6a6" : "#ffcf5c"}
                 strokeWidth={link.strength === 3 ? 0.6 : 0.4}
                 strokeOpacity={link.strength === 3 ? 0.65 : 0.4}
@@ -357,8 +375,16 @@ export function Pitch({
           <div
             key={i}
             data-slot-index={i}
-            className="absolute z-10 -translate-x-1/2 -translate-y-1/2"
-            style={{ left: pos.left, top: pos.top, opacity: info.dim ? 0.3 : isDragSource ? 0.35 : 1 }}
+            className="absolute"
+            style={{
+              left: pos.left,
+              top: pos.top,
+              // scale with depth, and layer nearer cards above farther ones so
+              // the overlap of a tall card with the grass behind it reads right
+              transform: `translate(-50%, -50%) scale(${pos.scale})`,
+              zIndex: 10 + Math.round((1 - pos.depth) * 10),
+              opacity: info.dim ? 0.3 : isDragSource ? 0.35 : 1,
+            }}
           >
             <button
               type="button"

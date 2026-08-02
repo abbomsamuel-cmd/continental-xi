@@ -6,6 +6,7 @@ import type { GameMode, Player } from "@/lib/types";
 import { Flag } from "@/components/Flag";
 import { ClubCrest } from "@/components/ClubCrest";
 import { RemoteBadge } from "@/components/RemoteBadge";
+import { clubBadgeUrlFor, flagUrlFor } from "@/lib/badge-sources";
 import { SHIELD_CLIP, CARD_MOSAIC } from "@/lib/cardShape";
 
 function surname(name: string): string {
@@ -51,6 +52,10 @@ export function PlayerCard({ player, mode, onSelect, selected, compact, index = 
   const expert = mode === "expert";
   const [c1] = player.colors;
   const rColor = ratingColor(player.overall);
+  // an explicit URL on the player wins; otherwise ask the shared source map,
+  // which is empty until someone hooks one up
+  const flagSrc = player.nationFlagUrl ?? flagUrlFor(player.nationality);
+  const crestSrc = player.clubBadgeUrl ?? clubBadgeUrlFor(player.club);
 
   const ref = useRef<HTMLButtonElement>(null);
   const rx = useMotionValue(0);
@@ -100,7 +105,11 @@ export function PlayerCard({ player, mode, onSelect, selected, compact, index = 
         className="absolute inset-0"
         style={{ background: `linear-gradient(150deg, ${rColor}, ${c1})`, clipPath: SHIELD_CLIP }}
       />
-      <div className="relative flex h-full flex-col px-4 pb-[15%] pt-4"
+      {/* The shield clip runs full-width only to 72% of the height, then
+          tapers to a point. Padding is in PERCENT, not rems, so the safe
+          area scales with the card instead of drifting at large sizes —
+          full-width content below ~76% gets its edges cut off. */}
+      <div className="relative flex h-full flex-col px-[8%] pb-[24%] pt-[6%]"
         style={{ background: "linear-gradient(165deg, #182233 0%, #0a0e17 78%)", clipPath: SHIELD_CLIP }}>
         {/* per-competition background texture */}
         <span aria-hidden className="pointer-events-none absolute inset-0" style={{ backgroundImage: CARD_MOSAIC[variant] }} />
@@ -111,8 +120,8 @@ export function PlayerCard({ player, mode, onSelect, selected, compact, index = 
           style={{ background: sheenBg, clipPath: SHIELD_CLIP }}
         />
 
-        {/* header: rating + position, nation flag */}
-        <div className="flex items-start justify-between" style={{ transform: "translateZ(30px)" }}>
+        {/* header: rating, position and flag stacked left; club crest right */}
+        <div className="flex items-start justify-between gap-2" style={{ transform: "translateZ(30px)" }}>
           <div className="leading-none">
             {!expert ? (
               <div className="font-display text-4xl font-extrabold" style={{ color: rColor }}>
@@ -124,47 +133,54 @@ export function PlayerCard({ player, mode, onSelect, selected, compact, index = 
             <div className="mt-1 text-[0.62rem] font-bold tracking-widest text-muted">
               {player.position}
             </div>
+            <RemoteBadge
+              src={flagSrc}
+              alt={player.nationality}
+              width="1.6rem"
+              className="mt-1.5 rounded-[2px] object-contain drop-shadow-md"
+            >
+              <Flag nationality={player.nationality} className="mt-1.5 block text-xl drop-shadow-md" />
+            </RemoteBadge>
           </div>
-          <RemoteBadge src={player.nationFlagUrl} alt={player.nationality} width="1.9rem" className="rounded-[2px] shadow">
-            <Flag nationality={player.nationality} className="text-2xl" />
-          </RemoteBadge>
+
+          {/* club crest — hidden in expert mode, where it would give the club
+              away before you've had a chance to guess the player */}
+          {!expert && !compact && (
+            <RemoteBadge
+              src={crestSrc}
+              alt={player.club}
+              width="2.4rem"
+              className="object-contain drop-shadow-md"
+            >
+              <div className="relative grid place-items-center drop-shadow-md" style={{ width: "2.4rem" }}>
+                <ClubCrest colors={player.colors} seed={player.club} width="100%" textBacking />
+                <span
+                  className="absolute font-display font-black leading-none"
+                  style={{
+                    fontSize: "0.66rem",
+                    background: "linear-gradient(180deg, #ffffff 10%, #cfdcec 55%, #8593ab 100%)",
+                    WebkitBackgroundClip: "text",
+                    backgroundClip: "text",
+                    color: "transparent",
+                    textShadow: "0 1px 2px rgba(0,0,0,0.55)",
+                  }}
+                >
+                  {initials(player.name)}
+                </span>
+              </div>
+            </RemoteBadge>
+          )}
         </div>
 
-        {/* monogram + surname — no portrait, so the player's initials are set
-            on their club's own crest, which carries that club's real kit
-            pattern. Hidden in expert mode, where the crest would give the
-            club away before you've guessed. */}
-        <div className="flex flex-1 flex-col items-center justify-center gap-1.5" style={{ transform: "translateZ(20px)" }}>
-          {!expert && !compact && (
-            <div className="relative grid place-items-center" style={{ width: "44%" }}>
-              <RemoteBadge src={player.clubBadgeUrl} alt={player.club} width="100%">
-                <>
-                  <ClubCrest colors={player.colors} seed={player.club} width="100%" textBacking />
-                  <span
-                    className="absolute font-display font-black leading-none"
-                    style={{
-                      fontSize: "1.05rem",
-                      background: "linear-gradient(180deg, #ffffff 10%, #cfdcec 55%, #8593ab 100%)",
-                      WebkitBackgroundClip: "text",
-                      backgroundClip: "text",
-                      color: "transparent",
-                      textShadow: "0 1px 2px rgba(0,0,0,0.55)",
-                    }}
-                  >
-                    {initials(player.name)}
-                  </span>
-                </>
-              </RemoteBadge>
-            </div>
-          )}
+        {/* surname — the hero element */}
+        <div className="flex flex-1 items-center justify-center" style={{ transform: "translateZ(20px)" }}>
           <div className="max-w-full truncate text-center font-display text-2xl font-extrabold uppercase leading-tight text-white">
             {expert ? "???" : surname(player.name)}
           </div>
         </div>
 
-        {/* the six attributes — already on every player, never shown until now.
-            Hidden in expert mode (where the whole point is guessing) and on
-            compact cards, which are too small to read them. */}
+        {/* the six attributes. Sits inside the shield's full-width band —
+            anything below ~76% of the height gets clipped by the taper. */}
         {!expert && !compact && (
           <div
             className="mb-1 grid grid-cols-3 gap-x-1 gap-y-0.5"

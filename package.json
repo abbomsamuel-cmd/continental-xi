@@ -9,6 +9,7 @@
     "lint": "eslint",
     "simtest": "tsx scripts/simtest.ts",
     "tacticstest": "tsx scripts/tactics-check.ts",
+    "crestaudit": "tsx scripts/crest-audit.tsx",
     "deploy": "next build && wrangler pages deploy out --project-name=continentalxi --branch main --commit-dirty=true"
   },
   "dependencies": {

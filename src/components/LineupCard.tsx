@@ -39,7 +39,7 @@ function surname(name: string): string {
 }
 
 /** Tiny original club crest (split shield + star) or nation flag (diagonal bicolor). */
-function MiniBadge({ colors, kind, w }: { colors: [string, string]; kind: BadgeKind; w: string }) {
+function MiniBadge({ colors, kind, w, club }: { colors: [string, string]; kind: BadgeKind; w: string; club?: string }) {
   if (kind === "flag") {
     const id = `fclip-${colors[0].replace("#", "")}-${colors[1].replace("#", "")}`;
     return (
@@ -53,7 +53,7 @@ function MiniBadge({ colors, kind, w }: { colors: [string, string]; kind: BadgeK
       </svg>
     );
   }
-  return <ClubCrest colors={colors} width={w} />;
+  return <ClubCrest colors={colors} seed={club} width={w} />;
 }
 
 const SELECTED_EDGE = "rgba(0,240,255,0.95)";
@@ -239,7 +239,7 @@ export function LineupCard({
             <div className="flex flex-col items-end" style={{ gap: "2.5cqw" }}>
               <Flag nationality={nationality} style={{ fontSize: "12cqw" }} className="rounded-[1.5px] shadow" />
               {badgeKind === "crest"
-                ? <MiniBadge colors={colors} kind="crest" w="13cqw" />
+                ? <MiniBadge colors={colors} kind="crest" w="13cqw" club={clubLabel} />
                 : !hasFlag && <MiniBadge colors={colors} kind="flag" w="14cqw" />}
             </div>
           </div>

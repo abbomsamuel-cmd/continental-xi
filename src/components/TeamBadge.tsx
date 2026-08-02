@@ -16,7 +16,7 @@ export function TeamBadge({
   }
   return (
     <span className="inline-grid shrink-0 place-items-center" style={{ width: size, height: size }}>
-      <ClubCrest colors={colors} seed={code} width={size} showDevice={false} className="[grid-area:1/1]" />
+      <ClubCrest colors={colors} seed={code} width={size} textBacking className="[grid-area:1/1]" />
       <span
         className="[grid-area:1/1] font-display font-extrabold text-white"
         style={{ fontSize: size * 0.26, textShadow: "0 1px 3px rgba(0,0,0,0.85)" }}

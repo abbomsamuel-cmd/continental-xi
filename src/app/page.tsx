@@ -48,7 +48,7 @@ function StandBand() {
   }, []);
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 top-0 h-[24%] min-h-[130px] overflow-hidden" aria-hidden>
+    <div className="pointer-events-none absolute inset-x-0 top-0 h-[31%] min-h-[150px] overflow-hidden" aria-hidden>
       <svg viewBox="0 0 1200 260" preserveAspectRatio="xMidYMax slice" className="absolute inset-x-0 bottom-0 h-full w-full">
         <defs>
           <linearGradient id="standsGrad" x1="0" y1="0" x2="0" y2="1">
@@ -97,47 +97,73 @@ function StandBand() {
   );
 }
 
-/** The grass filling the rest of the hero — mown stripes, a floodlight
- *  wash near the stands, and the pitch markings around the kickoff spot
- *  where the player stands. Pure CSS + one small line-art SVG overlay. */
+/** The pitch in true first-person perspective — a real CSS 3D ground
+ *  plane tilted away from the camera, so the mown stripes and markings
+ *  converge toward the horizon exactly the way grass does when you're
+ *  standing on it. The horizon sits at HORIZON%, where the stands end. */
+const HORIZON = 30;
+
+/** The single tone the hero's bottom fade and the page's top fade both
+ *  resolve to. Because both gradients hit it at full opacity, the join
+ *  between the pitch and the rest of the page is invisible. */
+const PAGE_SEAM = "#04070e";
+
 function GrassField() {
   return (
     <div
-      className="pointer-events-none absolute inset-x-0 bottom-0 top-[24%] min-h-0 overflow-hidden"
+      className="pointer-events-none absolute inset-0 overflow-hidden"
       aria-hidden
-      style={{
-        background: [
-          "repeating-linear-gradient(100deg, rgba(255,255,255,0.05) 0 46px, rgba(0,0,0,0.05) 46px 92px)",
-          "radial-gradient(140% 60% at 50% 0%, rgba(0,240,255,0.14), transparent 55%)",
-          "linear-gradient(180deg, #0f6b3a 0%, #0c4d2b 45%, #082a19 100%)",
-        ].join(", "),
-      }}
+      style={{ perspective: "620px", perspectiveOrigin: `50% ${HORIZON}%` }}
     >
-      <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full opacity-70">
-        <line x1="3" y1="42" x2="97" y2="42" stroke="rgba(255,255,255,0.4)" strokeWidth="0.4" />
-        <circle cx="50" cy="42" r="9" stroke="rgba(255,255,255,0.4)" strokeWidth="0.4" fill="none" />
-        <circle cx="50" cy="42" r="0.6" fill="rgba(255,255,255,0.5)" />
-      </svg>
-      {/* the touchline glow, where the floodlights hit the grass */}
-      <div className="absolute inset-x-0 top-0 h-1/2" style={{ background: "radial-gradient(60% 80% at 50% 0%, rgba(0,230,118,0.16), transparent 70%)" }} />
+      {/* the ground plane: hinged along the horizon line and laid down
+          toward the camera, so everything on it gets real perspective */}
+      <div
+        className="absolute left-1/2 w-[320%] -translate-x-1/2"
+        style={{
+          top: `${HORIZON}%`,
+          height: "400%",
+          transformOrigin: "50% 0%",
+          transform: "rotateX(76deg)",
+          background: [
+            // mown stripes — these converge toward the horizon on their own
+            "repeating-linear-gradient(90deg, rgba(255,255,255,0.06) 0 90px, rgba(0,0,0,0.05) 90px 180px)",
+            // lit near the stands, falling into shadow in the foreground
+            "linear-gradient(180deg, #12703f 0%, #0c4d2b 38%, #072a18 100%)",
+          ].join(", "),
+        }}
+      >
+        {/* markings live in the same 3D plane, so they share the perspective */}
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full opacity-60">
+          <line x1="0" y1="14" x2="100" y2="14" stroke="rgba(255,255,255,0.55)" strokeWidth="0.35" />
+          <circle cx="50" cy="14" r="13" stroke="rgba(255,255,255,0.5)" strokeWidth="0.35" fill="none" />
+          <circle cx="50" cy="14" r="0.5" fill="rgba(255,255,255,0.6)" />
+          <rect x="24" y="-14" width="52" height="17" stroke="rgba(255,255,255,0.4)" strokeWidth="0.35" fill="none" />
+        </svg>
+      </div>
+
+      {/* floodlight wash spilling down from the stands onto the turf */}
+      <div className="absolute inset-x-0" style={{ top: `${HORIZON}%`, height: "45%", background: "radial-gradient(70% 100% at 50% 0%, rgba(0,240,255,0.16), transparent 70%)" }} />
+      {/* haze along the horizon so the far grass melts into the bowl */}
+      <div className="absolute inset-x-0" style={{ top: `${HORIZON - 6}%`, height: "16%", background: "linear-gradient(180deg, rgba(10,26,48,0.85), transparent)" }} />
     </div>
   );
 }
 
-/** The player — you — standing on the kickoff spot facing out at the
- *  options around you. Deliberately abstract/iconic, not a literal
- *  figure, so it reads clean at any size. */
-function PlayerMark() {
+/** First-person presence — you don't see an avatar, you see your own
+ *  shadow cast on the grass at your feet, which is what sells "I am
+ *  standing here" without putting a character in front of the camera. */
+function StandingShadow() {
   return (
-    <div className="absolute left-1/2 z-10 -translate-x-1/2" style={{ top: "58%" }} aria-hidden>
-      <motion.div animate={{ y: [0, -4, 0] }} transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}>
-        <svg width="52" height="76" viewBox="0 0 52 76" className="drop-shadow-[0_8px_20px_rgba(0,0,0,0.5)]">
-          <ellipse cx="26" cy="72" rx="16" ry="4" fill="rgba(0,0,0,0.35)" />
-          <circle cx="26" cy="12" r="9" fill="#0f172a" stroke="#00f0ff" strokeWidth="1.4" opacity="0.92" />
-          <path d="M12 26c0-6 6-10 14-10s14 4 14 10l-3 24h-9l-1-14-1 14h-9z" fill="#0f172a" stroke="#00f0ff" strokeWidth="1.2" opacity="0.92" />
-          <path d="M15 50l-4 20M37 50l4 20" stroke="#00f0ff" strokeWidth="2" strokeLinecap="round" opacity="0.7" />
-        </svg>
-      </motion.div>
+    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[26%] overflow-hidden" aria-hidden>
+      <div
+        className="absolute left-1/2 -translate-x-1/2"
+        style={{
+          bottom: "-8%",
+          width: "min(46vw, 420px)",
+          height: "70%",
+          background: "radial-gradient(50% 50% at 50% 50%, rgba(0,0,0,0.55), transparent 70%)",
+        }}
+      />
     </div>
   );
 }
@@ -210,30 +236,52 @@ interface Tile {
   size?: "lg" | "md";
 }
 
-function ModePin({ tile, onEnter }: { tile: Tile; onEnter: (tile: Tile) => void }) {
-  const lg = tile.size === "lg";
+function ModePin({ tile, onEnter, index }: { tile: Tile; onEnter: (tile: Tile) => void; index: number }) {
+  // depth from screen position: pins low in the frame are near the camera
+  // and render large, pins up by the horizon are far and render small —
+  // the same perspective the ground plane underneath them is using
+  const depth = Math.max(0, Math.min(1, (tile.pos.y - HORIZON - 6) / 50));
+  const scale = 0.72 + depth * 0.46;
+
+  // NOTE: positioning lives on this wrapper, never on the motion element —
+  // Framer Motion owns `transform` on anything it animates and would
+  // otherwise wipe out the centering and the depth scale.
   return (
-    <button
-      type="button"
-      onClick={() => { play("select"); onEnter(tile); }}
-      className="group absolute z-10 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-2"
-      style={{ left: `${tile.pos.x}%`, top: `${tile.pos.y}%` }}
+    <div
+      className="absolute"
+      style={{
+        left: `${tile.pos.x}%`,
+        top: `${tile.pos.y}%`,
+        transform: `translate(-50%, -50%) scale(${scale})`,
+        zIndex: 10 + Math.round(depth * 10),
+      }}
     >
-      <span aria-hidden className="pointer-events-none absolute inset-0 animate-ping rounded-full"
-        style={{ background: tile.ring, opacity: 0.3 }} />
-      <span
-        className={`relative flex shrink-0 items-center justify-center rounded-full text-2xl transition-transform duration-300 group-hover:scale-110 group-active:scale-95 sm:text-3xl ${lg ? "h-20 w-20 sm:h-24 sm:w-24" : "h-14 w-14 sm:h-16 sm:w-16"}`}
-        style={{ background: tile.gradient, boxShadow: `${tile.glow}, 0 0 0 2px ${tile.ring} inset` }}
+      <motion.button
+        type="button"
+        onClick={() => { play("select"); onEnter(tile); }}
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.25 + index * 0.09, type: "spring", stiffness: 160, damping: 18 }}
+        className="group flex flex-col items-center gap-2"
       >
-        {tile.icon}
-        {tile.badge && (
-          <span className="absolute -right-1 -top-1 rounded-full bg-white px-1.5 py-0.5 text-[0.5rem] font-black text-black">{tile.badge}</span>
-        )}
-      </span>
-      <span className="whitespace-nowrap rounded-full bg-black/55 px-3 py-1 text-[0.62rem] font-bold uppercase tracking-[0.14em] text-white backdrop-blur-sm">
-        {tile.title}
-      </span>
-    </button>
+        {/* the pin's own shadow on the grass — plants it on the pitch */}
+        <span aria-hidden className="pointer-events-none absolute left-1/2 -z-10 h-4 -translate-x-1/2 rounded-[50%]"
+          style={{ bottom: -10, width: tile.size === "lg" ? 92 : 62, background: "radial-gradient(50% 50% at 50% 50%, rgba(0,0,0,0.55), transparent 70%)" }} />
+        <span
+          className={`relative flex shrink-0 items-center justify-center rounded-full text-2xl transition-transform duration-300 group-hover:scale-110 group-active:scale-95 sm:text-3xl ${tile.size === "lg" ? "h-20 w-20 sm:h-24 sm:w-24" : "h-14 w-14 sm:h-16 sm:w-16"}`}
+          style={{ background: tile.gradient, boxShadow: `${tile.glow}, 0 0 0 2px ${tile.ring} inset` }}
+        >
+          <span aria-hidden className="absolute inset-0 animate-ping rounded-full opacity-25" style={{ background: tile.ring }} />
+          <span className="relative">{tile.icon}</span>
+          {tile.badge && (
+            <span className="absolute -right-1 -top-1 rounded-full bg-white px-1.5 py-0.5 text-[0.5rem] font-black text-black">{tile.badge}</span>
+          )}
+        </span>
+        <span className="whitespace-nowrap rounded-full bg-black/55 px-3 py-1 text-[0.62rem] font-bold uppercase tracking-[0.14em] text-white backdrop-blur-sm">
+          {tile.title}
+        </span>
+      </motion.button>
+    </div>
   );
 }
 
@@ -389,28 +437,28 @@ export default function Home() {
       cta: anyCareer ? t("home.tile.continue") : t("home.tile.play"), badge: anyCareer ? undefined : t("home.tile.new"),
       gradient: "linear-gradient(150deg, #2e1065 0%, #4c1d95 48%, #6d28d9 78%, #ffd700 145%)",
       glow: "0 14px 46px rgba(109,40,217,0.4)", ring: "rgba(216,180,254,0.5)",
-      pos: { x: 18, y: 55 },
+      pos: { x: 22, y: 74 },
     },
     {
       href: "/draft", icon: "🏆", kicker: t("home.tile.cl.kicker"), title: "Champions League",
       tag: t("home.tile.cl.tag"), cta: t("home.tile.play"),
       gradient: "linear-gradient(150deg, #05070d 0%, #0f172a 45%, #0e5f6b 85%, #00f0ff 145%)",
       glow: "0 14px 46px rgba(0,240,255,0.32)", ring: "rgba(0,240,255,0.5)",
-      pos: { x: 50, y: 32 }, size: "lg",
+      pos: { x: 50, y: 57 }, size: "lg",
     },
     {
       href: "/international?comp=euro", icon: "🇪🇺", kicker: t("home.tile.euro.kicker"), title: "UEFA EURO",
       tag: t("home.tile.euro.tag"), cta: t("home.tile.play"),
       gradient: "linear-gradient(150deg, #050d2e 0%, #10236e 45%, #1b3fd0 78%, #ff3b57 145%)",
       glow: "0 14px 40px rgba(255,59,87,0.32)", ring: "rgba(255,59,87,0.5)",
-      pos: { x: 82, y: 55 },
+      pos: { x: 78, y: 74 },
     },
     {
       href: "/international?comp=copa", icon: "🌎", kicker: t("home.tile.copa.kicker"), title: "Copa América",
       tag: t("home.tile.copa.tag"), cta: t("home.tile.play"),
       gradient: "linear-gradient(150deg, #06251a 0%, #0a3520 45%, #0f6d43 78%, #ffd700 145%)",
       glow: "0 14px 40px rgba(255,215,0,0.3)", ring: "rgba(255,215,0,0.5)",
-      pos: { x: 30, y: 80 },
+      pos: { x: 19, y: 46 },
     },
     {
       href: "/daily", icon: "📅", kicker: t("home.tile.daily.kicker"), title: t("home.daily.kicker"),
@@ -418,7 +466,7 @@ export default function Home() {
       cta: dailyPlayed ? t("home.daily.viewResult") : t("home.tile.play"),
       gradient: "linear-gradient(150deg, #451a03 0%, #78350f 45%, #b45309 80%, #ffd700 145%)",
       glow: "0 14px 40px rgba(255,215,0,0.3)", ring: "rgba(255,215,0,0.5)",
-      pos: { x: 70, y: 80 },
+      pos: { x: 81, y: 46 },
     },
   ];
 
@@ -438,7 +486,7 @@ export default function Home() {
       <section className="relative h-[100dvh] min-h-[640px] overflow-hidden">
         <StandBand />
         <GrassField />
-        <PlayerMark />
+        <StandingShadow />
 
         <div className="absolute left-4 top-20 z-20 sm:left-6 sm:top-24">
           <motion.div initial={{ y: 14, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
@@ -460,22 +508,37 @@ export default function Home() {
           </motion.div>
         </div>
 
-        {/* the modes — glowing markers scattered around the player, tap one to walk on */}
-        {tiles.map((tile) => (
-          <ModePin key={tile.title} tile={tile} onEnter={setEntering} />
+        {/* the modes — markers standing out on the grass around you, each
+            scaled by how far down the pitch it sits */}
+        {tiles.map((tile, i) => (
+          <ModePin key={tile.title} tile={tile} onEnter={setEntering} index={i} />
         ))}
 
+        {/* the near edge of the pitch falls into shadow, and the page
+            continues out of that shadow — the two gradients below meet at
+            the same solid tone so the hero and the content are one surface */}
+        <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-[34%]"
+          style={{ background: `linear-gradient(to bottom, transparent, ${PAGE_SEAM} 88%, ${PAGE_SEAM})` }} />
+
         <motion.div
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
-          className="absolute inset-x-0 bottom-6 z-20 flex justify-center"
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.9 }}
+          className="absolute inset-x-0 bottom-6 z-20 flex flex-col items-center gap-2"
         >
           <span className="rounded-full bg-black/40 px-3.5 py-1.5 text-[0.6rem] font-bold uppercase tracking-[0.3em] text-white/60 backdrop-blur-sm">
             {t("home.play.kicker")}
           </span>
+          <motion.span aria-hidden className="text-white/40"
+            animate={{ y: [0, 5, 0] }} transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}>
+            ⌄
+          </motion.span>
         </motion.div>
       </section>
 
-      <div className="mx-auto max-w-7xl px-4 pt-8 sm:pt-10 lg:px-6">
+      {/* …and out the other side of that shadow, into the page */}
+      <div aria-hidden className="pointer-events-none h-32 w-full"
+        style={{ background: `linear-gradient(to bottom, ${PAGE_SEAM}, transparent)`, marginBottom: "-8rem" }} />
+
+      <div className="relative mx-auto max-w-7xl px-4 pt-8 sm:pt-10 lg:px-6">
         {/* quick links */}
         <div className="flex justify-end gap-2">
           <Link href="/history" onClick={() => play("click")} className="glass flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[0.66rem] font-extrabold uppercase tracking-wider text-white/75 transition-colors hover:text-white">📜 {t("home.more.history")}</Link>

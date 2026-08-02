@@ -415,9 +415,9 @@ function ModeCard({
       onClick={() => { play("select"); onEnter(tile); }}
       onPointerEnter={onFocus}
       onFocus={onFocus}
-      animate={{ y: active ? -14 : 0, scale: active ? 1.06 : 0.94 }}
+      animate={{ y: active ? -18 : 0, scale: active ? 1.07 : 0.93 }}
       transition={{ type: "spring", stiffness: 260, damping: 24 }}
-      className="group relative flex w-[122px] shrink-0 snap-center flex-col items-center gap-2 rounded-2xl px-3 py-3.5 text-center sm:w-[138px]"
+      className="group relative flex w-[152px] shrink-0 snap-center flex-col items-center gap-2.5 rounded-2xl px-4 py-5 text-center sm:w-[184px]"
       style={{
         background: active ? "rgba(11,20,36,0.9)" : "rgba(9,16,28,0.62)",
         border: `1px solid ${active ? tile.ring : "rgba(148,170,205,0.16)"}`,
@@ -426,8 +426,8 @@ function ModeCard({
       }}
       aria-current={active ? "true" : undefined}
     >
-      <ModeEmblem tile={tile} size={active ? 40 : 34} />
-      <span className="whitespace-nowrap text-[0.58rem] font-bold uppercase leading-tight tracking-[0.13em] text-white">
+      <ModeEmblem tile={tile} size={active ? 58 : 48} />
+      <span className="whitespace-nowrap text-[0.72rem] font-bold uppercase leading-tight tracking-[0.12em] text-white sm:text-[0.78rem]">
         {tile.title}
       </span>
       {tile.badge && (
@@ -464,10 +464,10 @@ function ModeRail({
   };
 
   return (
-    <div className="absolute inset-x-0 z-20" style={{ bottom: "15%" }}>
+    <div className="absolute inset-x-0 z-20" style={{ bottom: "31%" }}>
       <div className="relative mx-auto flex max-w-4xl items-center gap-2 px-3">
         <button type="button" onClick={() => go(-1)} aria-label="Previous mode" disabled={active === 0}
-          className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/15 bg-black/45 text-lg text-white backdrop-blur-sm transition hover:bg-black/65 disabled:opacity-25 md:flex">
+          className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-full border border-white/15 bg-black/45 text-2xl text-white backdrop-blur-sm transition hover:bg-black/65 disabled:opacity-25 md:flex">
           &lsaquo;
         </button>
 
@@ -479,7 +479,7 @@ function ModeRail({
         </div>
 
         <button type="button" onClick={() => go(1)} aria-label="Next mode" disabled={active === tiles.length - 1}
-          className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/15 bg-black/45 text-lg text-white backdrop-blur-sm transition hover:bg-black/65 disabled:opacity-25 md:flex">
+          className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-full border border-white/15 bg-black/45 text-2xl text-white backdrop-blur-sm transition hover:bg-black/65 disabled:opacity-25 md:flex">
           &rsaquo;
         </button>
       </div>
@@ -489,7 +489,7 @@ function ModeRail({
           key={tiles[active]?.title}
           initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
           transition={{ duration: 0.2 }}
-          className="mt-1 px-6 text-center text-[0.72rem] font-medium text-white/70"
+          className="mt-2 px-6 text-center text-[0.82rem] font-medium text-white/75"
         >
           {tiles[active]?.tag}
         </motion.p>

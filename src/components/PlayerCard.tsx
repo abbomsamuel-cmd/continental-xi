@@ -4,7 +4,7 @@ import { useRef, type PointerEvent as ReactPointerEvent } from "react";
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import type { GameMode, Player } from "@/lib/types";
 import { Flag } from "@/components/Flag";
-import { SHIELD_CLIP } from "@/lib/cardShape";
+import { SHIELD_CLIP, CARD_MOSAIC } from "@/lib/cardShape";
 
 function surname(name: string): string {
   const parts = name.trim().split(/\s+/);
@@ -25,12 +25,13 @@ interface Props {
   selected?: boolean;
   compact?: boolean;
   index?: number;
+  variant?: "cl" | "euro" | "copa";
 }
 
 /** FUT-style minimal draft card: rating, position, surname, nation flag,
  *  season — no invented club badge, no fabricated portrait. A 3D tilt
  *  follows the pointer, like a physical card catching the light. */
-export function PlayerCard({ player, mode, onSelect, selected, compact, index = 0 }: Props) {
+export function PlayerCard({ player, mode, onSelect, selected, compact, index = 0, variant = "cl" }: Props) {
   const expert = mode === "expert";
   const [c1] = player.colors;
   const rColor = ratingColor(player.overall);
@@ -85,6 +86,8 @@ export function PlayerCard({ player, mode, onSelect, selected, compact, index = 
       />
       <div className="relative flex h-full flex-col px-4 pb-[15%] pt-4"
         style={{ background: "linear-gradient(165deg, #182233 0%, #0a0e17 78%)", clipPath: SHIELD_CLIP }}>
+        {/* per-competition background texture */}
+        <span aria-hidden className="pointer-events-none absolute inset-0" style={{ backgroundImage: CARD_MOSAIC[variant] }} />
         {/* diagonal metallic sheen, follows the tilt */}
         <motion.div
           aria-hidden

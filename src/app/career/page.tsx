@@ -57,12 +57,21 @@ function ovrStyle(ovr: number): { bg: string; fg: string } {
   if (ovr >= 67) return { bg: "linear-gradient(135deg,#9aa3b2,#6f7a8c)", fg: "#0c111c" };
   return { bg: "linear-gradient(135deg,#e6a25b,#cf7d33)", fg: "#2a1600" };
 }
-function OvrBadge({ value, size = 34 }: { value: number; size?: number }) {
+function OvrBadge({ value, size = 34, labeled = false }: { value: number; size?: number; labeled?: boolean }) {
   const s = ovrStyle(value);
+  if (!labeled) {
+    return (
+      <span className="grid shrink-0 place-items-center rounded-lg font-display font-black"
+        style={{ width: size, height: size, background: s.bg, color: s.fg, fontSize: size * 0.42 }}>
+        {value}
+      </span>
+    );
+  }
   return (
-    <span className="grid shrink-0 place-items-center rounded-lg font-display font-black"
-      style={{ width: size, height: size, background: s.bg, color: s.fg, fontSize: size * 0.42 }}>
-      {value}
+    <span className="flex shrink-0 flex-col items-center justify-center rounded-xl leading-none"
+      style={{ width: size, height: size * 1.05, background: s.bg, color: s.fg }}>
+      <span className="text-[0.5rem] font-bold uppercase tracking-widest opacity-70">OVR</span>
+      <span className="mt-0.5 font-display font-black" style={{ fontSize: size * 0.4 }}>{value}</span>
     </span>
   );
 }
@@ -147,7 +156,7 @@ function Career({ player }: { player: CareerPlayer }) {
           <div className="rounded-2xl border border-white/10 bg-[#0c0c10] p-4 sm:p-5">
             {/* identity */}
             <div className="flex items-start gap-3">
-              <OvrBadge value={player.overall} size={58} />
+              <OvrBadge value={player.overall} size={54} labeled />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
                   <CountryFlag country={player.nationality} size={14} />

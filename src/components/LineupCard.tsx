@@ -29,7 +29,7 @@ import type { PitchVariant } from "@/components/Pitch";
 import { Flag } from "@/components/Flag";
 import { flagCodeFor } from "@/lib/flags";
 import { ClubCrest } from "@/components/ClubCrest";
-import { SHIELD_CLIP } from "@/lib/cardShape";
+import { SHIELD_CLIP, CARD_MOSAIC } from "@/lib/cardShape";
 import { fxLevel } from "@/lib/fx";
 
 export type BadgeKind = "crest" | "flag";
@@ -217,6 +217,8 @@ export function LineupCard({
           }}
         >
         <div className="relative flex h-full flex-col overflow-hidden" style={{ background: s.card, clipPath: SHIELD_CLIP }}>
+          {/* per-competition background texture */}
+          <span aria-hidden className="pointer-events-none absolute inset-0" style={{ backgroundImage: CARD_MOSAIC[variant] }} />
           {/* soft studio light from above */}
           <span aria-hidden className="pointer-events-none absolute inset-0"
             style={{ background: "radial-gradient(120% 44% at 50% -12%, rgba(255,255,255,0.16), transparent 60%)" }} />

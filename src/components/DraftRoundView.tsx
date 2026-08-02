@@ -338,6 +338,7 @@ export function DraftRoundView() {
                       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-2">
                         {offered.map((p, i) => (
                           <PlayerCard key={p.id} player={p} mode={setup.mode} index={i}
+                            variant={pool === "clubs" ? "cl" : pool}
                             onSelect={() => { setPlacing(p); play("click"); scrollToPitch(); }} />
                         ))}
                       </div>

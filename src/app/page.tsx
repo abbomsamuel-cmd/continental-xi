@@ -12,7 +12,7 @@ import { ReportBug } from "@/components/ReportBug";
 import { useGame } from "@/lib/store";
 import { useCurrentPlayer } from "@/lib/career/store";
 import { useHydrated } from "@/lib/useHydrated";
-import { useFxLevel } from "@/lib/fx";
+import { fxCount, useFxLevel } from "@/lib/fx";
 import { useT } from "@/lib/i18n";
 import { ACHIEVEMENTS } from "@/lib/achievements";
 import { play } from "@/lib/sound";
@@ -52,16 +52,40 @@ function StadiumMasthead({ theme, entering }: { theme: StadiumTheme; entering: b
 /*  Stadium scene behind the hub — you're in the stands looking down    */
 /*  at a lit pitch; the mode tiles below read as "matches on tonight".  */
 /* ------------------------------------------------------------------ */
+// the bowl's roofline, in one continuous curve — tall at the very edges
+// (the near-side stands, foreshortened and closest to us) and at the
+// centre (the far stand), dipping at the two corner vomitories between
+// them. Reused for the stand fill, the tier dividers, the LED fascia and
+// the crowd clip, so every layer wraps the same shape.
+const STAND_ROOFLINE = "M-40 460 L-40 55 Q 130 100 260 170 Q 430 100 600 95 Q 770 100 940 170 Q 1070 100 1200 55 L1200 460 Z";
+const STAND_ROOFLINE_STROKE = "M-40 55 Q 130 100 260 170 Q 430 100 600 95 Q 770 100 940 170 Q 1070 100 1200 55";
+
+function tierDivider(offset: number): string {
+  return `M-40 ${55 + offset} Q 130 ${100 + offset} 260 ${170 + offset} Q 430 ${100 + offset} 600 ${95 + offset} Q 770 ${100 + offset} 940 ${170 + offset} Q 1070 ${100 + offset} 1200 ${55 + offset}`;
+}
+
 function StadiumSceneFallback() {
-  // a filled-in crowd — small flickering dots scattered across the stand
-  // tiers, denser near the front rows, so the bowl reads as occupied
+  // a filled-in crowd — small flickering dots scattered across the whole
+  // bowl (clipped to the roofline shape), so it reads as a packed house
+  // wrapping around you, not a thin band in the distance
   const crowd = useMemo(() => {
     const rng = (seed: number) => { const x = Math.sin(seed * 999) * 43758.5453; return x - Math.floor(x); };
-    return Array.from({ length: 140 }, (_, i) => {
-      const row = i % 5;
-      const y = 178 + row * 16 + rng(i) * 6;
-      const x = rng(i + 50) * 1240 - 20;
+    return Array.from({ length: fxCount(190) }, (_, i) => {
+      const x = rng(i + 50) * 1280 - 40;
+      const y = 70 + rng(i) * 230;
       return { x, y, r: 1.1 + rng(i + 90) * 1.1, d: 2 + rng(i + 130) * 4, delay: rng(i + 170) * 5 };
+    });
+  }, []);
+  // point-lights along the roof truss — an integrated modern lighting
+  // grid, not old corner floodlight towers
+  const roofLights = useMemo(() => {
+    const rng = (seed: number) => { const x = Math.sin(seed * 741) * 24298.331; return x - Math.floor(x); };
+    return Array.from({ length: 16 }, (_, i) => {
+      const x = -20 + (i / 15) * 1240;
+      // matches STAND_ROOFLINE's y(x) shape closely enough to sit right on the truss
+      const k = Math.abs((x - 600) / 640);
+      const y = 15 + Math.sin(k * Math.PI * 1.4) * 45 + k * 20;
+      return { x, y, delay: rng(i) * 6 };
     });
   }, []);
 
@@ -71,66 +95,78 @@ function StadiumSceneFallback() {
         style={{ background: "radial-gradient(circle, rgba(27,79,255,0.45), transparent 65%)" }} />
       <div className="aurora absolute -right-1/4 top-1/4 h-2/3 w-2/3 rounded-full opacity-35"
         style={{ background: "radial-gradient(circle, rgba(0,230,118,0.35), transparent 65%)", animationDelay: "-8s" }} />
-      <svg viewBox="0 0 1200 460" preserveAspectRatio="xMidYMax slice" className="slow-pan absolute inset-x-0 bottom-0 h-full w-full opacity-90">
+      <svg viewBox="0 0 1200 460" preserveAspectRatio="xMidYMax slice" className="slow-pan absolute inset-x-0 bottom-0 h-full w-full opacity-95">
         <defs>
           <linearGradient id="standsGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#0a2036" /><stop offset="100%" stopColor="#050d17" />
+            <stop offset="0%" stopColor="#0e2740" /><stop offset="100%" stopColor="#050d17" />
           </linearGradient>
-          <linearGradient id="beamGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="rgba(235,245,255,0.5)" /><stop offset="100%" stopColor="rgba(235,245,255,0)" />
+          <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="rgba(235,245,255,0.38)" /><stop offset="100%" stopColor="rgba(235,245,255,0)" />
           </linearGradient>
           <linearGradient id="turfGrad" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#0f6b3a" /><stop offset="100%" stopColor="#0a3d22" />
           </linearGradient>
+          <linearGradient id="ledGrad" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="rgba(0,240,255,0.15)" /><stop offset="50%" stopColor="rgba(0,240,255,0.85)" /><stop offset="100%" stopColor="rgba(0,240,255,0.15)" />
+          </linearGradient>
+          <clipPath id="standClip"><path d={STAND_ROOFLINE} /></clipPath>
+          <clipPath id="roofClip"><path d="M-40 0 L1240 0 L1200 55 Q 1070 100 940 170 Q 770 100 600 95 Q 430 100 260 170 Q 130 100 -40 55 Z" /></clipPath>
         </defs>
 
-        {/* floodlight pylons, sweeping down over the bowl */}
-        {[{ x: 150, sway: "beamSwayA" }, { x: 1050, sway: "beamSwayB" }].map((p) => (
-          <g key={p.x}>
-            <rect x={p.x - 4} y={130} width={8} height={140} fill="#071227" />
-            <rect x={p.x - 30} y={118} width={60} height={18} rx={4} fill="#0a1a30" />
-            {[-20, -8, 4, 16].map((dx) => (
-              <circle key={dx} cx={p.x + dx + 2} cy={127} r={3.1} fill="#dfeeff" style={{ animation: "floodFlicker 7s linear infinite" }} />
-            ))}
-            <polygon points={`${p.x - 26},136 ${p.x + 26},136 ${p.x + 150},420 ${p.x - 200},420`}
-              fill="url(#beamGrad)" opacity={0.16}
-              style={{ transformOrigin: `${p.x}px 136px`, animation: `${p.sway} 9s ease-in-out infinite` }} />
-          </g>
+        {/* the skylight gap between the roof canopy and the stands */}
+        <path d="M-40 0 L1240 0 L1200 55 Q 1070 100 940 170 Q 770 100 600 95 Q 430 100 260 170 Q 130 100 -40 55 Z" fill="url(#skyGrad)" opacity="0.5" />
+        {/* roof truss — cross-braced canopy underside, generic engineering texture only */}
+        <g clipPath="url(#roofClip)" stroke="#dfeeff" strokeWidth="1" opacity="0.12">
+          {Array.from({ length: 13 }).map((_, i) => {
+            const x = -80 + i * 110;
+            return <line key={i} x1={x} y1={-10} x2={x + 260} y2={210} />;
+          })}
+        </g>
+
+        {/* the bowl — tall at the near-side edges and the far stand, dipping at the corner vomitories */}
+        <path d={STAND_ROOFLINE} fill="url(#standsGrad)" />
+        {[26, 52, 78].map((offset) => (
+          <path key={offset} d={tierDivider(offset)} stroke="rgba(148,163,184,0.22)" strokeWidth="2" fill="none" strokeDasharray="3 9" />
         ))}
 
-        {/* tiered stands */}
-        <path d="M-20 268 Q 600 170 1220 268 L 1220 320 Q 600 232 -20 320 Z" fill="url(#standsGrad)" opacity="0.95" />
-        <path d="M-20 292 Q 600 200 1220 292" stroke="rgba(148,163,184,0.28)" strokeWidth="2.5" fill="none" strokeDasharray="3 9" />
+        {/* LED fascia ribbon along the roofline — an animated glow, no real branding */}
+        <path d={STAND_ROOFLINE_STROKE} stroke="url(#ledGrad)" strokeWidth="6" fill="none" opacity="0.8" className="led-sweep" />
 
-        {/* the crowd — small flickering points across the tiers */}
-        <g>
+        {/* integrated roof lighting grid */}
+        {roofLights.map((l, i) => (
+          <circle key={i} cx={l.x} cy={l.y} r={2.4} fill="#dfeeff" style={{ animation: "floodFlicker 7s linear infinite", animationDelay: `${l.delay}s` }} />
+        ))}
+
+        {/* the crowd — small flickering points, clipped to the bowl */}
+        <g clipPath="url(#standClip)">
           {crowd.map((d, i) => (
             <circle key={i} cx={d.x} cy={d.y} r={d.r} fill="rgba(220,230,245,0.55)"
               style={{ animation: `crowdFlicker ${d.d}s ease-in-out infinite`, animationDelay: `${d.delay}s` }} />
           ))}
         </g>
 
-        {/* the pitch — real turf, seen from the stands, framed by the tunnel mouth */}
-        <path d="M-20 340 Q 600 252 1220 340 L 1220 460 L -20 460 Z" fill="url(#turfGrad)" />
+        {/* the pitch — close and pitch-level, filling the lower half like you're standing on it */}
+        <path d="M-40 300 Q 600 218 1240 300 L 1240 460 L -40 460 Z" fill="url(#turfGrad)" />
         {/* mown stripes, converging toward the halfway line for a perspective read */}
         <g opacity="0.35">
           {Array.from({ length: 9 }).map((_, i) => (
             <polygon key={i}
-              points={`${340 + i * 62},346 ${400 + i * 62},346 ${1220},458 ${940 + i * 5},458`}
+              points={`${340 + i * 62},306 ${400 + i * 62},306 ${1220},458 ${940 + i * 5},458`}
               fill={i % 2 === 0 ? "rgba(255,255,255,0.06)" : "transparent"} />
           ))}
         </g>
         {/* halfway line + centre circle, curved to match the stand's perspective */}
-        <path d="M-20 372 Q 600 300 1220 372" stroke="rgba(255,255,255,0.55)" strokeWidth="2" fill="none" />
-        <ellipse cx="600" cy="352" rx="46" ry="14" stroke="rgba(255,255,255,0.5)" strokeWidth="2" fill="none" />
-        <circle cx="600" cy="352" r="2.2" fill="rgba(255,255,255,0.65)" />
+        <path d="M-40 332 Q 600 260 1240 332" stroke="rgba(255,255,255,0.55)" strokeWidth="2" fill="none" />
+        <ellipse cx="600" cy="312" rx="46" ry="14" stroke="rgba(255,255,255,0.5)" strokeWidth="2" fill="none" />
+        <circle cx="600" cy="312" r="2.2" fill="rgba(255,255,255,0.65)" />
         {/* touchline glow where the floodlights hit the grass */}
-        <ellipse cx="600" cy="400" rx="360" ry="60" fill="rgba(0,230,118,0.12)" />
+        <ellipse cx="600" cy="360" rx="380" ry="70" fill="rgba(0,230,118,0.14)" />
 
         <style>{`
-          @keyframes beamSwayA { 0%,100% { transform: rotate(-6deg); } 50% { transform: rotate(7deg); } }
-          @keyframes beamSwayB { 0%,100% { transform: rotate(6deg); } 50% { transform: rotate(-7deg); } }
           @keyframes crowdFlicker { 0%,100% { opacity: 0.25; } 50% { opacity: 0.85; } }
+          @keyframes ledSweep { 0% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: -240; } }
+          .led-sweep { stroke-dasharray: 40 200; animation: ledSweep 6s linear infinite; }
+          @media (prefers-reduced-motion: reduce) { .led-sweep { animation: none; stroke-dasharray: none; } }
         `}</style>
       </svg>
     </div>

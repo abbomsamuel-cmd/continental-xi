@@ -15,16 +15,19 @@ export const STADIUM_DEFAULT_THEME: StadiumTheme = { primary: "#00f0ff", seconda
 /** Stylized tiers framing the pitch — abstract, not a literal stadium model,
  *  matching the app's existing original-art (never-real-world-accurate) look. */
 function Bowl() {
+  // a tight ring close around the camera, wrapping nearly all the way
+  // round — only the tunnel-mouth gap ahead stays open — so the tiers
+  // actually surround you instead of sitting off in the distance
   const tiers = [
-    { radius: 34, y: 2.6, tilt: 0.55, color: "#0a1a30" },
-    { radius: 30, y: 1.4, tilt: 0.5, color: "#0d2038" },
-    { radius: 26, y: 0.3, tilt: 0.42, color: "#0f2440" },
+    { radius: 17, y: 3.2, tilt: 0.5, color: "#0a1a30" },
+    { radius: 15, y: 1.9, tilt: 0.44, color: "#0d2038" },
+    { radius: 13, y: 0.8, tilt: 0.36, color: "#0f2440" },
   ];
   return (
-    <group>
+    <group position={[0, 0, 3]}>
       {tiers.map((tier, i) => (
-        <mesh key={i} position={[0, tier.y, -6]} rotation={[-tier.tilt, 0, 0]}>
-          <torusGeometry args={[tier.radius, 0.9, 8, 48, Math.PI * 1.15]} />
+        <mesh key={i} position={[0, tier.y, 0]} rotation={[-tier.tilt, 0, 0]}>
+          <torusGeometry args={[tier.radius, 0.9, 8, 48, Math.PI * 1.7]} />
           <meshStandardMaterial color={tier.color} roughness={0.85} metalness={0.1} side={THREE.DoubleSide} />
         </mesh>
       ))}
@@ -107,16 +110,16 @@ function CameraRig({ entering }: { entering: boolean }) {
       if (enterStart.current === null) enterStart.current = t;
       const k = Math.min(1, (t - enterStart.current) / 0.9);
       const ease = 1 - (1 - k) ** 3;
-      cam.position.set(0, 4 - ease * 2.4, 16 - ease * 13);
-      cam.fov = 50 + ease * 25;
+      cam.position.set(0, 2.6 - ease * 1.2, 9 - ease * 8);
+      cam.fov = 62 + ease * 20;
       cam.updateProjectionMatrix();
-      cam.lookAt(0, 1.5, -6);
+      cam.lookAt(0, 2, 0);
     } else {
       enterStart.current = null;
-      cam.position.set(Math.sin(t * 0.12) * 1.4, 4 + Math.sin(t * 0.09) * 0.25, 16);
-      cam.fov = 50;
+      cam.position.set(Math.sin(t * 0.12) * 1, 2.6 + Math.sin(t * 0.09) * 0.2, 9);
+      cam.fov = 62;
       cam.updateProjectionMatrix();
-      cam.lookAt(0, 1, -4);
+      cam.lookAt(0, 2.4, 0);
     }
   });
   return null;
@@ -131,8 +134,8 @@ export default function StadiumScene3D({
 }) {
   return (
     <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[85vh] min-h-[600px] overflow-hidden" aria-hidden>
-      <Canvas dpr={[1, 2]} gl={{ antialias: true, alpha: true }} camera={{ position: [0, 4, 16], fov: 50 }}>
-        <fog attach="fog" args={["#050910", 18, 42]} />
+      <Canvas dpr={[1, 2]} gl={{ antialias: true, alpha: true }} camera={{ position: [0, 2.6, 9], fov: 62 }}>
+        <fog attach="fog" args={["#050910", 10, 30]} />
         <Suspense fallback={null}>
           <Floodlights theme={theme} />
           <Bowl />

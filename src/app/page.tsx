@@ -415,46 +415,41 @@ function ModeCard({
       onClick={() => { play("select"); onEnter(tile); }}
       onPointerEnter={onFocus}
       onFocus={onFocus}
-      animate={{ y: active ? -18 : 0, scale: active ? 1.07 : 0.93 }}
-      transition={{ type: "spring", stiffness: 260, damping: 24 }}
-      className="group relative flex w-[152px] shrink-0 snap-center flex-col items-center gap-2.5 rounded-2xl px-4 py-5 text-center sm:w-[184px]"
+      animate={{ y: active ? -10 : 0 }}
+      transition={{ type: "spring", stiffness: 300, damping: 26 }}
+      className="group relative flex w-[150px] shrink-0 snap-center flex-col items-center gap-3 overflow-hidden rounded-xl px-4 py-4 text-center sm:w-[178px] sm:py-5"
       style={{
-        background: active
-          ? "linear-gradient(180deg, rgba(16,27,46,0.98), rgba(6,11,21,0.99))"
-          : "linear-gradient(180deg, rgba(10,18,32,0.95), rgba(5,9,17,0.97))",
-        border: `1.5px solid ${active ? tile.ring : "rgba(160,182,215,0.28)"}`,
-        boxShadow: active
-          ? `${tile.glow}, 0 14px 30px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.14)`
-          : "0 12px 26px rgba(0,0,0,0.6)",
+        // the ACTIVE card wears its competition's full colour, so which mode
+        // you're on is legible from across the room; the rest are flat slate
+        // on the solid bar behind them, never translucent over grass
+        background: active ? tile.gradient : "rgba(23,32,48,0.96)",
+        border: `1.5px solid ${active ? tile.ring : "rgba(148,170,205,0.3)"}`,
+        boxShadow: active ? `${tile.glow}, inset 0 1px 0 rgba(255,255,255,0.2)` : "none",
       }}
       aria-current={active ? "true" : undefined}
     >
-      <span aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-1 rounded-t-2xl"
-        style={{ background: tile.ring, opacity: active ? 1 : 0.55 }} />
-      <span className="grid place-items-center rounded-xl px-3 py-2"
-        style={{ background: active ? `${tile.ring}1f` : "rgba(255,255,255,0.04)" }}>
-        <ModeEmblem tile={tile} size={active ? 58 : 48} />
+      <span className="grid h-[62px] w-[62px] shrink-0 place-items-center rounded-full"
+        style={{ background: active ? "rgba(0,0,0,0.32)" : `${tile.ring}22`, border: `1px solid ${active ? "rgba(255,255,255,0.35)" : `${tile.ring}66`}` }}>
+        <ModeEmblem tile={tile} size={40} />
       </span>
-      <span className="font-display text-[0.86rem] font-black uppercase leading-tight tracking-[0.06em] text-white sm:text-[0.95rem]"
-        style={{ textShadow: "0 2px 6px rgba(0,0,0,0.9)" }}>
+
+      <span className="font-display text-[0.92rem] font-black uppercase leading-[1.15] tracking-[0.04em] text-white sm:text-[1.02rem]"
+        style={{ textShadow: "0 2px 8px rgba(0,0,0,0.95)" }}>
         {tile.title}
       </span>
+
       {tile.badge && (
-        <span className="absolute -right-1 -top-1 rounded-full bg-white px-1.5 py-0.5 text-[0.48rem] font-black text-black">
+        <span className="absolute right-2 top-2 rounded-full bg-white px-1.5 py-0.5 text-[0.5rem] font-black text-black">
           {tile.badge}
         </span>
-      )}
-      {active && (
-        <span aria-hidden className="pointer-events-none absolute -bottom-3 left-1/2 h-3 w-[86%] -translate-x-1/2 rounded-[50%] blur-md"
-          style={{ background: tile.ring }} />
       )}
     </motion.button>
   );
 }
 
-/** The mode rail — one clean row of cards standing on the grass, instead of
- *  markers scattered across it. Scroll-snaps on touch, arrows on desktop, and
- *  the stadium relights to whichever mode is centred. */
+/** The mode rail — a solid menu bar standing on the pitch. It sits on its own
+ *  dark plate rather than floating over the turf, because translucent cards on
+ *  bright striped grass were the whole reason the menu read badly. */
 function ModeRail({
   tiles, active, setActive, onEnter,
 }: {
@@ -473,37 +468,45 @@ function ModeRail({
   };
 
   return (
-    <div className="absolute inset-x-0 z-20" style={{ bottom: "31%" }}>
-      <div className="relative mx-auto flex max-w-4xl items-center gap-2 px-3">
-        <button type="button" onClick={() => go(-1)} aria-label="Previous mode" disabled={active === 0}
-          className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-full border border-white/15 bg-black/45 text-2xl text-white backdrop-blur-sm transition hover:bg-black/65 disabled:opacity-25 md:flex">
-          &lsaquo;
-        </button>
+    <div className="absolute inset-x-0 z-20 px-3" style={{ bottom: "26%" }}>
+      <div
+        className="mx-auto w-fit max-w-full rounded-2xl p-3 sm:p-4"
+        style={{
+          background: "linear-gradient(180deg, rgba(7,13,24,0.97), rgba(3,7,14,0.99))",
+          border: "1px solid rgba(150,175,215,0.24)",
+          boxShadow: "0 24px 60px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.08)",
+        }}
+      >
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={() => go(-1)} aria-label="Previous mode" disabled={active === 0}
+            className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/8 text-2xl text-white transition hover:bg-white/15 disabled:opacity-25 md:flex">
+            &lsaquo;
+          </button>
 
-        <div ref={ref}
-          className="flex flex-1 snap-x snap-mandatory items-end justify-start gap-2.5 overflow-x-auto px-2 pb-4 pt-6 [scrollbar-width:none] md:justify-center [&::-webkit-scrollbar]:hidden">
-          {tiles.map((tile, i) => (
-            <ModeCard key={tile.title} tile={tile} active={i === active} onEnter={onEnter} onFocus={() => setActive(i)} />
-          ))}
+          <div ref={ref} className="flex snap-x snap-mandatory items-stretch gap-2.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {tiles.map((tile, i) => (
+              <ModeCard key={tile.title} tile={tile} active={i === active} onEnter={onEnter} onFocus={() => setActive(i)} />
+            ))}
+          </div>
+
+          <button type="button" onClick={() => go(1)} aria-label="Next mode" disabled={active === tiles.length - 1}
+            className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/8 text-2xl text-white transition hover:bg-white/15 disabled:opacity-25 md:flex">
+            &rsaquo;
+          </button>
         </div>
 
-        <button type="button" onClick={() => go(1)} aria-label="Next mode" disabled={active === tiles.length - 1}
-          className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-full border border-white/15 bg-black/45 text-2xl text-white backdrop-blur-sm transition hover:bg-black/65 disabled:opacity-25 md:flex">
-          &rsaquo;
-        </button>
+        {/* the active mode's line, inside the bar so it always has backing */}
+        <AnimatePresence mode="wait">
+          <motion.p
+            key={tiles[active]?.title}
+            initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.18 }}
+            className="mt-3 text-center text-[0.8rem] font-semibold text-white/80"
+          >
+            {tiles[active]?.tag}
+          </motion.p>
+        </AnimatePresence>
       </div>
-
-      <AnimatePresence mode="wait">
-        <motion.p
-          key={tiles[active]?.title}
-          initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
-          transition={{ duration: 0.2 }}
-          className="mx-auto mt-3 w-fit max-w-[86%] rounded-full px-4 py-1.5 text-center text-[0.82rem] font-semibold text-white/90"
-          style={{ background: "rgba(4,9,18,0.82)", boxShadow: "0 6px 18px rgba(0,0,0,0.5)" }}
-        >
-          {tiles[active]?.tag}
-        </motion.p>
-      </AnimatePresence>
     </div>
   );
 }

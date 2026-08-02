@@ -131,30 +131,24 @@ function PlayTile({ tile, index }: { tile: Tile; index: number }) {
       <Link
         href={tile.href}
         onClick={() => play("select")}
-        className={`group relative flex h-full flex-col justify-between overflow-hidden rounded-3xl p-5 transition-transform duration-300 hover:-translate-y-1.5 sm:p-6 ${tile.minH}`}
-        style={{ background: tile.gradient, boxShadow: `${tile.glow}, 0 1px 0 rgba(255,255,255,0.18) inset, 0 26px 60px rgba(0,0,0,0.5)`, border: `1px solid ${tile.ring}` }}
+        className={`group relative flex h-full flex-col justify-between overflow-hidden rounded-2xl p-5 transition-transform duration-300 hover:-translate-y-1 sm:p-6 ${tile.minH}`}
+        style={{ background: tile.gradient, boxShadow: `${tile.glow}, 0 1px 0 rgba(255,255,255,0.14) inset, 0 16px 36px rgba(0,0,0,0.4)`, border: `1px solid ${tile.ring}` }}
       >
-        {/* top-left studio light + moving diagonal shine */}
-        <span aria-hidden className="pointer-events-none absolute inset-0"
-          style={{ background: "radial-gradient(100% 60% at 12% -12%, rgba(255,255,255,0.32), transparent 55%)" }} />
+        {/* grounding vignette — sells depth without a busy watermark */}
+        <span aria-hidden className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(140% 60% at 50% 118%, rgba(0,0,0,0.45), transparent 60%)" }} />
         <span aria-hidden className="pointer-events-none absolute -inset-x-1/2 -top-1/2 h-[200%] w-[60%] -translate-x-1/3 rotate-12 bg-white/10 opacity-0 blur-xl transition-all duration-700 group-hover:translate-x-[220%] group-hover:opacity-100" />
-        {/* grounding vignette — sells depth like a console menu tile, not a flat web card */}
-        <span aria-hidden className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(140% 60% at 50% 118%, rgba(0,0,0,0.55), transparent 60%)" }} />
-        {/* faint icon watermark */}
-        <span aria-hidden className="pointer-events-none absolute -bottom-6 -right-3 select-none text-[7rem] leading-none opacity-15 sm:text-[9rem]">{tile.icon}</span>
 
         <div className="relative flex items-start justify-between gap-2">
-          <span className="text-4xl drop-shadow-[0_6px_18px_rgba(0,0,0,0.45)] sm:text-5xl">{tile.icon}</span>
-          <span className="rounded-full bg-black/25 px-2.5 py-1 text-[0.52rem] font-bold uppercase tracking-[0.2em] text-white/90 backdrop-blur-sm">
+          <span className="text-3xl drop-shadow-[0_4px_12px_rgba(0,0,0,0.4)] sm:text-4xl">{tile.icon}</span>
+          <span className="rounded-full bg-black/30 px-2.5 py-1 text-[0.52rem] font-bold uppercase tracking-[0.2em] text-white/90">
             {tile.kicker}
           </span>
         </div>
 
         <div className="relative mt-auto pt-6">
-          <h3 className="font-display text-2xl font-bold uppercase leading-none tracking-wide text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.35)] sm:text-3xl">{tile.title}</h3>
-          <p className="mt-1.5 text-[0.82rem] font-semibold text-white/85">{tile.tag}</p>
-          <span className="mt-3.5 inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-[0.66rem] font-extrabold uppercase tracking-[0.15em] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.4),0_4px_14px_rgba(0,0,0,0.35)] backdrop-blur-sm transition-transform duration-300 group-hover:translate-x-1"
-            style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.32), rgba(255,255,255,0.14))" }}>
+          <h3 className="font-display text-xl font-semibold uppercase leading-none tracking-wide text-white sm:text-2xl">{tile.title}</h3>
+          <p className="mt-1.5 text-[0.8rem] font-medium text-white/80">{tile.tag}</p>
+          <span className="mt-3.5 inline-flex items-center gap-2 rounded-lg bg-black/30 px-3.5 py-1.5 text-[0.64rem] font-bold uppercase tracking-[0.12em] text-white transition-transform duration-300 group-hover:translate-x-1">
             {tile.badge && <span className="rounded bg-white px-1.5 py-0.5 text-[0.5rem] font-black text-black">{tile.badge}</span>}
             {tile.cta} <span aria-hidden>→</span>
           </span>
@@ -281,37 +275,37 @@ export default function Home() {
       kicker: t("home.tile.career.kicker"), title: t("home.qa.career"),
       tag: activeCareer ? `${activeCareer.name} · ${t("home.career.ageClub", { age: activeCareer.age, club: activeCareer.currentClubShort ?? activeCareer.currentClubName })}` : t("home.tile.career.tag"),
       cta: anyCareer ? t("home.tile.continue") : t("home.tile.play"), badge: anyCareer ? undefined : t("home.tile.new"),
-      gradient: "linear-gradient(145deg, #7c3aed 0%, #a21caf 52%, #f59e0b 130%)",
-      glow: "0 14px 46px rgba(124,58,237,0.42)", ring: "rgba(216,180,254,0.5)",
+      gradient: "linear-gradient(150deg, #2e1065 0%, #4c1d95 48%, #6d28d9 78%, #ffd700 145%)",
+      glow: "0 14px 46px rgba(109,40,217,0.4)", ring: "rgba(216,180,254,0.5)",
       span: "sm:col-span-2 lg:col-span-2", minH: "min-h-[210px] sm:min-h-[240px]",
     },
     {
       href: "/draft", icon: "🏆", kicker: t("home.tile.cl.kicker"), title: "Champions League",
       tag: t("home.tile.cl.tag"), cta: t("home.tile.play"),
-      gradient: "linear-gradient(145deg, #1e3a8a 0%, #2563eb 50%, #22d3ee 130%)",
-      glow: "0 14px 46px rgba(37,99,235,0.42)", ring: "rgba(125,211,252,0.5)",
+      gradient: "linear-gradient(150deg, #05070d 0%, #0f172a 45%, #0e5f6b 85%, #00f0ff 145%)",
+      glow: "0 14px 46px rgba(0,240,255,0.32)", ring: "rgba(0,240,255,0.5)",
       span: "sm:col-span-2 lg:col-span-2", minH: "min-h-[210px] sm:min-h-[240px]",
     },
     {
       href: "/international?comp=euro", icon: "🇪🇺", kicker: t("home.tile.euro.kicker"), title: "UEFA EURO",
       tag: t("home.tile.euro.tag"), cta: t("home.tile.play"),
-      gradient: "linear-gradient(145deg, #065f46 0%, #16a34a 52%, #2563eb 135%)",
-      glow: "0 14px 40px rgba(22,163,74,0.4)", ring: "rgba(134,239,172,0.5)",
+      gradient: "linear-gradient(150deg, #050d2e 0%, #10236e 45%, #1b3fd0 78%, #ff3b57 145%)",
+      glow: "0 14px 40px rgba(255,59,87,0.32)", ring: "rgba(255,59,87,0.5)",
       span: "lg:col-span-1", minH: "min-h-[190px]",
     },
     {
       href: "/international?comp=copa", icon: "🌎", kicker: t("home.tile.copa.kicker"), title: "Copa América",
       tag: t("home.tile.copa.tag"), cta: t("home.tile.play"),
-      gradient: "linear-gradient(145deg, #b45309 0%, #f59e0b 46%, #10b981 132%)",
-      glow: "0 14px 40px rgba(245,158,11,0.4)", ring: "rgba(253,224,138,0.55)",
+      gradient: "linear-gradient(150deg, #06251a 0%, #0a3520 45%, #0f6d43 78%, #ffd700 145%)",
+      glow: "0 14px 40px rgba(255,215,0,0.3)", ring: "rgba(255,215,0,0.5)",
       span: "lg:col-span-1", minH: "min-h-[190px]",
     },
     {
       href: "/daily", icon: "📅", kicker: t("home.tile.daily.kicker"), title: t("home.daily.kicker"),
       tag: `${dcfg.formation} · ${t(dcfg.mode === "expert" ? "draft.mode.expert.title" : "draft.mode.classic.title")}`,
       cta: dailyPlayed ? t("home.daily.viewResult") : t("home.tile.play"),
-      gradient: "linear-gradient(145deg, #be185d 0%, #f43f5e 50%, #fb923c 132%)",
-      glow: "0 14px 40px rgba(244,63,94,0.42)", ring: "rgba(253,164,175,0.55)",
+      gradient: "linear-gradient(150deg, #451a03 0%, #78350f 45%, #b45309 80%, #ffd700 145%)",
+      glow: "0 14px 40px rgba(255,215,0,0.3)", ring: "rgba(255,215,0,0.5)",
       span: "sm:col-span-2 lg:col-span-2", minH: "min-h-[190px]",
     },
   ];
@@ -340,6 +334,27 @@ export default function Home() {
             </span>
           </motion.div>
         </div>
+
+        {/* ===================== AT A GLANCE — status first, dashboard-style ===================== */}
+        <section className="mt-6">
+          <div className="glass rounded-2xl px-4 py-4 sm:px-6">
+            <div className="grid grid-cols-3 gap-4 sm:grid-cols-6">
+              {[
+                { to: mounted ? profile.drafts.length : 0, suffix: "", label: t("home.stats.drafts"), icon: "🎴" },
+                { to: mounted ? profile.trophies : 0, suffix: "", label: t("home.stats.trophies"), icon: "🏆" },
+                { to: totalGoals, suffix: "", label: t("home.stats.goals"), icon: "⚽" },
+                { to: mounted ? matchLog.length : 0, suffix: "", label: t("home.stats.matches"), icon: "📊" },
+                { to: compsCompleted, suffix: "", label: t("home.stats.campaigns"), icon: "🗺️" },
+                { to: mounted ? profile.achievements.length : 0, suffix: `/${ACHIEVEMENTS.length}`, label: t("home.stats.achievements"), icon: "🎖️" },
+              ].map((c) => (
+                <div key={c.label} className="text-center">
+                  <div className="text-base" aria-hidden>{c.icon}</div>
+                  <AnimatedCounter to={c.to} suffix={c.suffix} label={c.label} />
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
 
         {/* ===================== CONTINUE PLAYING (only if a save) ===================== */}
         {resume && resumeMeta && (
@@ -395,73 +410,52 @@ export default function Home() {
           </div>
         </section>
 
-        {/* ===================== HALL OF CHAMPIONS ===================== */}
-        {champions.length > 0 && (
-          <section className="mt-14">
-            <SectionHeading
-              kicker={t("home.champs.kicker")}
-              title={t("home.champs.title")}
-              right={mounted && profile.trophies > 0 ? (
-                <span className="chip bg-gold/15 text-gold">🏆 {t("home.champs.titlesWon", { n: profile.trophies, s: profile.trophies === 1 ? "" : "s" })}</span>
-              ) : undefined}
-            />
-            <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {champions.map((c, i) => (
-                <motion.div key={c.key}
-                  initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.07 }}
-                  className="shine relative overflow-hidden rounded-2xl p-4"
-                  style={{ background: "linear-gradient(165deg, rgba(212,175,55,0.14), rgba(10,20,50,0.6))", border: "1px solid rgba(212,175,55,0.4)" }}>
-                  <div className="text-2xl" aria-hidden>🏆</div>
-                  <div className="mt-2 text-[0.58rem] font-bold uppercase tracking-[0.25em]" style={{ color: c.accent }}>{c.comp}</div>
-                  <div className="mt-0.5 truncate font-display text-sm font-extrabold text-white">{c.name}</div>
-                  <div className="mt-0.5 truncate text-[0.62rem] text-muted">{c.sub}</div>
-                  <div className="mt-1 text-[0.58rem] text-white/40">{new Date(c.date).toLocaleDateString(undefined, { month: "short", year: "numeric" })}</div>
-                </motion.div>
+        {/* ===================== CHAMPIONS + NEWS — denser side-by-side ===================== */}
+        <div className="mt-14 grid gap-8 lg:grid-cols-2 lg:items-start">
+          {champions.length > 0 && (
+            <section>
+              <SectionHeading
+                kicker={t("home.champs.kicker")}
+                title={t("home.champs.title")}
+                right={mounted && profile.trophies > 0 ? (
+                  <span className="chip bg-gold/15 text-gold">🏆 {t("home.champs.titlesWon", { n: profile.trophies, s: profile.trophies === 1 ? "" : "s" })}</span>
+                ) : undefined}
+              />
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                {champions.map((c, i) => (
+                  <motion.div key={c.key}
+                    initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.07 }}
+                    className="shine relative overflow-hidden rounded-2xl p-4"
+                    style={{ background: "linear-gradient(165deg, rgba(212,175,55,0.14), rgba(10,20,50,0.6))", border: "1px solid rgba(212,175,55,0.4)" }}>
+                    <div className="text-2xl" aria-hidden>🏆</div>
+                    <div className="mt-2 text-[0.58rem] font-bold uppercase tracking-[0.25em]" style={{ color: c.accent }}>{c.comp}</div>
+                    <div className="mt-0.5 truncate font-display text-sm font-extrabold text-white">{c.name}</div>
+                    <div className="mt-0.5 truncate text-[0.62rem] text-muted">{c.sub}</div>
+                    <div className="mt-1 text-[0.58rem] text-white/40">{new Date(c.date).toLocaleDateString(undefined, { month: "short", year: "numeric" })}</div>
+                  </motion.div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          <section id="news" className="scroll-mt-24">
+            <SectionHeading kicker={t("home.news.kicker")} title={t("home.news.title")} />
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              {NEWS.map((n, i) => (
+                <motion.article key={n.titleKey}
+                  initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.07 }}
+                  whileHover={{ y: -4 }} className="glass shine rounded-2xl p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xl" aria-hidden>{n.icon}</span>
+                    <span className="text-[0.55rem] font-bold uppercase tracking-[0.2em] text-white/35">{n.date}</span>
+                  </div>
+                  <h3 className="mt-2 font-display text-[0.85rem] font-extrabold text-white">{t(n.titleKey)}</h3>
+                  <p className="mt-1 text-[0.68rem] leading-relaxed text-muted">{t(n.bodyKey)}</p>
+                </motion.article>
               ))}
             </div>
           </section>
-        )}
-
-        {/* ===================== STATISTICS ===================== */}
-        <section className="mt-14">
-          <SectionHeading kicker={t("home.stats.kicker")} title={t("home.stats.title")} />
-          <div className="glass-strong vignette mt-5 rounded-3xl p-6 sm:p-8">
-            <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-6">
-              {[
-                { to: mounted ? profile.drafts.length : 0, suffix: "", label: t("home.stats.drafts"), icon: "🎴" },
-                { to: mounted ? profile.trophies : 0, suffix: "", label: t("home.stats.trophies"), icon: "🏆" },
-                { to: totalGoals, suffix: "", label: t("home.stats.goals"), icon: "⚽" },
-                { to: mounted ? matchLog.length : 0, suffix: "", label: t("home.stats.matches"), icon: "📊" },
-                { to: compsCompleted, suffix: "", label: t("home.stats.campaigns"), icon: "🗺️" },
-                { to: mounted ? profile.achievements.length : 0, suffix: `/${ACHIEVEMENTS.length}`, label: t("home.stats.achievements"), icon: "🎖️" },
-              ].map((c) => (
-                <div key={c.label} className="text-center">
-                  <div className="text-lg" aria-hidden>{c.icon}</div>
-                  <AnimatedCounter to={c.to} suffix={c.suffix} label={c.label} />
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* ===================== GAME NEWS ===================== */}
-        <section id="news" className="mt-14 scroll-mt-24">
-          <SectionHeading kicker={t("home.news.kicker")} title={t("home.news.title")} />
-          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {NEWS.map((n, i) => (
-              <motion.article key={n.titleKey}
-                initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.07 }}
-                whileHover={{ y: -4 }} className="glass shine rounded-2xl p-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-xl" aria-hidden>{n.icon}</span>
-                  <span className="text-[0.55rem] font-bold uppercase tracking-[0.2em] text-white/35">{n.date}</span>
-                </div>
-                <h3 className="mt-2 font-display text-[0.85rem] font-extrabold text-white">{t(n.titleKey)}</h3>
-                <p className="mt-1 text-[0.68rem] leading-relaxed text-muted">{t(n.bodyKey)}</p>
-              </motion.article>
-            ))}
-          </div>
-        </section>
+        </div>
 
         {/* ============== WHAT IS CONTINENTAL XI + FAQ ================ */}
         <section className="mt-14">

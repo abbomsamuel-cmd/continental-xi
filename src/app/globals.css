@@ -959,3 +959,12 @@ input, select, textarea {
 @media (max-height: 500px) and (orientation: landscape) {
   .land-tight { padding-top: 4.5rem !important; }
 }
+
+/* Empty pitch slots — a marching dashed reticle. Idle rings drift slowly;
+   a slot that's a legal destination spins faster and breathes. Plain CSS
+   animations, so the [data-fx] rules above already throttle them on phones
+   (iteration-count: 1) and prefers-reduced-motion stops them outright. */
+@keyframes slotRingSpin { to { transform: rotate(360deg); } }
+@keyframes slotRingBreathe { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
+.slot-ring { animation: slotRingSpin 14s linear infinite; }
+.slot-ring-live { animation: slotRingSpin 5s linear infinite, slotRingBreathe 1.7s ease-in-out infinite; }

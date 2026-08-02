@@ -270,7 +270,9 @@ export function LineupCard({
 
 export type SlotState = "idle" | "draftable" | "target" | "blocked" | "selected";
 
-/** EMPTY slot — the same broadcast tile, hollow, showing the position. */
+/** EMPTY slot — a target reticle on the grass: a dashed ring that marches
+ *  round, faster and brighter when the slot is a legal destination, with
+ *  the position it wants in the middle. */
 export function EmptyTile({
   variant, pos, state, color, sub, widthClass = "w-[12.5cqw]",
 }: {
@@ -283,29 +285,40 @@ export function EmptyTile({
   const edge = blocked ? "#ff5a6a" : active ? c : s.border;
   const glow = state === "selected" ? c : state === "target" || state === "draftable" ? `${c}88` : undefined;
   const ink = blocked ? "#ff8b96" : active ? c : "rgba(255,255,255,0.75)";
+  // idle rings drift; live targets march and breathe. Both are plain CSS
+  // animations, so the existing [data-fx] rules throttle them on phones.
+  const ringClass = blocked ? "" : active ? "slot-ring slot-ring-live" : "slot-ring";
 
   return (
-    <div className={`${widthClass} ${state === "draftable" ? "animate-pulse" : ""}`} style={{ containerType: "inline-size", animationDuration: "1.8s" }}>
-      <div className="relative flex flex-col items-center justify-center overflow-hidden"
-        style={{
-          aspectRatio: "1 / 1.3", borderRadius: s.radius,
-          border: `1.2px ${state === "idle" ? "dashed" : "solid"} ${edge}`,
-          background: blocked ? "rgba(44,10,14,0.72)" : "rgba(10,14,23,0.62)",
-          boxShadow: glow ? `0 0 12px ${glow}` : "0 4px 10px rgba(0,0,0,0.35)",
-        }}>
-        {blocked ? (
-          <span style={{ fontSize: "30cqw", color: "#ff8b96" }}>⊘</span>
-        ) : (
-          <>
-            <span className="font-display font-extrabold leading-none" style={{ fontSize: "24cqw", color: ink }}>{pos}</span>
-            {sub ? (
-              <span className="font-bold uppercase leading-none" style={{ fontSize: "11cqw", marginTop: "4cqw", color: c }}>{sub}</span>
+    <div className={widthClass} style={{ containerType: "inline-size" }}>
+      <div className="relative grid place-items-center" style={{ aspectRatio: "1 / 1.3" }}>
+        <div className="relative grid w-full place-items-center" style={{ aspectRatio: "1 / 1" }}>
+          <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full"
+            style={{ filter: glow ? `drop-shadow(0 0 5px ${glow})` : undefined }}>
+            <circle cx="50" cy="50" r="43" fill={blocked ? "rgba(44,10,14,0.72)" : "rgba(10,14,23,0.62)"} />
+            <circle
+              cx="50" cy="50" r="43" fill="none" stroke={edge}
+              strokeWidth={active ? 5 : 3.5} strokeDasharray={blocked ? "none" : "9 8"} strokeLinecap="round"
+              className={ringClass} style={{ transformOrigin: "50% 50%" }}
+            />
+            <circle cx="50" cy="50" r="33" fill="none" stroke={edge} strokeWidth="1" opacity="0.3" />
+          </svg>
+
+          <div className="relative flex flex-col items-center leading-none">
+            {blocked ? (
+              <span style={{ fontSize: "28cqw", color: "#ff8b96" }}>⊘</span>
             ) : (
-              <span className="grid place-items-center rounded-full leading-none" style={{ marginTop: "6cqw", width: "18cqw", height: "18cqw", border: `1.2px solid ${ink}`, color: ink, fontSize: "12cqw" }}>＋</span>
+              <>
+                <span className="font-display font-extrabold leading-none" style={{ fontSize: "23cqw", color: ink }}>{pos}</span>
+                {sub ? (
+                  <span className="font-bold uppercase leading-none" style={{ fontSize: "10cqw", marginTop: "3.5cqw", color: c }}>{sub}</span>
+                ) : (
+                  <span className="leading-none" style={{ marginTop: "3cqw", color: ink, fontSize: "13cqw" }}>＋</span>
+                )}
+              </>
             )}
-          </>
-        )}
-        <span aria-hidden className="absolute inset-x-0 bottom-0 opacity-45" style={{ height: "2.4cqw", background: s.accent }} />
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -11,6 +11,12 @@ function surname(name: string): string {
   return parts[parts.length - 1] ?? name;
 }
 
+/** The six attributes in the order every football card has shown them. */
+const STAT_KEYS: [string, keyof Player["attributes"]][] = [
+  ["PAC", "pace"], ["SHO", "shooting"], ["PAS", "passing"],
+  ["DRI", "dribbling"], ["DEF", "defending"], ["PHY", "physical"],
+];
+
 function ratingColor(ovr: number): string {
   if (ovr >= 90) return "#33ffab";
   if (ovr >= 85) return "#00e676";
@@ -118,6 +124,27 @@ export function PlayerCard({ player, mode, onSelect, selected, compact, index = 
             {expert ? "???" : surname(player.name)}
           </div>
         </div>
+
+        {/* the six attributes — already on every player, never shown until now.
+            Hidden in expert mode (where the whole point is guessing) and on
+            compact cards, which are too small to read them. */}
+        {!expert && !compact && (
+          <div
+            className="mb-1 grid grid-cols-3 gap-x-1 gap-y-0.5"
+            style={{ transform: "translateZ(24px)" }}
+          >
+            {STAT_KEYS.map(([label, key]) => (
+              <div key={label} className="flex items-baseline justify-center gap-1">
+                <span className="font-display text-[0.82rem] font-extrabold leading-none text-white">
+                  {player.attributes[key]}
+                </span>
+                <span className="text-[0.5rem] font-bold uppercase tracking-wider text-white/45">
+                  {label}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* season — real historical fact, not club branding */}
         {!compact && (

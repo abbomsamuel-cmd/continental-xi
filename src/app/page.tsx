@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence, useMotionValue, useSpring } from "framer-motion";
@@ -11,17 +12,47 @@ import { ReportBug } from "@/components/ReportBug";
 import { useGame } from "@/lib/store";
 import { useCurrentPlayer } from "@/lib/career/store";
 import { useHydrated } from "@/lib/useHydrated";
+import { useFxLevel } from "@/lib/fx";
 import { useT } from "@/lib/i18n";
 import { ACHIEVEMENTS } from "@/lib/achievements";
 import { play } from "@/lib/sound";
 import { getAllPlayers, SQUADS } from "@/lib/players";
 import { USER_TEAM_ID, teamLabel } from "@/lib/engine/tournament";
+import type { StadiumTheme } from "@/components/three/StadiumScene3D";
+
+const StadiumScene3D = dynamic(() => import("@/components/three/StadiumScene3D"), {
+  ssr: false,
+  loading: () => <StadiumSceneFallback />,
+});
+
+/** Which stadium light/trophy color to show — matches each mode's brand
+ *  accent already established in COMP_META / the tile gradients below. */
+function themeForHref(href: string): StadiumTheme {
+  if (href.startsWith("/career")) return { primary: "#a78bfa", secondary: "#2e1065" };
+  if (href.includes("euro")) return { primary: "#ff3b57", secondary: "#050d2e" };
+  if (href.includes("copa")) return { primary: "#ffd700", secondary: "#06251a" };
+  if (href.startsWith("/daily")) return { primary: "#ffd700", secondary: "#451a03" };
+  return { primary: "#00f0ff", secondary: "#0f172a" };
+}
+
+/** Full 3D scene at fx="full", the flat illustration everywhere else
+ *  (mobile, reduced-motion, off, and the static-export prerender frame) —
+ *  same perf-safety pattern as StadiumBackground/MatchPitchCanvas. */
+function StadiumMasthead({ theme, entering }: { theme: StadiumTheme; entering: boolean }) {
+  const mounted = useHydrated();
+  const fx = useFxLevel();
+  // static export / pre-hydration paint always gets the zero-JS-safe 2D
+  // illustration; the WebGL upgrade only kicks in once we've actually
+  // confirmed (client-side) that this is a full-fx desktop session
+  if (!mounted || fx !== "full") return <StadiumSceneFallback />;
+  return <StadiumScene3D theme={theme} entering={entering} />;
+}
 
 /* ------------------------------------------------------------------ */
 /*  Stadium scene behind the hub — you're in the stands looking down    */
 /*  at a lit pitch; the mode tiles below read as "matches on tonight".  */
 /* ------------------------------------------------------------------ */
-function StadiumScene() {
+function StadiumSceneFallback() {
   // a filled-in crowd — small flickering dots scattered across the stand
   // tiers, denser near the front rows, so the bowl reads as occupied
   const crowd = useMemo(() => {
@@ -429,7 +460,10 @@ export default function Home() {
       )}
     </AnimatePresence>
     <div className="relative pb-24">
-      <StadiumScene />
+      <StadiumMasthead
+        theme={entering ? themeForHref(entering.href) : { primary: "#00f0ff", secondary: "#0f172a" }}
+        entering={!!entering}
+      />
       <div className="mx-auto max-w-7xl px-4 pt-24 sm:pt-28 lg:px-6">
         {/* ===================== HUB MASTHEAD ===================== */}
         <div className="flex flex-wrap items-end justify-between gap-4">

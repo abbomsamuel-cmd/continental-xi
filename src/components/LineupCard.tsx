@@ -1,21 +1,21 @@
 "use client";
 
 /**
- * ContinentalXI Player Card V6 — a premium broadcast badge.
+ * ContinentalXI Player Card V7 — a clean broadcast badge.
  *
  * A layered lineup tile built to read at a glance on the pitch and still look
  * like a graphic-design piece up close:
- *   · a metallic, chamfered rating pill with a competition-accent underline
- *   · a position chip
- *   · nation flag + original club crest, top right
+ *   · one clean rounded rating badge (rating + position stacked), no chamfer
+ *   · real nation flag + original club crest, top right
  *   · the surname as the hero element
- *   · a CLUB-COLOUR team ribbon along the base — every player carries his own
- *     colours, so an XI reads as eleven different clubs at a glance
+ *   · a season pill sitting just above a CLUB-COLOUR ribbon along the base —
+ *     every player carries his own colours, so an XI reads as eleven
+ *     different clubs at a glance
  *   · a soft holographic sheen and a thin competition glow around the whole tile
  *
  *   cl    obsidian/slate · cyan edge · cyan rating · sharp corners
  *   euro  white · royal-blue ink · silver edge · rounded corners
- *   copa  cyan · gold edge · warm light · soft corners
+ *   copa  emerald/slate · gold edge · warm light · soft corners
  *
  * Sizing: card width is set in `cqw` of the PITCH; every inner measure is in
  * `cqw` of the CARD, so the same design scales from the builder to the share
@@ -53,9 +53,6 @@ function MiniBadge({ colors, kind, w }: { colors: [string, string]; kind: BadgeK
   return <ClubCrest colors={colors} width={w} />;
 }
 
-/** The docked rating tab's chamfer — the shape that makes the badge ours. */
-const TAB_CLIP = "polygon(0 0, 100% 0, 100% 58%, 74% 100%, 0 100%)";
-
 const SELECTED_EDGE = "rgba(0,240,255,0.95)";
 
 interface Skin {
@@ -68,14 +65,12 @@ interface Skin {
   shadow: string;      // soft realistic depth + thin comp glow
   ratingBg: string;
   ratingInk: string;
-  ratingUnderline: string; // thin accent under the rating number
   ratingM: string;     // phone rating ink
   posChipBg: string;
   pos: string;
   name: string;
   nameShadow: string;
   season: string;
-  hairline: string;    // chrome/silver/gold divider
   accent: string;      // competition line above the club ribbon
   sheen: string;       // diagonal holographic highlight
 }
@@ -87,10 +82,9 @@ const SKIN: Record<PitchVariant, Skin> = {
     border: "rgba(0,240,255,0.45)",
     shadow: "inset 0 1px 0 rgba(255,255,255,0.1), 0 0 10px rgba(0,240,255,0.22), 0 6px 14px rgba(0,0,0,0.5)",
     ratingBg: "linear-gradient(150deg, #baffdd 0%, #7dfaff 42%, #00b8c4 100%)", ratingInk: "#04140c",
-    ratingUnderline: "linear-gradient(90deg, #00f0ff, #00f0ff)", ratingM: "#7dfaff",
+    ratingM: "#7dfaff",
     posChipBg: "rgba(0,240,255,0.18)", pos: "#93c5fd",
     name: "#f8fafc", nameShadow: "0 1px 3px rgba(0,0,0,0.55)", season: "#94a3b8",
-    hairline: "linear-gradient(90deg, transparent, rgba(148,163,184,0.5), transparent)",
     accent: "linear-gradient(90deg, #00f0ff, #00f0ff)",
     sheen: "linear-gradient(115deg, transparent 30%, rgba(0,240,255,0.1) 46%, rgba(255,255,255,0.05) 52%, transparent 66%)",
   },
@@ -100,10 +94,9 @@ const SKIN: Record<PitchVariant, Skin> = {
     border: "rgba(150,168,205,0.85)",
     shadow: "inset 0 1px 0 rgba(255,255,255,0.9), 0 0 8px rgba(60,110,240,0.16), 0 6px 14px rgba(10,25,80,0.32)",
     ratingBg: "linear-gradient(150deg, #4d7bf5 0%, #2547d6 62%, #16308f 100%)", ratingInk: "#ffffff",
-    ratingUnderline: "linear-gradient(90deg, #1b3fd0, #ff3b57)", ratingM: "#1b3fd0",
+    ratingM: "#1b3fd0",
     posChipBg: "rgba(27,63,208,0.12)", pos: "#1b3fd0",
     name: "#0c1f60", nameShadow: "0 1px 1px rgba(255,255,255,0.6)", season: "#41569e",
-    hairline: "linear-gradient(90deg, transparent, rgba(120,140,180,0.6), transparent)",
     accent: "linear-gradient(90deg, #1b3fd0, #ff3b57)",
     sheen: "linear-gradient(115deg, transparent 32%, rgba(120,150,240,0.10) 48%, transparent 64%)",
   },
@@ -113,10 +106,9 @@ const SKIN: Record<PitchVariant, Skin> = {
     border: "rgba(255,215,0,0.85)",
     shadow: "inset 0 1px 0 rgba(200,255,225,0.22), 0 0 12px rgba(0,230,118,0.32), 0 7px 16px rgba(0,0,0,0.62)",
     ratingBg: "linear-gradient(150deg, #fff2c0 0%, #ffd700 42%, #cf9a2c 100%)", ratingInk: "#2a1d03",
-    ratingUnderline: "linear-gradient(90deg, #ffd700, #00e676)", ratingM: "#ffd98f",
+    ratingM: "#ffd98f",
     posChipBg: "rgba(0,230,118,0.16)", pos: "#7dffc4",
     name: "#fff8e8", nameShadow: "0 1px 3px rgba(0,0,0,0.5)", season: "#f0cf8f",
-    hairline: "linear-gradient(90deg, transparent, rgba(255,215,0,0.6), transparent)",
     accent: "linear-gradient(90deg, #ffd700, #00e676)",
     sheen: "linear-gradient(115deg, transparent 30%, rgba(0,230,118,0.12) 47%, transparent 64%)",
   },
@@ -225,26 +217,22 @@ export function LineupCard({
           {/* diagonal holographic sheen */}
           <span aria-hidden className="pointer-events-none absolute inset-0" style={{ background: s.sheen }} />
 
-          {/* header: rating tab · position chip · flag + crest */}
-          <div className="relative" style={{ height: "31cqw" }}>
-            {showRating && (
-              <div className="absolute left-0 top-0 flex flex-col items-center justify-center font-display font-extrabold leading-none"
-                style={{ minWidth: "31cqw", height: "25cqw", paddingInline: "4cqw", fontSize: "17cqw", background: s.ratingBg, color: s.ratingInk, clipPath: TAB_CLIP }}>
-                <RatingNumber value={overall} />
-                <span aria-hidden className="absolute" style={{ left: "10%", right: "26%", bottom: "16%", height: "1.6cqw", borderRadius: "1px", background: s.ratingUnderline }} />
-              </div>
-            )}
-            {slotPos && (
-              <div className="absolute left-1/2 -translate-x-1/2 rounded-[2cqw] font-display font-extrabold uppercase leading-none"
-                style={{ top: "4.5cqw", padding: "1.6cqw 3.4cqw", fontSize: "10.5cqw", color: posInk, letterSpacing: "0.04em", background: s.posChipBg }}>
-                {slotPos}
-              </div>
-            )}
-            <div className="absolute flex flex-col items-center" style={{ right: "4cqw", top: "4cqw", gap: "2.5cqw" }}>
-              <Flag nationality={nationality} style={{ fontSize: "11cqw" }} />
+          {/* header: one clean rating badge (rating + position) · flag + crest */}
+          <div className="relative flex items-start justify-between" style={{ padding: "5cqw 5cqw 0" }}>
+            <div className="flex flex-col items-center justify-center rounded-[3cqw] font-display font-extrabold leading-none"
+              style={{ minWidth: "27cqw", padding: "2.4cqw 3.2cqw", fontSize: showRating ? "17cqw" : "11cqw", background: s.ratingBg, color: s.ratingInk, boxShadow: "0 3px 10px rgba(0,0,0,0.4)" }}>
+              {showRating && <RatingNumber value={overall} />}
+              {slotPos && (
+                <span className="mt-[0.6cqw] uppercase tracking-wider opacity-85" style={{ fontSize: "7cqw", color: posInk !== s.pos ? posInk : undefined }}>
+                  {slotPos}
+                </span>
+              )}
+            </div>
+            <div className="flex flex-col items-end" style={{ gap: "2.5cqw" }}>
+              <Flag nationality={nationality} style={{ fontSize: "12cqw" }} className="rounded-[1.5px] shadow" />
               {badgeKind === "crest"
-                ? <MiniBadge colors={colors} kind="crest" w="12cqw" />
-                : !hasFlag && <MiniBadge colors={colors} kind="flag" w="13cqw" />}
+                ? <MiniBadge colors={colors} kind="crest" w="13cqw" />
+                : !hasFlag && <MiniBadge colors={colors} kind="flag" w="14cqw" />}
             </div>
           </div>
 
@@ -256,15 +244,12 @@ export function LineupCard({
             </div>
           </div>
 
-          {/* divider · season · club-colour ribbon */}
-          <div className="relative flex flex-col items-center" style={{ gap: "3cqw", paddingBottom: "12cqw" }}>
-            <span aria-hidden style={{ width: "56cqw", height: "1px", background: s.hairline }} />
-            {seasonLabel ? (
-              <span className="font-bold leading-none" style={{ fontSize: "7.5cqw", letterSpacing: "0.14em", color: s.season }}>
+          {/* season, sitting just above the club-colour ribbon */}
+          <div className="relative flex justify-center" style={{ paddingBottom: "11.5cqw" }}>
+            {seasonLabel && (
+              <span className="rounded-full font-bold leading-none" style={{ fontSize: "6.8cqw", letterSpacing: "0.1em", color: s.season, padding: "1.2cqw 3.4cqw", background: "rgba(255,255,255,0.07)" }}>
                 {seasonLabel}
               </span>
-            ) : (
-              <span style={{ height: "7.5cqw" }} />
             )}
           </div>
           <ClubRibbon colors={colors} accent={s.accent} />

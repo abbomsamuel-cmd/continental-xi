@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import type { MatchEvent, MatchResult, SimTeam } from "@/lib/types";
 import { TeamBadge } from "@/components/TeamBadge";
 import { teamLabel } from "@/lib/engine/tournament";
+import { nationalTeamFlag } from "@/lib/flags";
 
 function StatBar({ label, a, b, suffix = "", delay = 0 }: { label: string; a: number; b: number; suffix?: string; delay?: number }) {
   const total = a + b || 1;
@@ -97,7 +98,7 @@ export function MatchModal({ result, teams, title, onClose }: Props) {
             <span aria-hidden className="absolute inset-y-0 right-0 w-1.5" style={{ background: `linear-gradient(180deg, ${away.colors[0]}, ${away.colors[1]})` }} />
             {title && <div className="mb-3 text-center text-xs font-bold uppercase tracking-widest text-cyan">{title}</div>}
             <div className="flex items-center justify-between gap-2">
-              <TeamHead name={homeName} colors={home.colors} code={home.short} align="left" />
+              <TeamHead name={homeName} colors={home.colors} code={home.short} country={nationalTeamFlag(home)} align="left" />
               <div className="text-center">
                 <motion.div
                   initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
@@ -113,7 +114,7 @@ export function MatchModal({ result, teams, title, onClose }: Props) {
                 )}
                 <div className="mt-1 text-[0.55rem] uppercase tracking-widest text-muted">Full Time</div>
               </div>
-              <TeamHead name={awayName} colors={away.colors} code={away.short} align="right" />
+              <TeamHead name={awayName} colors={away.colors} code={away.short} country={nationalTeamFlag(away)} align="right" />
             </div>
             {/* team ratings */}
             <div className="mt-2 flex items-center justify-between text-[0.62rem] font-bold">
@@ -262,10 +263,10 @@ export function MatchModal({ result, teams, title, onClose }: Props) {
   );
 }
 
-function TeamHead({ name, colors, code, align }: { name: string; colors: [string, string]; code: string; align: "left" | "right" }) {
+function TeamHead({ name, colors, code, country, align }: { name: string; colors: [string, string]; code: string; country?: string; align: "left" | "right" }) {
   return (
     <div className={`flex flex-1 flex-col items-center gap-1 ${align === "left" ? "sm:items-start" : "sm:items-end"}`}>
-      <TeamBadge colors={colors} code={code} size={40} />
+      <TeamBadge colors={colors} code={code} size={40} nationality={country} />
       <span className="text-center text-[0.7rem] font-bold leading-tight">{name}</span>
     </div>
   );

@@ -233,7 +233,7 @@ export function Pitch({
   // and never overlap regardless of where the pitch is rendered. 12cqw on the
   // enlarged pitch reads bigger in absolute px while leaving clear air between
   // the hand-tuned formation slots.
-  const cardW = "w-[12cqw]";
+  const cardW = "w-[12.5cqw]"; // largest width verified overlap-free across all 19 formations
 
   return (
     <div

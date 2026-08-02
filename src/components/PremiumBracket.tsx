@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import type { KOTie, KORoundName, MatchResult } from "@/lib/types";
 import type { PitchVariant } from "@/components/Pitch";
 import { TeamBadge } from "@/components/TeamBadge";
+import { nationalTeamFlag } from "@/lib/flags";
 import { Confetti } from "@/components/fx/Atmosphere";
 import { useFxLevel } from "@/lib/fx";
 
@@ -62,7 +63,7 @@ function TeamRow({ team, goals, won, decided, accent, big }: {
     <div className={`flex items-center justify-between gap-1.5 px-2 py-1.5 ${won ? "font-extrabold" : decided ? "opacity-45" : ""}`}
       style={{ color: won ? accent : "#fff" }}>
       <span className="flex min-w-0 items-center gap-1.5">
-        <TeamBadge colors={team.colors} code={team.short} size={big ? 20 : 16} nationality={team.country} />
+        <TeamBadge colors={team.colors} code={team.short} size={big ? 20 : 16} nationality={nationalTeamFlag(team)} />
         <span className={`truncate ${big ? "text-[0.72rem]" : "text-[0.6rem]"} font-bold leading-tight`}>{label(team)}{team.isUser ? " ★" : ""}</span>
       </span>
       <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="font-display text-[0.72rem] font-extrabold tabular-nums">{goals ?? ""}</motion.span>

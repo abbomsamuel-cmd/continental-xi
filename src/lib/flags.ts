@@ -68,3 +68,16 @@ export function flagCodeFor(nationality?: string): string | undefined {
   if (!nationality) return undefined;
   return FLAG_CODE[nationality] ?? FLAG_CODE[nationality.trim()];
 }
+
+/**
+ * A club and a national side both carry a SimTeam.country (the club's home
+ * country, or the nation itself) — only the national side should ever show
+ * a flag instead of its crest. A team IS the nation exactly when its display
+ * name equals its country (e.g. name: "Spain", country: "Spain"); a club's
+ * name never matches its own country ("Inter Milan" !== "Italy"). Used by
+ * every shared component (MatchModal, LiveMatch, PremiumBracket) that
+ * renders both club and international teams through the same badge.
+ */
+export function nationalTeamFlag(team: { name: string; country?: string }): string | undefined {
+  return team.country && team.name === team.country ? team.country : undefined;
+}

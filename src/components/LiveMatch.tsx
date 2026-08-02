@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { MatchResult, Player } from "@/lib/types";
 import { TeamBadge } from "@/components/TeamBadge";
+import { nationalTeamFlag } from "@/lib/flags";
 import { PenaltyShootout } from "@/components/PenaltyShootout";
 import { CameraFlashes } from "@/components/fx/Atmosphere";
 import {
@@ -35,6 +36,8 @@ interface LiveTeamRef {
   colors: [string, string];
   season?: number;
   isUser?: boolean;
+  /** nation, for international matches — TeamBadge shows a real flag when set */
+  country?: string;
 }
 
 export interface LiveLeg {
@@ -337,7 +340,7 @@ function MatchIntro({
           {step === 2 && (
             <motion.div key="teams" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center justify-center gap-5 sm:gap-9">
               <motion.div initial={{ x: -70, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ type: "spring", stiffness: 130, damping: 15 }} className="flex flex-col items-center gap-2.5">
-                <TeamBadge colors={home.colors} code={home.short} size={72} />
+                <TeamBadge colors={home.colors} code={home.short} size={72} nationality={nationalTeamFlag(home)} />
                 <div className="max-w-[9rem] font-display text-sm font-extrabold text-white sm:max-w-none sm:text-lg">{home.name}</div>
               </motion.div>
               <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.25, type: "spring", stiffness: 240, damping: 14 }}
@@ -345,7 +348,7 @@ function MatchIntro({
                 VS
               </motion.div>
               <motion.div initial={{ x: 70, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ type: "spring", stiffness: 130, damping: 15 }} className="flex flex-col items-center gap-2.5">
-                <TeamBadge colors={away.colors} code={away.short} size={72} />
+                <TeamBadge colors={away.colors} code={away.short} size={72} nationality={nationalTeamFlag(away)} />
                 <div className="max-w-[9rem] font-display text-sm font-extrabold text-white sm:max-w-none sm:text-lg">{away.name}</div>
               </motion.div>
             </motion.div>
@@ -405,7 +408,7 @@ function Scoreboard({
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 py-3.5 sm:px-7">
         <div className="flex min-w-0 items-center gap-2.5 sm:gap-3.5">
           <motion.div style={glow(0)} animate={glow(0) ? { scale: [1, 1.12, 1] } : {}} transition={{ duration: 0.7 }}>
-            <TeamBadge colors={home.colors} code={home.short} size={44} />
+            <TeamBadge colors={home.colors} code={home.short} size={44} nationality={nationalTeamFlag(home)} />
           </motion.div>
           <div className="min-w-0">
             <div className={`truncate font-display text-sm font-extrabold sm:text-lg ${winner === 0 ? "" : "text-white"}`}
@@ -449,7 +452,7 @@ function Scoreboard({
             {away.season ? <div className="text-[0.6rem] text-white/45">{away.season}</div> : null}
           </div>
           <motion.div style={glow(1)} animate={glow(1) ? { scale: [1, 1.12, 1] } : {}} transition={{ duration: 0.7 }}>
-            <TeamBadge colors={away.colors} code={away.short} size={44} />
+            <TeamBadge colors={away.colors} code={away.short} size={44} nationality={nationalTeamFlag(away)} />
           </motion.div>
         </div>
       </div>
@@ -689,9 +692,9 @@ function StatsPanel({
   return (
     <div className="glass rounded-2xl p-4">
       <div className="mb-2.5 flex items-center justify-between">
-        <span className="flex items-center gap-1.5 text-[0.62rem] font-bold text-white/70"><TeamBadge colors={home.colors} code={home.short} size={16} />{home.short}</span>
+        <span className="flex items-center gap-1.5 text-[0.62rem] font-bold text-white/70"><TeamBadge colors={home.colors} code={home.short} size={16} nationality={nationalTeamFlag(home)} />{home.short}</span>
         <span className="text-[0.55rem] font-bold uppercase tracking-[0.3em] text-white/40">{condensed ? "Key Stats" : "Match Statistics"}</span>
-        <span className="flex items-center gap-1.5 text-[0.62rem] font-bold text-white/70">{away.short}<TeamBadge colors={away.colors} code={away.short} size={16} /></span>
+        <span className="flex items-center gap-1.5 text-[0.62rem] font-bold text-white/70">{away.short}<TeamBadge colors={away.colors} code={away.short} size={16} nationality={nationalTeamFlag(away)} /></span>
       </div>
       <div className="space-y-2.5">
         {rows.map((row) => {

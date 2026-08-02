@@ -78,7 +78,21 @@ export function SquadSpinner({ club, seasonLabel, colors, reel: reelPool, onDone
         <p className="mt-1 cl-heading text-[0.62rem] tracking-[0.35em] text-cyan">Drawing Your Squad</p>
       </div>
 
-      <div className="cl-panel cl-streaks relative h-40 overflow-hidden rounded-2xl">
+      <div className="cl-panel cl-streaks relative h-44 overflow-hidden rounded-2xl"
+        style={{ perspective: "760px", perspectiveOrigin: "50% 50%" }}>
+        {/* the drum's curve — light along the centre band, falling off to
+            shadow at the lip, which is what sells a cylinder over a strip */}
+        <div aria-hidden className="pointer-events-none absolute inset-0 z-[15]"
+          style={{ background: "linear-gradient(180deg, rgba(2,6,16,0.92) 0%, rgba(2,6,16,0.35) 18%, transparent 42%, transparent 58%, rgba(2,6,16,0.35) 82%, rgba(2,6,16,0.92) 100%)" }} />
+        {/* glass over the top half of the drum */}
+        <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 z-[16] h-1/2"
+          style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.10), transparent)" }} />
+        {/* floodlight sweeping across the drum while it spins */}
+        <motion.div aria-hidden className="pointer-events-none absolute -inset-y-8 z-[17] w-40 blur-2xl"
+          style={{ background: "linear-gradient(90deg, transparent, rgba(190,225,255,0.30), transparent)" }}
+          initial={{ x: "-40%" }}
+          animate={{ x: ["-40%", "760%"] }}
+          transition={{ duration: SPIN_MS / 1000, ease: "easeOut" }} />
         {/* center spotlight frame — kicks on the stop */}
         <motion.div
           className="pointer-events-none absolute left-1/2 top-1/2 z-20 h-32 w-[136px] -translate-x-1/2 -translate-y-1/2 rounded-2xl"
@@ -102,11 +116,16 @@ export function SquadSpinner({ club, seasonLabel, colors, reel: reelPool, onDone
 
         <motion.div
           className="absolute top-1/2 flex items-stretch"
-          style={{ left: `calc(50% - ${ITEM_W / 2}px)`, gap: 10 }}
-          initial={{ x: 0, y: "-50%" }}
+          style={{
+            left: `calc(50% - ${ITEM_W / 2}px)`,
+            gap: 10,
+            transformStyle: "preserve-3d",
+          }}
+          initial={{ x: 0, y: "-50%", rotateX: 9 }}
           animate={{
             x: -(TARGET_INDEX * ITEM_W),
             y: "-50%",
+            rotateX: 9,
             filter: ["blur(0px)", "blur(4px)", "blur(1.5px)", "blur(0px)"],
           }}
           transition={{

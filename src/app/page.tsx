@@ -419,15 +419,24 @@ function ModeCard({
       transition={{ type: "spring", stiffness: 260, damping: 24 }}
       className="group relative flex w-[152px] shrink-0 snap-center flex-col items-center gap-2.5 rounded-2xl px-4 py-5 text-center sm:w-[184px]"
       style={{
-        background: active ? "rgba(11,20,36,0.9)" : "rgba(9,16,28,0.62)",
-        border: `1px solid ${active ? tile.ring : "rgba(148,170,205,0.16)"}`,
-        boxShadow: active ? `${tile.glow}, inset 0 1px 0 rgba(255,255,255,0.1)` : "0 8px 22px rgba(0,0,0,0.45)",
-        backdropFilter: "blur(10px)",
+        background: active
+          ? "linear-gradient(180deg, rgba(16,27,46,0.98), rgba(6,11,21,0.99))"
+          : "linear-gradient(180deg, rgba(10,18,32,0.95), rgba(5,9,17,0.97))",
+        border: `1.5px solid ${active ? tile.ring : "rgba(160,182,215,0.28)"}`,
+        boxShadow: active
+          ? `${tile.glow}, 0 14px 30px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.14)`
+          : "0 12px 26px rgba(0,0,0,0.6)",
       }}
       aria-current={active ? "true" : undefined}
     >
-      <ModeEmblem tile={tile} size={active ? 58 : 48} />
-      <span className="whitespace-nowrap text-[0.72rem] font-bold uppercase leading-tight tracking-[0.12em] text-white sm:text-[0.78rem]">
+      <span aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-1 rounded-t-2xl"
+        style={{ background: tile.ring, opacity: active ? 1 : 0.55 }} />
+      <span className="grid place-items-center rounded-xl px-3 py-2"
+        style={{ background: active ? `${tile.ring}1f` : "rgba(255,255,255,0.04)" }}>
+        <ModeEmblem tile={tile} size={active ? 58 : 48} />
+      </span>
+      <span className="font-display text-[0.86rem] font-black uppercase leading-tight tracking-[0.06em] text-white sm:text-[0.95rem]"
+        style={{ textShadow: "0 2px 6px rgba(0,0,0,0.9)" }}>
         {tile.title}
       </span>
       {tile.badge && (
@@ -489,7 +498,8 @@ function ModeRail({
           key={tiles[active]?.title}
           initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
           transition={{ duration: 0.2 }}
-          className="mt-2 px-6 text-center text-[0.82rem] font-medium text-white/75"
+          className="mx-auto mt-3 w-fit max-w-[86%] rounded-full px-4 py-1.5 text-center text-[0.82rem] font-semibold text-white/90"
+          style={{ background: "rgba(4,9,18,0.82)", boxShadow: "0 6px 18px rgba(0,0,0,0.5)" }}
         >
           {tiles[active]?.tag}
         </motion.p>

@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
-import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
+import { useMemo, useRef, useState } from "react";
+import { motion, AnimatePresence, useMotionValue, useSpring } from "framer-motion";
 import { AnimatedCounter } from "@/components/AnimatedCounter";
 import { CameraFlashes } from "@/components/fx/Atmosphere";
 import { TeamBadge } from "@/components/TeamBadge";
@@ -172,27 +173,53 @@ interface Tile {
   minH: string;
 }
 
-function PlayTile({ tile, index }: { tile: Tile; index: number }) {
+function PlayTile({ tile, index, onEnter }: { tile: Tile; index: number; onEnter: (tile: Tile) => void }) {
+  // a real 3D tilt toward the pointer — the tile is a piece of the stadium,
+  // not a flat web card
+  const ref = useRef<HTMLButtonElement>(null);
+  const rx = useMotionValue(0);
+  const ry = useMotionValue(0);
+  const srx = useSpring(rx, { stiffness: 200, damping: 20 });
+  const sry = useSpring(ry, { stiffness: 200, damping: 20 });
+
+  function onMove(e: React.PointerEvent<HTMLButtonElement>) {
+    if (e.pointerType !== "mouse" && e.pointerType !== "pen") return;
+    const el = ref.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const px = (e.clientX - r.left) / r.width - 0.5;
+    const py = (e.clientY - r.top) / r.height - 0.5;
+    rx.set(py * -6);
+    ry.set(px * 6);
+  }
+  function onLeave() { rx.set(0); ry.set(0); }
+
   return (
-    <div className={`${tile.span} tile-rise`} style={{ animationDelay: `${index * 70}ms` }}>
-      <Link
-        href={tile.href}
-        onClick={() => play("select")}
-        className={`group relative flex h-full flex-col justify-between overflow-hidden rounded-2xl p-5 transition-transform duration-300 hover:-translate-y-1 sm:p-6 ${tile.minH}`}
-        style={{ background: tile.gradient, boxShadow: `${tile.glow}, 0 1px 0 rgba(255,255,255,0.14) inset, 0 16px 36px rgba(0,0,0,0.4)`, border: `1px solid ${tile.ring}` }}
+    <div className={`${tile.span} tile-rise`} style={{ animationDelay: `${index * 70}ms`, perspective: 1000 }}>
+      <motion.button
+        ref={ref}
+        type="button"
+        onPointerMove={onMove}
+        onPointerLeave={onLeave}
+        onClick={() => { play("select"); onEnter(tile); }}
+        style={{ rotateX: srx, rotateY: sry, transformStyle: "preserve-3d" }}
+        whileHover={{ scale: 1.015 }}
+        className={`group relative flex h-full w-full flex-col justify-between overflow-hidden rounded-2xl p-5 text-left sm:p-6 ${tile.minH}`}
       >
+        <span aria-hidden className="pointer-events-none absolute inset-0 rounded-2xl"
+          style={{ background: tile.gradient, boxShadow: `${tile.glow}, 0 1px 0 rgba(255,255,255,0.14) inset, 0 16px 36px rgba(0,0,0,0.4)`, border: `1px solid ${tile.ring}`, transform: "translateZ(0px)" }} />
         {/* grounding vignette — sells depth without a busy watermark */}
         <span aria-hidden className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(140% 60% at 50% 118%, rgba(0,0,0,0.45), transparent 60%)" }} />
         <span aria-hidden className="pointer-events-none absolute -inset-x-1/2 -top-1/2 h-[200%] w-[60%] -translate-x-1/3 rotate-12 bg-white/10 opacity-0 blur-xl transition-all duration-700 group-hover:translate-x-[220%] group-hover:opacity-100" />
 
-        <div className="relative flex items-start justify-between gap-2">
+        <div className="relative flex items-start justify-between gap-2" style={{ transform: "translateZ(28px)" }}>
           <span className="text-3xl drop-shadow-[0_4px_12px_rgba(0,0,0,0.4)] sm:text-4xl">{tile.icon}</span>
           <span className="rounded-full bg-black/30 px-2.5 py-1 text-[0.52rem] font-bold uppercase tracking-[0.2em] text-white/90">
             {tile.kicker}
           </span>
         </div>
 
-        <div className="relative mt-auto pt-6">
+        <div className="relative mt-auto pt-6" style={{ transform: "translateZ(20px)" }}>
           <h3 className="font-display text-xl font-semibold uppercase leading-none tracking-wide text-white sm:text-2xl">{tile.title}</h3>
           <p className="mt-1.5 text-[0.8rem] font-medium text-white/80">{tile.tag}</p>
           <span className="mt-3.5 inline-flex items-center gap-2 rounded-lg bg-black/30 px-3.5 py-1.5 text-[0.64rem] font-bold uppercase tracking-[0.12em] text-white transition-transform duration-300 group-hover:translate-x-1">
@@ -200,8 +227,39 @@ function PlayTile({ tile, index }: { tile: Tile; index: number }) {
             {tile.cta} <span aria-hidden>→</span>
           </span>
         </div>
-      </Link>
+      </motion.button>
     </div>
+  );
+}
+
+/** Full-screen "walking out to the pitch" beat between picking a mode and
+ *  actually arriving — a brief cinematic instead of an instant page jump. */
+function ModeTransition({ tile, onDone }: { tile: Tile; onDone: () => void }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      transition={{ duration: 0.25 }}
+      className="fixed inset-0 z-[200] flex cursor-pointer items-center justify-center overflow-hidden"
+      style={{ background: tile.gradient }}
+      onClick={onDone}
+      onAnimationComplete={() => { const t = setTimeout(onDone, 750); return () => clearTimeout(t); }}
+    >
+      <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(120% 90% at 50% 50%, transparent 30%, rgba(0,0,0,0.6) 100%)" }} />
+      {/* floodlight sweep, like walking out of the tunnel */}
+      <motion.div aria-hidden className="pointer-events-none absolute -inset-x-1/4 -top-1/2 h-[200%] w-1/2 bg-white/15 blur-2xl"
+        initial={{ x: "-120%", rotate: 12 }} animate={{ x: "220%", rotate: 12 }} transition={{ duration: 0.9, ease: "easeInOut" }} />
+      <motion.div
+        initial={{ scale: 0.7, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }}
+        transition={{ type: "spring", stiffness: 180, damping: 16, delay: 0.1 }}
+        className="relative text-center"
+      >
+        <div className="text-6xl drop-shadow-[0_10px_30px_rgba(0,0,0,0.5)]">{tile.icon}</div>
+        <div className="mt-4 font-display text-2xl font-black uppercase tracking-wide text-white drop-shadow-[0_4px_16px_rgba(0,0,0,0.5)] sm:text-4xl">
+          {tile.title}
+        </div>
+        <div className="mt-2 text-[0.7rem] font-bold uppercase tracking-[0.35em] text-white/80">{tile.kicker}</div>
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -209,6 +267,8 @@ function PlayTile({ tile, index }: { tile: Tile; index: number }) {
 
 export default function Home() {
   const mounted = useHydrated();
+  const router = useRouter();
+  const [entering, setEntering] = useState<Tile | null>(null);
   const t = useT();
   const profile = useGame((s) => s.profile);
   const tournament = useGame((s) => s.tournament);
@@ -358,6 +418,16 @@ export default function Home() {
   ];
 
   return (
+    <>
+    <AnimatePresence>
+      {entering && (
+        <ModeTransition
+          key={entering.title}
+          tile={entering}
+          onDone={() => router.push(entering.href)}
+        />
+      )}
+    </AnimatePresence>
     <div className="relative pb-24">
       <StadiumScene />
       <div className="mx-auto max-w-7xl px-4 pt-24 sm:pt-28 lg:px-6">
@@ -448,7 +518,7 @@ export default function Home() {
             </div>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {tiles.map((tile, i) => <PlayTile key={tile.title} tile={tile} index={i} />)}
+            {tiles.map((tile, i) => <PlayTile key={tile.title} tile={tile} index={i} onEnter={setEntering} />)}
           </div>
           {/* secondary links on mobile */}
           <div className="mt-3 flex gap-2 sm:hidden">
@@ -574,5 +644,6 @@ export default function Home() {
         </footer>
       </div>
     </div>
+    </>
   );
 }

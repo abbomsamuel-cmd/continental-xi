@@ -400,6 +400,8 @@ export function Pitch({
                       seasonLabel={compact ? undefined : player.seasonLabel}
                       slotPos={slot.pos}
                       clubLabel={compact ? undefined : player.club}
+                      clubBadgeUrl={player.clubBadgeUrl}
+                      nationFlagUrl={player.nationFlagUrl}
                       variant={variant}
                       showRating={showRatings}
                       secondaryColor={secondary ? ownSuit!.color : undefined}

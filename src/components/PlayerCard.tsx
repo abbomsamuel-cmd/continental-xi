@@ -5,6 +5,7 @@ import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import type { GameMode, Player } from "@/lib/types";
 import { Flag } from "@/components/Flag";
 import { ClubCrest } from "@/components/ClubCrest";
+import { RemoteBadge } from "@/components/RemoteBadge";
 import { SHIELD_CLIP, CARD_MOSAIC } from "@/lib/cardShape";
 
 function surname(name: string): string {
@@ -124,7 +125,9 @@ export function PlayerCard({ player, mode, onSelect, selected, compact, index = 
               {player.position}
             </div>
           </div>
-          <Flag nationality={player.nationality} className="text-2xl" />
+          <RemoteBadge src={player.nationFlagUrl} alt={player.nationality} width="1.9rem" className="rounded-[2px] shadow">
+            <Flag nationality={player.nationality} className="text-2xl" />
+          </RemoteBadge>
         </div>
 
         {/* monogram + surname — no portrait, so the player's initials are set
@@ -134,20 +137,24 @@ export function PlayerCard({ player, mode, onSelect, selected, compact, index = 
         <div className="flex flex-1 flex-col items-center justify-center gap-1.5" style={{ transform: "translateZ(20px)" }}>
           {!expert && !compact && (
             <div className="relative grid place-items-center" style={{ width: "44%" }}>
-              <ClubCrest colors={player.colors} seed={player.club} width="100%" textBacking />
-              <span
-                className="absolute font-display font-black leading-none"
-                style={{
-                  fontSize: "1.05rem",
-                  background: "linear-gradient(180deg, #ffffff 10%, #cfdcec 55%, #8593ab 100%)",
-                  WebkitBackgroundClip: "text",
-                  backgroundClip: "text",
-                  color: "transparent",
-                  textShadow: "0 1px 2px rgba(0,0,0,0.55)",
-                }}
-              >
-                {initials(player.name)}
-              </span>
+              <RemoteBadge src={player.clubBadgeUrl} alt={player.club} width="100%">
+                <>
+                  <ClubCrest colors={player.colors} seed={player.club} width="100%" textBacking />
+                  <span
+                    className="absolute font-display font-black leading-none"
+                    style={{
+                      fontSize: "1.05rem",
+                      background: "linear-gradient(180deg, #ffffff 10%, #cfdcec 55%, #8593ab 100%)",
+                      WebkitBackgroundClip: "text",
+                      backgroundClip: "text",
+                      color: "transparent",
+                      textShadow: "0 1px 2px rgba(0,0,0,0.55)",
+                    }}
+                  >
+                    {initials(player.name)}
+                  </span>
+                </>
+              </RemoteBadge>
             </div>
           )}
           <div className="max-w-full truncate text-center font-display text-2xl font-extrabold uppercase leading-tight text-white">

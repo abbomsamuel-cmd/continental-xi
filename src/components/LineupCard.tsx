@@ -29,6 +29,7 @@ import type { PitchVariant } from "@/components/Pitch";
 import { Flag } from "@/components/Flag";
 import { flagCodeFor } from "@/lib/flags";
 import { ClubCrest } from "@/components/ClubCrest";
+import { RemoteBadge } from "@/components/RemoteBadge";
 import { SHIELD_CLIP, CARD_MOSAIC } from "@/lib/cardShape";
 import { fxLevel } from "@/lib/fx";
 
@@ -167,13 +168,16 @@ interface Props {
   selected?: boolean;
   slotGlow?: string;
   widthClass?: string;
+  /** Optional externally-hosted art; falls back to the generated crest/flag. */
+  clubBadgeUrl?: string;
+  nationFlagUrl?: string;
 }
 
 /** FILLED tile — the ContinentalXI broadcast badge. */
 export function LineupCard({
   name, overall, colors, nationality, seasonLabel, slotPos, clubLabel, variant = "cl",
   badge, showRating = true, secondaryColor, captain, selected, slotGlow = "rgba(0,240,255,0.9)",
-  widthClass = "w-[12.5cqw]",
+  widthClass = "w-[12.5cqw]", clubBadgeUrl, nationFlagUrl,
 }: Props) {
   const s = SKIN[variant] ?? SKIN.cl;
   const badgeKind = badge ?? s.badge;
@@ -237,9 +241,15 @@ export function LineupCard({
               )}
             </div>
             <div className="flex flex-col items-end" style={{ gap: "2.5cqw" }}>
-              <Flag nationality={nationality} style={{ fontSize: "12cqw" }} className="rounded-[1.5px] shadow" />
+              <RemoteBadge src={nationFlagUrl} alt={nationality ?? ""} width="12cqw" className="rounded-[1.5px] shadow">
+                <Flag nationality={nationality} style={{ fontSize: "12cqw" }} className="rounded-[1.5px] shadow" />
+              </RemoteBadge>
               {badgeKind === "crest"
-                ? <MiniBadge colors={colors} kind="crest" w="13cqw" club={clubLabel} />
+                ? (
+                  <RemoteBadge src={clubBadgeUrl} alt={clubLabel ?? ""} width="13cqw">
+                    <MiniBadge colors={colors} kind="crest" w="13cqw" club={clubLabel} />
+                  </RemoteBadge>
+                )
                 : !hasFlag && <MiniBadge colors={colors} kind="flag" w="14cqw" />}
             </div>
           </div>

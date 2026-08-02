@@ -27,6 +27,13 @@ export interface Player {
   attributes: Attributes;
   club: string;
   clubCountry: string;
+  /** Externally-hosted club badge. Nothing ships with the app — supply a URL
+   *  from whatever image source you've cleared, and the card renders it in
+   *  place of the generated crest. Left unset, the generated crest is used. */
+  clubBadgeUrl?: string;
+  /** Externally-hosted nation flag, same contract as clubBadgeUrl. Unset
+   *  falls back to the bundled flag-icons set. */
+  nationFlagUrl?: string;
   league: string;
   season: number; // season is identified by the year the final was played (e.g. 2011 = 2010-11)
   seasonLabel: string;

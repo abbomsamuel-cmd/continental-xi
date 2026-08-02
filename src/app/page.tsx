@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { forwardRef, useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AnimatedCounter } from "@/components/AnimatedCounter";
 import { CameraFlashes } from "@/components/fx/Atmosphere";
@@ -19,53 +19,37 @@ import { getAllPlayers, SQUADS } from "@/lib/players";
 import { USER_TEAM_ID, teamLabel } from "@/lib/engine/tournament";
 
 /* ------------------------------------------------------------------ */
-/*  Stadium scene behind the hub — you're in the stands looking down    */
-/*  at a lit pitch; the mode tiles below read as "matches on tonight".  */
+/*  The pitch hero — you're standing on the grass, kickoff spot, with   */
+/*  the stands as a thin band overhead and the game modes as glowing    */
+/*  markers scattered around you, like a game's own hub menu.           */
 /* ------------------------------------------------------------------ */
-// the bowl's roofline, in one continuous curve — tall at the very edges
-// (the near-side stands, foreshortened and closest to us) and at the
-// centre (the far stand), dipping at the two corner vomitories between
-// them. Reused for the stand fill, the tier dividers, the LED fascia and
-// the crowd clip, so every layer wraps the same shape.
-const STAND_ROOFLINE = "M-40 460 L-40 55 Q 130 100 260 170 Q 430 100 600 95 Q 770 100 940 170 Q 1070 100 1200 55 L1200 460 Z";
-const STAND_ROOFLINE_STROKE = "M-40 55 Q 130 100 260 170 Q 430 100 600 95 Q 770 100 940 170 Q 1070 100 1200 55";
+// the stand roofline for the thin top band only — same tall-edges,
+// dipping-corners shape as before, just cropped to a shorter strip
+const STAND_ROOFLINE = "M-40 260 L-40 30 Q 130 55 260 95 Q 430 55 600 50 Q 770 55 940 95 Q 1070 55 1200 30 L1200 260 Z";
+const STAND_ROOFLINE_STROKE = "M-40 30 Q 130 55 260 95 Q 430 55 600 50 Q 770 55 940 95 Q 1070 55 1200 30";
 
-function tierDivider(offset: number): string {
-  return `M-40 ${55 + offset} Q 130 ${100 + offset} 260 ${170 + offset} Q 430 ${100 + offset} 600 ${95 + offset} Q 770 ${100 + offset} 940 ${170 + offset} Q 1070 ${100 + offset} 1200 ${55 + offset}`;
-}
-
-function StadiumSceneFallback() {
-  // a filled-in crowd — small flickering dots scattered across the whole
-  // bowl (clipped to the roofline shape), so it reads as a packed house
-  // wrapping around you, not a thin band in the distance
+function StandBand() {
   const crowd = useMemo(() => {
     const rng = (seed: number) => { const x = Math.sin(seed * 999) * 43758.5453; return x - Math.floor(x); };
-    return Array.from({ length: fxCount(190) }, (_, i) => {
+    return Array.from({ length: fxCount(130) }, (_, i) => {
       const x = rng(i + 50) * 1280 - 40;
-      const y = 70 + rng(i) * 230;
-      return { x, y, r: 1.1 + rng(i + 90) * 1.1, d: 2 + rng(i + 130) * 4, delay: rng(i + 170) * 5 };
+      const y = 40 + rng(i) * 120;
+      return { x, y, r: 1 + rng(i + 90) * 1, d: 2 + rng(i + 130) * 4, delay: rng(i + 170) * 5 };
     });
   }, []);
-  // point-lights along the roof truss — an integrated modern lighting
-  // grid, not old corner floodlight towers
   const roofLights = useMemo(() => {
     const rng = (seed: number) => { const x = Math.sin(seed * 741) * 24298.331; return x - Math.floor(x); };
-    return Array.from({ length: 16 }, (_, i) => {
-      const x = -20 + (i / 15) * 1240;
-      // matches STAND_ROOFLINE's y(x) shape closely enough to sit right on the truss
+    return Array.from({ length: 14 }, (_, i) => {
+      const x = -20 + (i / 13) * 1240;
       const k = Math.abs((x - 600) / 640);
-      const y = 15 + Math.sin(k * Math.PI * 1.4) * 45 + k * 20;
+      const y = 8 + Math.sin(k * Math.PI * 1.4) * 22 + k * 10;
       return { x, y, delay: rng(i) * 6 };
     });
   }, []);
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[85vh] min-h-[600px] overflow-hidden" aria-hidden>
-      <div className="aurora absolute -left-1/4 top-0 h-2/3 w-2/3 rounded-full opacity-30"
-        style={{ background: "radial-gradient(circle, rgba(27,79,255,0.45), transparent 65%)" }} />
-      <div className="aurora absolute -right-1/4 top-1/4 h-2/3 w-2/3 rounded-full opacity-35"
-        style={{ background: "radial-gradient(circle, rgba(0,230,118,0.35), transparent 65%)", animationDelay: "-8s" }} />
-      <svg viewBox="0 0 1200 460" preserveAspectRatio="xMidYMax slice" className="slow-pan absolute inset-x-0 bottom-0 h-full w-full opacity-95">
+    <div className="pointer-events-none absolute inset-x-0 top-0 h-[24%] min-h-[130px] overflow-hidden" aria-hidden>
+      <svg viewBox="0 0 1200 260" preserveAspectRatio="xMidYMax slice" className="absolute inset-x-0 bottom-0 h-full w-full">
         <defs>
           <linearGradient id="standsGrad" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#0e2740" /><stop offset="100%" stopColor="#050d17" />
@@ -73,64 +57,34 @@ function StadiumSceneFallback() {
           <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="rgba(235,245,255,0.38)" /><stop offset="100%" stopColor="rgba(235,245,255,0)" />
           </linearGradient>
-          <linearGradient id="turfGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#0f6b3a" /><stop offset="100%" stopColor="#0a3d22" />
-          </linearGradient>
           <linearGradient id="ledGrad" x1="0" y1="0" x2="1" y2="0">
             <stop offset="0%" stopColor="rgba(0,240,255,0.15)" /><stop offset="50%" stopColor="rgba(0,240,255,0.85)" /><stop offset="100%" stopColor="rgba(0,240,255,0.15)" />
           </linearGradient>
           <clipPath id="standClip"><path d={STAND_ROOFLINE} /></clipPath>
-          <clipPath id="roofClip"><path d="M-40 0 L1240 0 L1200 55 Q 1070 100 940 170 Q 770 100 600 95 Q 430 100 260 170 Q 130 100 -40 55 Z" /></clipPath>
+          <clipPath id="roofClip"><path d="M-40 0 L1240 0 L1200 30 Q 1070 55 940 95 Q 770 55 600 50 Q 430 55 260 95 Q 130 55 -40 30 Z" /></clipPath>
         </defs>
 
-        {/* the skylight gap between the roof canopy and the stands */}
-        <path d="M-40 0 L1240 0 L1200 55 Q 1070 100 940 170 Q 770 100 600 95 Q 430 100 260 170 Q 130 100 -40 55 Z" fill="url(#skyGrad)" opacity="0.5" />
-        {/* roof truss — cross-braced canopy underside, generic engineering texture only */}
+        <path d="M-40 0 L1240 0 L1200 30 Q 1070 55 940 95 Q 770 55 600 50 Q 430 55 260 95 Q 130 55 -40 30 Z" fill="url(#skyGrad)" opacity="0.5" />
         <g clipPath="url(#roofClip)" stroke="#dfeeff" strokeWidth="1" opacity="0.12">
           {Array.from({ length: 13 }).map((_, i) => {
             const x = -80 + i * 110;
-            return <line key={i} x1={x} y1={-10} x2={x + 260} y2={210} />;
+            return <line key={i} x1={x} y1={-10} x2={x + 150} y2={120} />;
           })}
         </g>
 
-        {/* the bowl — tall at the near-side edges and the far stand, dipping at the corner vomitories */}
         <path d={STAND_ROOFLINE} fill="url(#standsGrad)" />
-        {[26, 52, 78].map((offset) => (
-          <path key={offset} d={tierDivider(offset)} stroke="rgba(148,163,184,0.22)" strokeWidth="2" fill="none" strokeDasharray="3 9" />
-        ))}
+        <path d={STAND_ROOFLINE_STROKE} stroke="url(#ledGrad)" strokeWidth="5" fill="none" opacity="0.8" className="led-sweep" />
 
-        {/* LED fascia ribbon along the roofline — an animated glow, no real branding */}
-        <path d={STAND_ROOFLINE_STROKE} stroke="url(#ledGrad)" strokeWidth="6" fill="none" opacity="0.8" className="led-sweep" />
-
-        {/* integrated roof lighting grid */}
         {roofLights.map((l, i) => (
-          <circle key={i} cx={l.x} cy={l.y} r={2.4} fill="#dfeeff" style={{ animation: "floodFlicker 7s linear infinite", animationDelay: `${l.delay}s` }} />
+          <circle key={i} cx={l.x} cy={l.y} r={2} fill="#dfeeff" style={{ animation: "floodFlicker 7s linear infinite", animationDelay: `${l.delay}s` }} />
         ))}
 
-        {/* the crowd — small flickering points, clipped to the bowl */}
         <g clipPath="url(#standClip)">
           {crowd.map((d, i) => (
             <circle key={i} cx={d.x} cy={d.y} r={d.r} fill="rgba(220,230,245,0.55)"
               style={{ animation: `crowdFlicker ${d.d}s ease-in-out infinite`, animationDelay: `${d.delay}s` }} />
           ))}
         </g>
-
-        {/* the pitch — close and pitch-level, filling the lower half like you're standing on it */}
-        <path d="M-40 300 Q 600 218 1240 300 L 1240 460 L -40 460 Z" fill="url(#turfGrad)" />
-        {/* mown stripes, converging toward the halfway line for a perspective read */}
-        <g opacity="0.35">
-          {Array.from({ length: 9 }).map((_, i) => (
-            <polygon key={i}
-              points={`${340 + i * 62},306 ${400 + i * 62},306 ${1220},458 ${940 + i * 5},458`}
-              fill={i % 2 === 0 ? "rgba(255,255,255,0.06)" : "transparent"} />
-          ))}
-        </g>
-        {/* halfway line + centre circle, curved to match the stand's perspective */}
-        <path d="M-40 332 Q 600 260 1240 332" stroke="rgba(255,255,255,0.55)" strokeWidth="2" fill="none" />
-        <ellipse cx="600" cy="312" rx="46" ry="14" stroke="rgba(255,255,255,0.5)" strokeWidth="2" fill="none" />
-        <circle cx="600" cy="312" r="2.2" fill="rgba(255,255,255,0.65)" />
-        {/* touchline glow where the floodlights hit the grass */}
-        <ellipse cx="600" cy="360" rx="380" ry="70" fill="rgba(0,230,118,0.14)" />
 
         <style>{`
           @keyframes crowdFlicker { 0%,100% { opacity: 0.25; } 50% { opacity: 0.85; } }
@@ -139,6 +93,51 @@ function StadiumSceneFallback() {
           @media (prefers-reduced-motion: reduce) { .led-sweep { animation: none; stroke-dasharray: none; } }
         `}</style>
       </svg>
+    </div>
+  );
+}
+
+/** The grass filling the rest of the hero — mown stripes, a floodlight
+ *  wash near the stands, and the pitch markings around the kickoff spot
+ *  where the player stands. Pure CSS + one small line-art SVG overlay. */
+function GrassField() {
+  return (
+    <div
+      className="pointer-events-none absolute inset-x-0 bottom-0 top-[24%] min-h-0 overflow-hidden"
+      aria-hidden
+      style={{
+        background: [
+          "repeating-linear-gradient(100deg, rgba(255,255,255,0.05) 0 46px, rgba(0,0,0,0.05) 46px 92px)",
+          "radial-gradient(140% 60% at 50% 0%, rgba(0,240,255,0.14), transparent 55%)",
+          "linear-gradient(180deg, #0f6b3a 0%, #0c4d2b 45%, #082a19 100%)",
+        ].join(", "),
+      }}
+    >
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full opacity-70">
+        <line x1="3" y1="42" x2="97" y2="42" stroke="rgba(255,255,255,0.4)" strokeWidth="0.4" />
+        <circle cx="50" cy="42" r="9" stroke="rgba(255,255,255,0.4)" strokeWidth="0.4" fill="none" />
+        <circle cx="50" cy="42" r="0.6" fill="rgba(255,255,255,0.5)" />
+      </svg>
+      {/* the touchline glow, where the floodlights hit the grass */}
+      <div className="absolute inset-x-0 top-0 h-1/2" style={{ background: "radial-gradient(60% 80% at 50% 0%, rgba(0,230,118,0.16), transparent 70%)" }} />
+    </div>
+  );
+}
+
+/** The player — you — standing on the kickoff spot facing out at the
+ *  options around you. Deliberately abstract/iconic, not a literal
+ *  figure, so it reads clean at any size. */
+function PlayerMark() {
+  return (
+    <div className="absolute left-1/2 z-10 -translate-x-1/2" style={{ top: "58%" }} aria-hidden>
+      <motion.div animate={{ y: [0, -4, 0] }} transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}>
+        <svg width="52" height="76" viewBox="0 0 52 76" className="drop-shadow-[0_8px_20px_rgba(0,0,0,0.5)]">
+          <ellipse cx="26" cy="72" rx="16" ry="4" fill="rgba(0,0,0,0.35)" />
+          <circle cx="26" cy="12" r="9" fill="#0f172a" stroke="#00f0ff" strokeWidth="1.4" opacity="0.92" />
+          <path d="M12 26c0-6 6-10 14-10s14 4 14 10l-3 24h-9l-1-14-1 14h-9z" fill="#0f172a" stroke="#00f0ff" strokeWidth="1.2" opacity="0.92" />
+          <path d="M15 50l-4 20M37 50l4 20" stroke="#00f0ff" strokeWidth="2" strokeLinecap="round" opacity="0.7" />
+        </svg>
+      </motion.div>
     </div>
   );
 }
@@ -193,8 +192,8 @@ function SectionHeading({ kicker, title, right }: { kicker: string; title: React
 }
 
 /* ------------------------------------------------------------------ */
-/*  The mode carousel — one competition fills the hero, swipe for the   */
-/*  next, like turning to look at a different stand.                    */
+/*  Mode pins — game modes scattered around the player on the pitch,     */
+/*  like options on a game's own hub menu, not cards in a web grid.      */
 /* ------------------------------------------------------------------ */
 interface Tile {
   href: string;
@@ -207,44 +206,36 @@ interface Tile {
   glow: string;
   ring: string;
   badge?: string;
+  pos: { x: number; y: number }; // percent position within the hero
+  size?: "lg" | "md";
 }
 
-const ModeSlide = forwardRef<HTMLButtonElement, { tile: Tile; onEnter: (tile: Tile) => void }>(
-  function ModeSlide({ tile, onEnter }, ref) {
-    return (
-      <motion.button
-        ref={ref}
-        type="button"
-        onClick={() => { play("select"); onEnter(tile); }}
-        whileTap={{ scale: 0.985 }}
-        className="group relative flex h-full w-[86%] shrink-0 snap-center flex-col justify-end overflow-hidden rounded-3xl p-6 text-left sm:w-[62%] sm:p-9 lg:w-[52%]"
+function ModePin({ tile, onEnter }: { tile: Tile; onEnter: (tile: Tile) => void }) {
+  const lg = tile.size === "lg";
+  return (
+    <button
+      type="button"
+      onClick={() => { play("select"); onEnter(tile); }}
+      className="group absolute z-10 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-2"
+      style={{ left: `${tile.pos.x}%`, top: `${tile.pos.y}%` }}
+    >
+      <span aria-hidden className="pointer-events-none absolute inset-0 animate-ping rounded-full"
+        style={{ background: tile.ring, opacity: 0.3 }} />
+      <span
+        className={`relative flex shrink-0 items-center justify-center rounded-full text-2xl transition-transform duration-300 group-hover:scale-110 group-active:scale-95 sm:text-3xl ${lg ? "h-20 w-20 sm:h-24 sm:w-24" : "h-14 w-14 sm:h-16 sm:w-16"}`}
+        style={{ background: tile.gradient, boxShadow: `${tile.glow}, 0 0 0 2px ${tile.ring} inset` }}
       >
-        {/* the stadium shows through, tinted by this mode's own colour — */}
-        {/* not an opaque card stacked on top of the scene */}
-        <span aria-hidden className="pointer-events-none absolute inset-0 rounded-3xl"
-          style={{ background: tile.gradient, opacity: 0.82, boxShadow: `${tile.glow}, 0 1px 0 rgba(255,255,255,0.14) inset, 0 24px 60px rgba(0,0,0,0.5)`, border: `1px solid ${tile.ring}` }} />
-        <span aria-hidden className="pointer-events-none absolute inset-0 rounded-3xl" style={{ background: "radial-gradient(140% 70% at 50% 118%, rgba(0,0,0,0.5), transparent 60%)" }} />
-        <span aria-hidden className="pointer-events-none absolute -inset-x-1/2 -top-1/2 h-[200%] w-[60%] -translate-x-1/3 rotate-12 bg-white/10 opacity-0 blur-xl transition-all duration-700 group-hover:translate-x-[220%] group-hover:opacity-100" />
-
-        <div className="relative flex items-start justify-between gap-2">
-          <span className="text-4xl drop-shadow-[0_4px_12px_rgba(0,0,0,0.4)] sm:text-5xl">{tile.icon}</span>
-          <span className="rounded-full bg-black/30 px-2.5 py-1 text-[0.56rem] font-bold uppercase tracking-[0.2em] text-white/90">
-            {tile.kicker}
-          </span>
-        </div>
-
-        <div className="relative mt-auto pt-8">
-          <h3 className="font-display text-2xl font-semibold uppercase leading-none tracking-wide text-white sm:text-4xl">{tile.title}</h3>
-          <p className="mt-2 text-[0.85rem] font-medium text-white/80 sm:text-base">{tile.tag}</p>
-          <span className="mt-4 inline-flex items-center gap-2 rounded-lg bg-black/30 px-4 py-2 text-[0.7rem] font-bold uppercase tracking-[0.12em] text-white transition-transform duration-300 group-hover:translate-x-1">
-            {tile.badge && <span className="rounded bg-white px-1.5 py-0.5 text-[0.5rem] font-black text-black">{tile.badge}</span>}
-            {tile.cta} <span aria-hidden>→</span>
-          </span>
-        </div>
-      </motion.button>
-    );
-  },
-);
+        {tile.icon}
+        {tile.badge && (
+          <span className="absolute -right-1 -top-1 rounded-full bg-white px-1.5 py-0.5 text-[0.5rem] font-black text-black">{tile.badge}</span>
+        )}
+      </span>
+      <span className="whitespace-nowrap rounded-full bg-black/55 px-3 py-1 text-[0.62rem] font-bold uppercase tracking-[0.14em] text-white backdrop-blur-sm">
+        {tile.title}
+      </span>
+    </button>
+  );
+}
 
 /** Full-screen "walking out to the pitch" beat between picking a mode and
  *  actually arriving — a brief cinematic instead of an instant page jump. */
@@ -283,9 +274,6 @@ export default function Home() {
   const mounted = useHydrated();
   const router = useRouter();
   const [entering, setEntering] = useState<Tile | null>(null);
-  const [activeIndex, setActiveIndex] = useState(0);
-  const scrollerRef = useRef<HTMLDivElement>(null);
-  const slideRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const t = useT();
   const profile = useGame((s) => s.profile);
   const tournament = useGame((s) => s.tournament);
@@ -401,24 +389,28 @@ export default function Home() {
       cta: anyCareer ? t("home.tile.continue") : t("home.tile.play"), badge: anyCareer ? undefined : t("home.tile.new"),
       gradient: "linear-gradient(150deg, #2e1065 0%, #4c1d95 48%, #6d28d9 78%, #ffd700 145%)",
       glow: "0 14px 46px rgba(109,40,217,0.4)", ring: "rgba(216,180,254,0.5)",
+      pos: { x: 18, y: 55 },
     },
     {
       href: "/draft", icon: "🏆", kicker: t("home.tile.cl.kicker"), title: "Champions League",
       tag: t("home.tile.cl.tag"), cta: t("home.tile.play"),
       gradient: "linear-gradient(150deg, #05070d 0%, #0f172a 45%, #0e5f6b 85%, #00f0ff 145%)",
       glow: "0 14px 46px rgba(0,240,255,0.32)", ring: "rgba(0,240,255,0.5)",
+      pos: { x: 50, y: 32 }, size: "lg",
     },
     {
       href: "/international?comp=euro", icon: "🇪🇺", kicker: t("home.tile.euro.kicker"), title: "UEFA EURO",
       tag: t("home.tile.euro.tag"), cta: t("home.tile.play"),
       gradient: "linear-gradient(150deg, #050d2e 0%, #10236e 45%, #1b3fd0 78%, #ff3b57 145%)",
       glow: "0 14px 40px rgba(255,59,87,0.32)", ring: "rgba(255,59,87,0.5)",
+      pos: { x: 82, y: 55 },
     },
     {
       href: "/international?comp=copa", icon: "🌎", kicker: t("home.tile.copa.kicker"), title: "Copa América",
       tag: t("home.tile.copa.tag"), cta: t("home.tile.play"),
       gradient: "linear-gradient(150deg, #06251a 0%, #0a3520 45%, #0f6d43 78%, #ffd700 145%)",
       glow: "0 14px 40px rgba(255,215,0,0.3)", ring: "rgba(255,215,0,0.5)",
+      pos: { x: 30, y: 80 },
     },
     {
       href: "/daily", icon: "📅", kicker: t("home.tile.daily.kicker"), title: t("home.daily.kicker"),
@@ -426,31 +418,9 @@ export default function Home() {
       cta: dailyPlayed ? t("home.daily.viewResult") : t("home.tile.play"),
       gradient: "linear-gradient(150deg, #451a03 0%, #78350f 45%, #b45309 80%, #ffd700 145%)",
       glow: "0 14px 40px rgba(255,215,0,0.3)", ring: "rgba(255,215,0,0.5)",
+      pos: { x: 70, y: 80 },
     },
   ];
-
-  // which slide is centered in the carousel — drives the jump-dot highlight
-  // and re-tints the shared stadium backdrop as you browse
-  useEffect(() => {
-    const root = scrollerRef.current;
-    if (!root) return;
-    const io = new IntersectionObserver(
-      (entries) => {
-        const visible = entries.filter((e) => e.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-        if (!visible) return;
-        const i = slideRefs.current.findIndex((el) => el === visible.target);
-        if (i >= 0) setActiveIndex(i);
-      },
-      { root, threshold: [0.6], rootMargin: "0px -10% 0px -10%" },
-    );
-    for (const el of slideRefs.current) if (el) io.observe(el);
-    return () => io.disconnect();
-  }, []);
-
-  function goTo(i: number) {
-    const clamped = Math.max(0, Math.min(tiles.length - 1, i));
-    slideRefs.current[clamped]?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
-  }
 
   return (
     <>
@@ -464,11 +434,13 @@ export default function Home() {
       )}
     </AnimatePresence>
     <div className="relative pb-24">
-      {/* ===================== STADIUM HERO — backdrop + HUD + mode carousel ===================== */}
-      <section className="relative h-[85vh] min-h-[600px] overflow-hidden">
-        <StadiumSceneFallback />
+      {/* ===================== PITCH HERO — you're the player, modes are options around you ===================== */}
+      <section className="relative h-[100dvh] min-h-[640px] overflow-hidden">
+        <StandBand />
+        <GrassField />
+        <PlayerMark />
 
-        <div className="absolute left-4 top-20 z-10 sm:left-6 sm:top-24">
+        <div className="absolute left-4 top-20 z-20 sm:left-6 sm:top-24">
           <motion.div initial={{ y: 14, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
             <div className="cl-heading text-[0.6rem] tracking-[0.45em] text-cyan">{t("home.kicker")}</div>
             <h1 className="mt-1 font-display text-2xl font-black drop-shadow-[0_4px_18px_rgba(0,0,0,0.6)] sm:text-4xl">
@@ -488,39 +460,23 @@ export default function Home() {
           </motion.div>
         </div>
 
-        {/* the mode picker — swipe/drag horizontally, like turning to look at a different stand */}
-        <div
-          ref={scrollerRef}
-          className="absolute inset-x-0 bottom-14 flex h-[64%] gap-4 overflow-x-auto px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden snap-x snap-mandatory sm:px-8"
+        {/* the modes — glowing markers scattered around the player, tap one to walk on */}
+        {tiles.map((tile) => (
+          <ModePin key={tile.title} tile={tile} onEnter={setEntering} />
+        ))}
+
+        <motion.div
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
+          className="absolute inset-x-0 bottom-6 z-20 flex justify-center"
         >
-          <div className="shrink-0 basis-[7%] sm:basis-[19%] lg:basis-[24%]" aria-hidden="true" />
-          {tiles.map((tile, i) => (
-            <ModeSlide key={tile.title} ref={(el) => { slideRefs.current[i] = el; }} tile={tile} onEnter={setEntering} />
-          ))}
-          <div className="shrink-0 basis-[7%] sm:basis-[19%] lg:basis-[24%]" aria-hidden="true" />
-        </div>
-
-        <button type="button" onClick={() => goTo(activeIndex - 1)} aria-label="Previous mode"
-          className="absolute left-3 top-[46%] z-10 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-xl text-white backdrop-blur-sm transition-colors hover:bg-black/60 md:flex">
-          ‹
-        </button>
-        <button type="button" onClick={() => goTo(activeIndex + 1)} aria-label="Next mode"
-          className="absolute right-3 top-[46%] z-10 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-xl text-white backdrop-blur-sm transition-colors hover:bg-black/60 md:flex">
-          ›
-        </button>
-
-        {/* jump dots — direct access without re-swiping through everything */}
-        <div className="absolute inset-x-0 bottom-4 z-10 flex justify-center gap-2">
-          {tiles.map((tile, i) => (
-            <button key={tile.title} type="button" onClick={() => goTo(i)} aria-label={tile.title}
-              className="h-2 rounded-full transition-all"
-              style={{ width: i === activeIndex ? 22 : 8, background: i === activeIndex ? "#ffffff" : "rgba(255,255,255,0.35)" }} />
-          ))}
-        </div>
+          <span className="rounded-full bg-black/40 px-3.5 py-1.5 text-[0.6rem] font-bold uppercase tracking-[0.3em] text-white/60 backdrop-blur-sm">
+            {t("home.play.kicker")}
+          </span>
+        </motion.div>
       </section>
 
       <div className="mx-auto max-w-7xl px-4 pt-8 sm:pt-10 lg:px-6">
-        {/* quick links, moved down from the old mode-picker header */}
+        {/* quick links */}
         <div className="flex justify-end gap-2">
           <Link href="/history" onClick={() => play("click")} className="glass flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[0.66rem] font-extrabold uppercase tracking-wider text-white/75 transition-colors hover:text-white">📜 {t("home.more.history")}</Link>
           <Link href="/stats" onClick={() => play("click")} className="glass flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[0.66rem] font-extrabold uppercase tracking-wider text-white/75 transition-colors hover:text-white">👔 {t("home.more.profile")}</Link>

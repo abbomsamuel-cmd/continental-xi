@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useLang } from "@/lib/i18n";
 import { useHydrated } from "@/lib/useHydrated";
 import { play } from "@/lib/sound";
-import { useC, formAccent, formLabel } from "@/lib/career/copy";
+import { useC } from "@/lib/career/copy";
 import { useCareer, useCurrentPlayer } from "@/lib/career/store";
 import { groupIntoChapters, YEARS_PER_CHAPTER } from "@/lib/career/chapters";
 import { careerStatus, statusToneColor } from "@/lib/career/status";
@@ -17,12 +17,13 @@ import { RECOVERY_CHOICES, type RecoveryChoice } from "@/lib/career/injuries";
 import { choiceOf, type CareerEventDef } from "@/lib/career/events";
 import { resolveHonour, seasonTrophies, type ResolvedHonour } from "@/lib/career/competitions";
 import { worldClubById, worldLeagueById } from "@/lib/career/world";
-import { careerTotals, fmtMoney, fmtWage, seasonLabel } from "@/lib/career/util";
+import { careerTotals, fmtWage, seasonLabel } from "@/lib/career/util";
 import { TrophyArt, type TrophyId } from "@/components/career/TrophyArt";
 import type { CareerPlayer, CareerSeason, TransferOffer } from "@/lib/career/types";
 import { ClubCrest } from "@/components/career/ClubCrest";
 import { CountryFlag } from "@/components/career/CountryFlag";
 import { LegacyCard } from "@/components/career/LegacyCard";
+import { BioCard } from "@/components/career/BioCard";
 import { ClubPath } from "@/components/career/ClubPath";
 import { ClubTimeline } from "@/components/career/ClubTimeline";
 
@@ -51,32 +52,6 @@ function EmptyState({ hasSaves }: { hasSaves: boolean }) {
   );
 }
 
-/* ---------------- colour helpers (the Copero-style badges) ---------------- */
-function ovrStyle(ovr: number): { bg: string; fg: string } {
-  if (ovr >= 85) return { bg: "linear-gradient(135deg,#f6d878,#d9b13f)", fg: "#3a2c00" };
-  if (ovr >= 80) return { bg: "linear-gradient(135deg,#bcd4ff,#8fb8ff)", fg: "#0a1836" };
-  if (ovr >= 74) return { bg: "linear-gradient(135deg,#b3bccb,#8794a8)", fg: "#0e1626" };
-  if (ovr >= 67) return { bg: "linear-gradient(135deg,#9aa3b2,#6f7a8c)", fg: "#0c111c" };
-  return { bg: "linear-gradient(135deg,#e6a25b,#cf7d33)", fg: "#2a1600" };
-}
-function OvrBadge({ value, size = 34, labeled = false }: { value: number; size?: number; labeled?: boolean }) {
-  const s = ovrStyle(value);
-  if (!labeled) {
-    return (
-      <span className="grid shrink-0 place-items-center rounded-lg font-display font-black"
-        style={{ width: size, height: size, background: s.bg, color: s.fg, fontSize: size * 0.42 }}>
-        {value}
-      </span>
-    );
-  }
-  return (
-    <span className="flex shrink-0 flex-col items-center justify-center rounded-xl leading-none"
-      style={{ width: size, height: size * 1.05, background: s.bg, color: s.fg }}>
-      <span className="text-[0.5rem] font-bold uppercase tracking-widest opacity-70">OVR</span>
-      <span className="mt-0.5 font-display font-black" style={{ fontSize: size * 0.4 }}>{value}</span>
-    </span>
-  );
-}
 
 /* ============================ THE ONE SCREEN ============================ */
 type Choice = { retire?: boolean; action?: Parameters<ReturnType<typeof useCareer.getState>["commitChapter"]>[1] };
@@ -159,51 +134,15 @@ function Career({ player }: { player: CareerPlayer }) {
         {/* ============ LEFT — player + trophies + current action ============ */}
         <div className="space-y-3">
           <CareerProgression tier={legacy.tier} score={legacy.score} />
+          <BioCard
+            player={player}
+            totals={{ apps: totals.apps, goals: totals.goals, assists: totals.assists }}
+            statusLabel={es ? status.labelEs : status.label}
+            statusTone={tone}
+            caps={intl.caps}
+            intlGoals={intl.goals}
+          />
           <div className="rounded-2xl border border-white/10 bg-[#0c0c10] p-4 sm:p-5">
-            {/* identity */}
-            <div className="flex items-start gap-3">
-              <OvrBadge value={player.overall} size={54} labeled />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5">
-                  <CountryFlag country={player.nationality} size={14} />
-                  <span className="rounded bg-white/8 px-1.5 py-0.5 text-[0.58rem] font-bold text-white/70">#{player.shirtNumber} {player.position}</span>
-                </div>
-                <h1 className="mt-1 truncate font-display text-2xl font-black leading-none text-white">{player.name}</h1>
-                <div className="mt-1 flex items-center gap-1.5">
-                  <ClubCrest short={player.currentClubShort} colors={player.currentClubColors} size={16} />
-                  <span className="truncate text-[0.82rem] font-semibold text-white/80">{player.currentClubName}</span>
-                </div>
-              </div>
-              <div className="shrink-0 text-right">
-                <div className="text-[0.5rem] font-bold uppercase tracking-widest text-white/35">{c("Age", "Edad")}</div>
-                <div className="font-display text-xl font-black text-white">{player.age}</div>
-                <div className="mt-1 text-[0.5rem] font-bold uppercase tracking-widest text-white/35">{c("Value", "Valor")}</div>
-                <div className="font-display text-sm font-extrabold text-white">{fmtMoney(player.marketValue)}</div>
-              </div>
-            </div>
-
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              <span className="rounded-full px-2.5 py-0.5 text-[0.64rem] font-bold" style={{ background: `${tone}1f`, color: tone }}>
-                {es ? status.labelEs : status.label}
-              </span>
-              <span className="rounded-full px-2.5 py-0.5 text-[0.64rem] font-semibold" style={{ background: `${formAccent[player.form]}18`, color: formAccent[player.form] }}>
-                {formLabel(player.form, lang)}
-              </span>
-              {intl.caps > 0 && (
-                <span className="rounded-full bg-white/8 px-2.5 py-0.5 text-[0.64rem] font-semibold text-white/70">
-                  {intl.caps} {c("caps", "PJ")} · {intl.goals} {c("gls", "gol")}
-                </span>
-              )}
-            </div>
-
-            {/* stat line */}
-            <div className="mt-4 grid grid-cols-3 divide-x divide-white/8 rounded-xl border border-white/8 bg-black/30 py-2.5 text-center">
-              <BigStat n={totals.apps} k={c("APPS", "PJ")} icon="👕" />
-              <BigStat n={totals.goals} k={c("GOALS", "GOLES")} icon="⚽" />
-              <BigStat n={totals.assists} k={c("ASSISTS", "ASIST")} icon="👟" />
-            </div>
-
-            {/* trophy cabinet */}
             <TrophyCabinet seasons={player.seasons} intlHonours={player.intl?.majorHonours ?? []} />
           </div>
 
@@ -280,19 +219,19 @@ function dedupeHonours(list: ResolvedHonour[]): ResolvedHonour[] {
   return list.filter((h) => (seen.has(h.id) ? false : (seen.add(h.id), true)));
 }
 
-function BigStat({ n, k, icon }: { n: number; k: string; icon: string }) {
-  return (
-    <div className="flex flex-col items-center">
-      <div className="text-[0.46rem] font-bold uppercase tracking-widest text-white/35">{k}</div>
-      <div className="mt-0.5 flex items-center gap-1">
-        <span className="text-[0.72rem] leading-none opacity-75">{icon}</span>
-        <span className="font-display text-lg font-black text-white">{n}</span>
-      </div>
-    </div>
-  );
-}
 
 /* ---------------- trophy cabinet — named, grouped, counted ---------------- */
+
+/** Cabinet chip label: "World Cup" → WC, "FA Cup" → FA, "Serie A" → SA. An
+ *  acronym already in the name wins, otherwise it's the initials. */
+function shortTitle(name: string): string {
+  const words = name.split(/\s+/).filter((w) => !["of", "the", "de", "del", "and", "y"].includes(w.toLowerCase()));
+  const acronym = words.find((w) => w.length >= 2 && w.length <= 5 && /^[A-Z]+$/.test(w));
+  if (acronym) return acronym;
+  if (words.length === 1) return words[0].slice(0, 4).toUpperCase();
+  return words.map((w) => w[0]).join("").slice(0, 4).toUpperCase();
+}
+
 interface TrophyWin { clubName: string; clubShort: string; clubColors: [string, string]; year: number; national: boolean }
 interface TrophyGroup { id: TrophyId; en: string; es: string; wins: TrophyWin[] }
 
@@ -324,7 +263,7 @@ function TrophyCabinet({ seasons, intlHonours }: { seasons: CareerSeason[]; intl
   const active = open ? groups.get(open) : null;
 
   return (
-    <div className="mt-3 border-t border-white/8 pt-3">
+    <div>
       <div className="mb-2 flex items-center justify-between">
         <span className="text-[0.5rem] font-bold uppercase tracking-widest text-white/35">{c("Trophy Cabinet", "Vitrina")}</span>
         {list.length > 0 && <span className="text-[0.5rem] font-bold text-gold/70">{list.reduce((n, g) => n + g.wins.length, 0)} {c("titles", "títulos")}</span>}
@@ -336,19 +275,33 @@ function TrophyCabinet({ seasons, intlHonours }: { seasons: CareerSeason[]; intl
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-3 gap-x-1.5 gap-y-2.5 sm:grid-cols-4">
+          {/* One trophy per competition, each on its own lit pedestal, with the
+              wins counted on a chip beneath it. A treble is one Premier League
+              standing under "PL ×3" — never the same model three times. */}
+          <div className="grid grid-cols-3 gap-x-1 gap-y-3 sm:grid-cols-4">
             {list.map((g) => {
               const isOpen = open === g.en;
               return (
                 <button key={g.en} onClick={() => { setOpen(isOpen ? null : g.en); play("hover"); }}
-                  className={`flex flex-col items-center rounded-lg px-1 py-1 text-center transition-colors ${isOpen ? "bg-gold/10" : "hover:bg-white/5"}`}>
-                  <div className="relative">
-                    <TrophyArt id={g.id} size={34} title={es ? g.es : g.en} />
-                    {g.wins.length > 1 && (
-                      <span className="absolute -right-1.5 -top-1 rounded-full bg-gold px-1 text-[0.52rem] font-black text-[#2a1e00]">×{g.wins.length}</span>
-                    )}
-                  </div>
-                  <span className="mt-1 line-clamp-2 text-[0.55rem] font-semibold leading-tight text-white/60">{es ? g.es : g.en}</span>
+                  className={`group relative flex flex-col items-center rounded-xl px-1 pb-1 pt-1.5 text-center transition-colors ${isOpen ? "bg-gold/10" : "hover:bg-white/5"}`}>
+                  {/* the case light falling on this shelf */}
+                  <span aria-hidden className="pointer-events-none absolute inset-x-1 top-0 h-11 rounded-full" style={{
+                    background: "radial-gradient(50% 62% at 50% 62%, rgba(242,201,76,0.22), transparent 72%)",
+                  }} />
+                  <TrophyArt id={g.id} size={34} title={es ? g.es : g.en} />
+                  {/* pedestal */}
+                  <span aria-hidden className="mt-px h-2 w-10 rounded-[50%]" style={{
+                    background: "linear-gradient(180deg,#59636f,#1a1f27)",
+                    boxShadow: "0 4px 9px rgba(0,0,0,0.65), inset 0 1px 0 rgba(255,255,255,0.3)",
+                  }} />
+                  {/* the count, spelled out */}
+                  <span className="mt-1 rounded-full px-1.5 py-px font-display text-[0.5rem] font-black tracking-wide" style={{
+                    background: isOpen ? "#f2c94c" : "rgba(242,201,76,0.16)",
+                    color: isOpen ? "#2a1e00" : "#f2c94c",
+                  }}>
+                    {shortTitle(es ? g.es : g.en)} ×{g.wins.length}
+                  </span>
+                  <span className="mt-0.5 line-clamp-2 text-[0.5rem] font-semibold leading-tight text-white/50">{es ? g.es : g.en}</span>
                 </button>
               );
             })}

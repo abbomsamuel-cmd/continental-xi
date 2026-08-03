@@ -1,5 +1,8 @@
 "use client";
 
+import { useState } from "react";
+import { clubBadgeUrlFor } from "@/lib/badge-sources";
+
 /**
  * One club crest for every club in the world. With no licensed badges, this
  * generates an ORIGINAL shield from the club's own identity — its two kit
@@ -40,10 +43,21 @@ export function ClubCrest({
   size?: number;
   src?: string;
 }) {
-  if (src) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={src} alt={name ?? short} width={size} height={size}
-      className="shrink-0 rounded-[8px] object-contain" style={{ width: size, height: size }} />;
+  // A real badge is used the moment one is configured for this club — an
+  // explicit `src` first, then the shared badge map. Anything that fails to
+  // decode (missing file, typo'd name, blocked host) falls through to the
+  // generated shield below rather than leaving a broken image on the page.
+  const [failed, setFailed] = useState(false);
+  const resolved = src ?? clubBadgeUrlFor(name ?? short);
+  if (resolved && !failed) {
+    return (
+      // caller-supplied path in a static export: next/image would need every
+      // host declared at build time, which defeats a swappable source
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={resolved} alt={name ?? short} title={name ?? short} width={size} height={size}
+        loading="lazy" decoding="async" onError={() => setFailed(true)}
+        className="shrink-0 select-none rounded-[8px] object-contain" style={{ width: size, height: size }} />
+    );
   }
 
   const [c1raw, c2raw] = colors;

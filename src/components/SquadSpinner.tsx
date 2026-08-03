@@ -160,6 +160,12 @@ export function SquadSpinner({ club, seasonLabel, colors, reel: reelPool, onDone
         >
           {reel.map((it, i) => {
             const isTarget = i === targetIndex;
+            // depth falloff from the centre stop: neighbours sit back, far
+            // items sit further back. Opacity is compositor-cheap so every
+            // device gets it; blur is a repaint, so full fx only.
+            const dist = Math.abs(i - targetIndex);
+            const fade = Math.max(0.34, 1 - dist * 0.26);
+            const soften = !lite && dist > 0 ? `blur(${Math.min(2, dist * 0.7)}px)` : undefined;
             return (
               <motion.div
                 key={i}
@@ -170,6 +176,9 @@ export function SquadSpinner({ club, seasonLabel, colors, reel: reelPool, onDone
                     ? `linear-gradient(160deg, ${it.colors[0]}, ${it.colors[1]})`
                     : `linear-gradient(160deg, ${it.colors[0]}22, ${it.colors[1]}18)`,
                   border: `1px solid ${isTarget ? "rgba(212,175,55,0.8)" : "rgba(255,255,255,0.10)"}`,
+                  opacity: isTarget ? 1 : fade,
+                  filter: soften,
+                  transform: isTarget ? undefined : `scale(${Math.max(0.86, 1 - dist * 0.045)})`,
                 }}
                 animate={isTarget ? { scale: [1, 1, 1.12, 1.06] } : undefined}
                 transition={isTarget ? { duration: SPIN_MS / 1000 + 0.35, times: [0, 0.92, 0.96, 1] } : undefined}

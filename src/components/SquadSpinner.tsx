@@ -1,16 +1,21 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { CLUB_REGISTRY } from "@/lib/data/clubs";
 import { seededRng, shuffle, hashString } from "@/lib/rng";
+import { shortCode } from "@/lib/club-key";
 import { play } from "@/lib/sound";
 import { useFxLevel } from "@/lib/fx";
 import { TeamBadge } from "@/components/TeamBadge";
 import { CrestLogo } from "@/components/CrestLogo";
+import {
+  PodiumStage, StageHud, Plinth, podiumPose, finishFor,
+  ITEM_W, PLINTH_W, PLINTH_GAP,
+} from "@/components/spinner/PodiumStage";
 
-const ITEM_W = 150; // px, incl. gap
 const SPIN_MS = 3400;
+const SETTLE_MS = 950; // podium settle before the draft round takes over
 
 interface Props {
   club: string;
@@ -18,41 +23,39 @@ interface Props {
   colors: [string, string];
   /** custom filler entries (e.g. national squads) — defaults to the club registry */
   reel?: { name: string; colors: [string, string] }[];
+  /** squad rating for the broadcast bar */
+  ovr?: number;
+  /** formation being drafted into, for the broadcast bar */
+  formation?: string;
   onDone: () => void;
 }
 
-function shortCode(name: string): string {
-  const words = name.split(/\s+/).filter((w) => !["FC", "CF", "de", "La"].includes(w));
-  if (words.length === 1) return words[0].slice(0, 3).toUpperCase();
-  return words.map((w) => w[0]).join("").slice(0, 3).toUpperCase();
-}
-
 /**
- * Slot-machine reel that scrolls through clubs and lands on the drafted squad.
+ * The club draw, staged as a podium presentation.
  *
- * Phones get a deliberately cheaper reel. The expensive version animated a CSS
- * `filter: blur()` across the whole strip, which forces a full repaint of every
- * item on every frame — with 42 items each drawing a gradient-filled crest SVG,
- * that's what made it stutter. Under reduced fx the blur, the blurred floodlight
- * sweep and the 3D tilt are all dropped, the reel is less than half as long, and
- * only `transform` animates, which the compositor can handle on its own.
+ * A rank of plinths slides across the podium and decelerates; when it stops
+ * the drawn club is centre stage, rises onto gold, and its neighbours settle
+ * back onto silver and bronze. The settle is pure `transform`/`opacity` (see
+ * PodiumStage for why nothing changes height), so it costs the same on a
+ * phone as on a desktop.
+ *
+ * Phones still get a deliberately cheaper reel on top of that: the motion
+ * softening during the slide is a `filter: blur()`, which forces a full
+ * repaint of every plinth on every frame, so it's dropped along with the
+ * blurred light beams, the reel is less than half as long, and only the
+ * winner draws a full crest.
  */
-export function SquadSpinner({ club, seasonLabel, colors, reel: reelPool, onDone }: Props) {
+export function SquadSpinner({ club, seasonLabel, colors, reel: reelPool, ovr, formation, onDone }: Props) {
   const fx = useFxLevel();
   const lite = fx !== "full";
-  // fewer items on a phone: each one is a crest SVG with its own gradients
-  const targetIndex = lite ? 14 : 32;
+  // fewer plinths on a phone: each one is a crest SVG with its own gradients
+  const targetIndex = lite ? 14 : 30;
+  const [settled, setSettled] = useState(false);
 
   const done = useRef(false);
-  const finish = () => {
-    if (done.current) return;
-    done.current = true;
-    play("select");
-    onDone();
-  };
 
   useEffect(() => {
-    // decelerating tick sounds synced to the reel easing
+    // decelerating tick track synced to the reel easing
     const timers: ReturnType<typeof setTimeout>[] = [];
     let t = 120;
     let gap = 55;
@@ -61,9 +64,16 @@ export function SquadSpinner({ club, seasonLabel, colors, reel: reelPool, onDone
       t += gap;
       gap *= 1.16; // slow down
     }
-    timers.push(setTimeout(() => play("flip"), SPIN_MS - 60)); // the stop impact
-    const end = setTimeout(finish, SPIN_MS + 420);
-    return () => { timers.forEach(clearTimeout); clearTimeout(end); };
+    timers.push(setTimeout(() => play("flip"), SPIN_MS - 60));   // the stop impact
+    timers.push(setTimeout(() => setSettled(true), SPIN_MS));    // podium rises
+    timers.push(setTimeout(() => play("win"), SPIN_MS + 200));
+    timers.push(setTimeout(() => {
+      if (done.current) return;
+      done.current = true;
+      play("select");
+      onDone();
+    }, SPIN_MS + SETTLE_MS));
+    return () => timers.forEach(clearTimeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -86,72 +96,23 @@ export function SquadSpinner({ club, seasonLabel, colors, reel: reelPool, onDone
   }, [club, seasonLabel, colors, reelPool, targetIndex]);
 
   return (
-    <div className="mx-auto w-full max-w-2xl">
+    <div className="mx-auto w-full max-w-3xl">
       <div className="mb-3 flex flex-col items-center">
         <CrestLogo size={34} />
         <p className="mt-1 cl-heading text-[0.62rem] tracking-[0.35em] text-cyan">Drawing Your Squad</p>
       </div>
 
-      <div
-        className="cl-panel cl-streaks relative h-44 overflow-hidden rounded-2xl"
-        style={lite ? undefined : { perspective: "760px", perspectiveOrigin: "50% 50%" }}
-      >
-        {/* the drum's curve — a plain gradient, cheap on every device */}
-        <div aria-hidden className="pointer-events-none absolute inset-0 z-[15]"
-          style={{ background: "linear-gradient(180deg, rgba(2,6,16,0.92) 0%, rgba(2,6,16,0.35) 18%, transparent 42%, transparent 58%, rgba(2,6,16,0.35) 82%, rgba(2,6,16,0.92) 100%)" }} />
-        <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 z-[16] h-1/2"
-          style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.10), transparent)" }} />
-
-        {/* floodlight sweep — a blurred layer animating across, so full fx only */}
-        {!lite && (
-          <motion.div aria-hidden className="pointer-events-none absolute -inset-y-8 z-[17] w-40 blur-2xl"
-            style={{ background: "linear-gradient(90deg, transparent, rgba(190,225,255,0.30), transparent)" }}
-            initial={{ x: "-40%" }}
-            animate={{ x: ["-40%", "760%"] }}
-            transition={{ duration: SPIN_MS / 1000, ease: "easeOut" }} />
-        )}
-
-        {/* centre spotlight frame — kicks on the stop */}
+      <PodiumStage accent="#00f0ff" lite={lite} beamAt={settled ? 0.5 : undefined}>
         <motion.div
-          className="pointer-events-none absolute left-1/2 top-1/2 z-20 h-32 w-[136px] -translate-x-1/2 -translate-y-1/2 rounded-2xl"
-          style={{ boxShadow: "0 0 0 2px rgba(212,175,55,0.9), 0 0 34px 6px rgba(212,175,55,0.35)" }}
-          animate={{ scale: [1, 1, 1.1, 1] }}
-          transition={{ duration: SPIN_MS / 1000 + 0.2, times: [0, 0.92, 0.96, 1] }}
-        />
-        {/* stop flash */}
-        <motion.div
-          className="pointer-events-none absolute inset-0 z-10"
-          style={{ background: "radial-gradient(40% 80% at 50% 50%, rgba(242,212,114,0.35), transparent 70%)" }}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: [0, 0, 1, 0] }}
-          transition={{ duration: SPIN_MS / 1000 + 0.35, times: [0, 0.92, 0.95, 1] }}
-        />
-        <div className="pointer-events-none absolute left-1/2 top-1 z-20 -translate-x-1/2 border-x-8 border-t-[10px] border-x-transparent border-t-gold" />
-        <div className="pointer-events-none absolute bottom-1 left-1/2 z-20 -translate-x-1/2 border-x-8 border-b-[10px] border-x-transparent border-b-gold" />
-        {/* edge fades */}
-        <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-28 bg-gradient-to-r from-[#071343] to-transparent" />
-        <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-28 bg-gradient-to-l from-[#071343] to-transparent" />
-
-        <motion.div
-          className="absolute top-1/2 flex items-stretch"
-          style={{
-            left: `calc(50% - ${ITEM_W / 2}px)`,
-            gap: 10,
-            willChange: "transform",
-            ...(lite ? {} : { transformStyle: "preserve-3d" as const }),
-          }}
-          initial={lite ? { x: 0, y: "-50%" } : { x: 0, y: "-50%", rotateX: 9 }}
+          className="absolute bottom-0 flex items-end"
+          style={{ left: -PLINTH_W / 2, gap: PLINTH_GAP, willChange: "transform" }}
+          initial={{ x: 0 }}
           animate={
             lite
               // transform only: no filter, so the compositor can run this
-              // without repainting the strip every frame
-              ? { x: -(targetIndex * ITEM_W), y: "-50%" }
-              : {
-                  x: -(targetIndex * ITEM_W),
-                  y: "-50%",
-                  rotateX: 9,
-                  filter: ["blur(0px)", "blur(4px)", "blur(1.5px)", "blur(0px)"],
-                }
+              // without repainting the rank of plinths every frame
+              ? { x: -(targetIndex * ITEM_W) }
+              : { x: -(targetIndex * ITEM_W), filter: ["blur(0px)", "blur(5px)", "blur(1.5px)", "blur(0px)"] }
           }
           transition={{
             x: { duration: SPIN_MS / 1000, ease: [0.08, 0.72, 0.1, 1] },
@@ -159,48 +120,70 @@ export function SquadSpinner({ club, seasonLabel, colors, reel: reelPool, onDone
           }}
         >
           {reel.map((it, i) => {
-            const isTarget = i === targetIndex;
-            // depth falloff from the centre stop: neighbours sit back, far
-            // items sit further back. Opacity is compositor-cheap so every
-            // device gets it; blur is a repaint, so full fx only.
-            const dist = Math.abs(i - targetIndex);
-            const fade = Math.max(0.34, 1 - dist * 0.26);
-            const soften = !lite && dist > 0 ? `blur(${Math.min(2, dist * 0.7)}px)` : undefined;
+            const delta = i - targetIndex;
+            const dist = Math.abs(delta);
+            const isWinner = dist === 0;
             return (
               <motion.div
                 key={i}
-                className="flex h-28 flex-col items-center justify-center gap-1.5 rounded-xl p-2 text-center"
-                style={{
-                  width: ITEM_W - 10,
-                  background: isTarget
-                    ? `linear-gradient(160deg, ${it.colors[0]}, ${it.colors[1]})`
-                    : `linear-gradient(160deg, ${it.colors[0]}22, ${it.colors[1]}18)`,
-                  border: `1px solid ${isTarget ? "rgba(212,175,55,0.8)" : "rgba(255,255,255,0.10)"}`,
-                  opacity: isTarget ? 1 : fade,
-                  filter: soften,
-                  transform: isTarget ? undefined : `scale(${Math.max(0.86, 1 - dist * 0.045)})`,
-                }}
-                animate={isTarget ? { scale: [1, 1, 1.12, 1.06] } : undefined}
-                transition={isTarget ? { duration: SPIN_MS / 1000 + 0.35, times: [0, 0.92, 0.96, 1] } : undefined}
+                style={{ transformOrigin: "50% 100%" }}
+                animate={settled ? podiumPose(delta) : { x: 0, y: 0, scale: 1, opacity: 1 }}
+                transition={{ type: "spring", stiffness: 190, damping: 20, delay: settled ? Math.min(dist, 3) * 0.05 : 0 }}
               >
-                {/* on a phone only the winner draws a full crest — the fillers
-                    blur past at speed, so a two-tone disc is indistinguishable
-                    and saves ~20 gradient-filled SVGs */}
-                {lite && !isTarget ? (
-                  <span aria-hidden className="grid h-10 w-10 place-items-center rounded-full text-[0.6rem] font-black text-white/90"
-                    style={{ background: `linear-gradient(150deg, ${it.colors[0]}, ${it.colors[1]})` }}>
-                    {it.code}
-                  </span>
-                ) : (
-                  <TeamBadge colors={it.colors} code={it.code} size={40} />
-                )}
-                <span className={`line-clamp-2 text-[0.68rem] font-bold leading-tight ${isTarget ? "text-white" : "text-white/85"}`}>{it.name}</span>
-                {it.season && <span className="text-[0.6rem] font-semibold text-gold">{it.season}</span>}
+                <Plinth
+                  finish={settled ? finishFor(delta, i) : "silver"}
+                  lit={settled && isWinner}
+                  dim={lite && !isWinner}
+                  name={it.name}
+                  sub={it.season || undefined}
+                  badge={
+                    // on a phone only the winner draws a full crest — the rest
+                    // slide past at speed, so a two-tone disc is indistinguishable
+                    // and saves ~20 gradient-filled SVGs
+                    lite && !isWinner ? (
+                      <span aria-hidden className="grid h-10 w-10 place-items-center rounded-full text-[0.58rem] font-black text-white/90"
+                        style={{ background: `linear-gradient(150deg, ${it.colors[0]}, ${it.colors[1]})` }}>
+                        {it.code}
+                      </span>
+                    ) : (
+                      <TeamBadge colors={it.colors} code={it.code} size={44} clubName={it.name} />
+                    )
+                  }
+                />
               </motion.div>
             );
           })}
         </motion.div>
-      </div>
+
+        {/* era plate on the front of the podium, once the club is known */}
+        {settled && (
+          <motion.div
+            // centring lives in the motion props: Framer owns `transform` on
+            // anything it animates and would drop a `-translate-x-1/2` class
+            className="absolute left-1/2 z-[25] rounded-md px-3 py-1"
+            style={{
+              bottom: 74,
+              background: "linear-gradient(180deg, rgba(6,12,24,0.95), rgba(3,7,15,0.95))",
+              boxShadow: "inset 0 0 0 1px rgba(212,175,55,0.75), 0 0 22px rgba(212,175,55,0.3)",
+            }}
+            initial={{ opacity: 0, y: 8, x: "-50%" }}
+            animate={{ opacity: 1, y: 0, x: "-50%" }}
+            transition={{ delay: 0.2, duration: 0.35 }}
+          >
+            <span className="cl-heading whitespace-nowrap text-[0.58rem] font-black tracking-[0.28em] text-gold">
+              ERA · {seasonLabel}
+            </span>
+          </motion.div>
+        )}
+
+        <StageHud
+          accent="#00f0ff"
+          left={ovr ? { k: "OVR", v: String(Math.round(ovr)) } : undefined}
+          label={settled ? "Squad Locked" : "Drawing Club"}
+          right={formation ? { k: "POS", v: formation } : undefined}
+          progressMs={SPIN_MS}
+        />
+      </PodiumStage>
     </div>
   );
 }

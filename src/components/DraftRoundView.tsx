@@ -87,6 +87,14 @@ export function DraftRoundView() {
   const squad = spinSquadIndex >= 0 ? squads[spinSquadIndex] : null;
   const seasonText = squad ? (isIntl ? `${squad.season}` : `${squad.season - 1}-${String(squad.season).slice(2)}`) : "";
   const reel = isIntl ? squads.map((s) => ({ name: `${s.club} ${s.season}`, colors: s.colors })) : undefined;
+  // squad rating for the draw's broadcast bar — its best eleven, the same
+  // eleven you'd actually be able to field
+  const squadOvr = squad
+    ? Math.round(
+        squad.players.map((p) => p[3]).sort((a, b) => b - a).slice(0, 11)
+          .reduce((sum, v, _i, arr) => sum + v / arr.length, 0),
+      )
+    : undefined;
   const targetPos = targetSlot !== null ? formation.slots[targetSlot].pos : null;
 
   const offered = targetSlot !== null && !spinning ? getOffered() : [];
@@ -201,7 +209,8 @@ export function DraftRoundView() {
                 colors={squad.colors} reel={reel!} onDone={() => setRevealedKey(`${targetSlot}:${spinNonce}`)} />
             ) : (
               <SquadSpinner key={`spin-${targetSlot}-${spinNonce}`} club={squad.club} seasonLabel={seasonText}
-                colors={squad.colors} onDone={() => setRevealedKey(`${targetSlot}:${spinNonce}`)} />
+                colors={squad.colors} ovr={squadOvr} formation={setup.formationName}
+                onDone={() => setRevealedKey(`${targetSlot}:${spinNonce}`)} />
             )}
             <div className="mt-4 text-center text-xs text-muted">Drafting for <span className="font-bold" style={{ color: theme.accent }}>{targetPos}</span></div>
           </div>

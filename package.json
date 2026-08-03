@@ -11,7 +11,8 @@
     "tacticstest": "tsx scripts/tactics-check.ts",
     "crestaudit": "tsx scripts/crest-audit.tsx",
     "deploy": "next build && wrangler pages deploy out --project-name=continentalxi --branch main --commit-dirty=true",
-    "badgeaudit": "tsx scripts/badge-audit.tsx"
+    "badgeaudit": "tsx scripts/badge-audit.tsx",
+    "podiumcheck": "tsx scripts/podium-check.ts"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",

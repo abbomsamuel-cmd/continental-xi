@@ -24,7 +24,6 @@ import { ClubCrest } from "@/components/career/ClubCrest";
 import { CountryFlag } from "@/components/career/CountryFlag";
 import { LegacyCard } from "@/components/career/LegacyCard";
 import { BioCard } from "@/components/career/BioCard";
-import { ClubPath } from "@/components/career/ClubPath";
 import { ClubTimeline } from "@/components/career/ClubTimeline";
 
 export default function CareerPage() {
@@ -125,11 +124,11 @@ function Career({ player }: { player: CareerPlayer }) {
   };
 
   return (
-    <div className="relative mx-auto max-w-6xl px-3 pb-16 pt-20 sm:px-4 sm:pt-24">
+    <div className="relative mx-auto max-w-5xl px-3 pb-16 pt-20 sm:px-4 sm:pt-24">
       <div aria-hidden className="fixed inset-0 -z-10 bg-[#070709]" />
-      {/* three zones, as on the reference: who he is · what he's won · where
+      {/* two zones: who he is (and what he's won, in the cabinet) beside where
           he's been. They stack on a phone in that same reading order. */}
-      <div className="grid gap-3 lg:grid-cols-[minmax(0,34fr)_minmax(0,20fr)_minmax(0,46fr)]">
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,38fr)_minmax(0,62fr)]">
 
         {/* ============ LEFT — player + trophies + current action ============ */}
         <div className="space-y-3">
@@ -163,9 +162,6 @@ function Career({ player }: { player: CareerPlayer }) {
             )}
           </div>
         </div>
-
-        {/* ============ MIDDLE — the silverware climb ============ */}
-        <ClubPath seasons={player.seasons} intlHonours={player.intl?.majorHonours ?? []} />
 
         {/* ============ RIGHT — the trajectory ============ */}
         <ClubTimeline

@@ -8,7 +8,7 @@ import { useHydrated } from "@/lib/useHydrated";
 import { play } from "@/lib/sound";
 import { useC, formAccent, formLabel } from "@/lib/career/copy";
 import { useCareer, useCurrentPlayer } from "@/lib/career/store";
-import { groupIntoChapters, YEARS_PER_CHAPTER, type TimelineChapter } from "@/lib/career/chapters";
+import { groupIntoChapters, YEARS_PER_CHAPTER } from "@/lib/career/chapters";
 import { careerStatus, statusToneColor } from "@/lib/career/status";
 import { CareerProgression } from "@/components/career/CareerProgression";
 import { careerRecords, legacyScore } from "@/lib/career/legacy";
@@ -23,8 +23,8 @@ import type { CareerPlayer, CareerSeason, TransferOffer } from "@/lib/career/typ
 import { ClubCrest } from "@/components/career/ClubCrest";
 import { CountryFlag } from "@/components/career/CountryFlag";
 import { LegacyCard } from "@/components/career/LegacyCard";
-
-const LAST_AGE = 38;
+import { ClubPath } from "@/components/career/ClubPath";
+import { ClubTimeline } from "@/components/career/ClubTimeline";
 
 export default function CareerPage() {
   const hydrated = useHydrated();
@@ -150,9 +150,11 @@ function Career({ player }: { player: CareerPlayer }) {
   };
 
   return (
-    <div className="relative mx-auto max-w-4xl px-3 pb-16 pt-20 sm:px-4 sm:pt-24">
+    <div className="relative mx-auto max-w-6xl px-3 pb-16 pt-20 sm:px-4 sm:pt-24">
       <div aria-hidden className="fixed inset-0 -z-10 bg-[#070709]" />
-      <div className="grid gap-3 lg:grid-cols-[38fr_62fr]">
+      {/* three zones, as on the reference: who he is · what he's won · where
+          he's been. They stack on a phone in that same reading order. */}
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,34fr)_minmax(0,20fr)_minmax(0,46fr)]">
 
         {/* ============ LEFT — player + trophies + current action ============ */}
         <div className="space-y-3">
@@ -223,28 +225,17 @@ function Career({ player }: { player: CareerPlayer }) {
           </div>
         </div>
 
-        {/* ============ RIGHT — the age ladder ============ */}
-        <div className="rounded-2xl border border-white/8 bg-[#0c0c10] p-2.5 sm:p-3">
-          {/* column headers — the Copero career ledger */}
-          <div className="grid grid-cols-[40px_1fr_42px_40px_40px_38px] items-center gap-2 px-2 pb-2 text-[0.5rem] font-bold uppercase tracking-[0.15em] text-white/30 sm:grid-cols-[46px_1fr_46px_46px_46px_44px]">
-            <span>{c("Age", "Edad")}</span>
-            <span>{c("Club", "Club")}</span>
-            <span className="text-center">OVR</span>
-            <span className="text-center">{c("Apps", "PJ")}</span>
-            <span className="text-center">{c("Goals", "Gol")}</span>
-            <span className="text-center">{c("Ast", "Asis")}</span>
-          </div>
-          <div className="space-y-1.5">
-            {buildLadder(chapters, player).map((slot) => (
-              <LadderRow key={slot.age} slot={slot} peak={totals.peakOverall}
-                playing={(simming || !!run) && slot.state === "current"} simming={simming && slot.state === "current"} />
-            ))}
-            {intl.caps > 0 && (
-              <NationalRow nation={player.nationality} caps={intl.caps} goals={intl.goals}
-                assists={intl.assists ?? 0} honours={player.intl?.majorHonours ?? []} />
-            )}
-          </div>
-        </div>
+        {/* ============ MIDDLE — the silverware climb ============ */}
+        <ClubPath seasons={player.seasons} intlHonours={player.intl?.majorHonours ?? []} />
+
+        {/* ============ RIGHT — the trajectory ============ */}
+        <ClubTimeline
+          chapters={chapters}
+          player={player}
+          intl={{ caps: intl.caps, goals: intl.goals, assists: intl.assists ?? 0 }}
+          nextAge={player.retired ? null : player.age}
+          playing={simming || !!run}
+        />
       </div>
 
       <AnimatePresence>
@@ -414,7 +405,7 @@ function IdleCard({ player, onPlay, justCommitted, c }: {
       <button onClick={onPlay}
         className="mt-4 w-full rounded-xl py-3 font-display text-base font-black text-white transition-transform hover:-translate-y-0.5"
         style={{ background: "linear-gradient(135deg, #8b5cf6, #a78bfa)", boxShadow: "0 8px 24px rgba(139,92,246,0.4)" }}>
-        ▶ {c("Play", "Jugar")}
+        ▶ {c("Play Season", "Jugar Temporada")} {seasonLabel(player.currentYear)}
       </button>
     </div>
   );
@@ -605,132 +596,6 @@ function RetiredCard({ player, c, onLegacy }: {
         <Link href="/career/timeline" className="btn btn-secondary w-full text-sm">{c("Career Timeline", "Trayectoria")}</Link>
         <Link href="/career/new" className="btn btn-ghost w-full text-sm text-white/60">{c("Play Again", "Jugar de Nuevo")}</Link>
       </div>
-    </div>
-  );
-}
-
-/* ---------------- the age ladder (right column) ---------------- */
-type Slot = { age: number; chapter: TimelineChapter | null; state: "past" | "current" | "future" };
-
-function buildLadder(chapters: TimelineChapter[], player: CareerPlayer): Slot[] {
-  const byAge = new Map(chapters.map((ch) => [ch.fromAge, ch]));
-  const start = player.age - player.seasons.length;
-  const first = start - (start % YEARS_PER_CHAPTER);
-  // Stop at the chapter the player is on (the "up next" row) instead of drawing
-  // every empty age to 38 — a Copero-style compact ladder, no long dead tail.
-  const last = Math.min(LAST_AGE, player.age);
-  const out: Slot[] = [];
-  for (let age = first; age <= last; age += YEARS_PER_CHAPTER) {
-    const chapter = byAge.get(age) ?? null;
-    const state: Slot["state"] = chapter ? "past" : age === player.age ? "current" : age < player.age ? "past" : "future";
-    out.push({ age, chapter, state });
-  }
-  return out;
-}
-
-/** Relative luminance of a hex colour — decides age-square text contrast. */
-function hexLum(hex: string): number {
-  const h = hex.replace("#", "");
-  const v = h.length === 3 ? h.split("").map((x) => x + x).join("") : h.padEnd(6, "0");
-  const r = parseInt(v.slice(0, 2), 16), g = parseInt(v.slice(2, 4), 16), b = parseInt(v.slice(4, 6), 16);
-  return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-}
-const inkOn = (hex: string) => (hexLum(hex) > 0.6 ? "#0a0a0a" : "#ffffff");
-
-/** Compact OVR chip, tier-coloured (orange / steel / gold) like the reference. */
-function OvrChip({ value }: { value: number }) {
-  const s = ovrStyle(value);
-  return (
-    <span className="grid h-8 w-full place-items-center rounded-md font-display text-[0.82rem] font-black"
-      style={{ background: s.bg, color: s.fg }}>{value}</span>
-  );
-}
-
-const AP_ICON = "👕", GL_ICON = "⚽", AS_ICON = "👟";
-function StatCell({ icon, n }: { icon: string; n: number }) {
-  return (
-    <div className="flex items-center justify-center gap-1">
-      <span className="text-[0.6rem] leading-none opacity-70">{icon}</span>
-      <span className="font-display text-[0.88rem] font-black tabular-nums text-white">{n}</span>
-    </div>
-  );
-}
-
-/** Shared column template so headers + every row + the national row all align. */
-const ROW_COLS = "grid grid-cols-[40px_1fr_42px_40px_40px_38px] items-center gap-2 sm:grid-cols-[46px_1fr_46px_46px_46px_44px]";
-
-function LadderRow({ slot, peak, playing, simming }: { slot: Slot; peak: number; playing: boolean; simming: boolean }) {
-  const c = useC();
-  const { chapter: ch, state } = slot;
-  const clubColor = ch?.clubColors?.[0] ?? "#3a4560";
-
-  if (!ch) {
-    const cur = state === "current";
-    return (
-      <div className={`${ROW_COLS} rounded-xl px-2 py-2.5 ${cur ? "" : "opacity-40"}`}
-        style={{ background: cur ? "#8b5cf61c" : "#ffffff05", boxShadow: `inset 0 0 0 1px ${cur ? "#8b5cf655" : "rgba(255,255,255,0.05)"}` }}>
-        <motion.span animate={simming ? { scale: [1, 1.12, 1] } : {}} transition={{ duration: 0.9, repeat: Infinity }}
-          className="grid h-9 w-9 place-items-center rounded-lg font-display text-[0.9rem] font-black text-white"
-          style={{ background: cur ? "#8b5cf6" : "#ffffff12" }}>{slot.age}</motion.span>
-        <span className="flex items-center gap-2 text-[0.85rem] font-bold" style={{ color: cur ? "#c4b5fd" : "rgba(255,255,255,0.4)" }}>
-          {cur && <span className="grid h-6 w-6 place-items-center rounded-full bg-white/10 text-[0.7rem] text-white/60">?</span>}
-          {cur ? (simming ? c("Simulating…", "Simulando…") : playing ? c("Playing…", "Jugando…") : c("Choosing club…", "Eligiendo club…")) : "—"}
-        </span>
-        <span /><span /><span /><span />
-      </div>
-    );
-  }
-
-  const trophies = ch.seasons.flatMap((s) => seasonTrophies(s));
-  const best = ch.overallTo >= peak && peak > 0;
-  return (
-    <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22 }}
-      className={`${ROW_COLS} rounded-xl px-2 py-2 transition-[filter] hover:brightness-125`}
-      style={{ background: `linear-gradient(90deg, ${clubColor}33, ${clubColor}0d 72%)`, boxShadow: `inset 0 0 0 1px ${best ? "rgba(242,201,76,0.4)" : "rgba(255,255,255,0.05)"}` }}>
-      {/* age square, tinted with the club's own colour */}
-      <span className="grid h-9 w-9 place-items-center rounded-lg font-display text-[0.92rem] font-black"
-        style={{ background: clubColor, color: inkOn(clubColor), boxShadow: `0 2px 10px ${clubColor}55` }}>{ch.fromAge}</span>
-      {/* club + trophies won that spell */}
-      <div className="flex min-w-0 items-center gap-1.5">
-        <ClubCrest short={ch.clubShort} colors={ch.clubColors} size={22} />
-        <span className="truncate font-display text-[0.9rem] font-extrabold text-white">{ch.clubName}</span>
-        {ch.transferred && <span className="shrink-0 text-[0.72rem] text-cyan-300" title={c("Transfer", "Traspaso")}>⇄</span>}
-        {ch.injured && <span className="shrink-0 text-[0.72rem]" title={c("Injured this spell", "Lesionado en esta etapa")}>🩹</span>}
-        <span className="flex shrink-0 items-center gap-0.5">
-          {trophies.slice(0, 3).map((h, i) => <TrophyArt key={i} id={h.id} size={15} title={h.en} />)}
-        </span>
-      </div>
-      <OvrChip value={ch.overallTo} />
-      <StatCell icon={AP_ICON} n={ch.apps} />
-      <StatCell icon={GL_ICON} n={ch.goals} />
-      <StatCell icon={AS_ICON} n={ch.assists} />
-    </motion.div>
-  );
-}
-
-/** The national-team career, a gold row at the foot of the ledger. */
-function NationalRow({ nation, caps, goals, assists, honours }: {
-  nation: string; caps: number; goals: number; assists: number; honours: string[];
-}) {
-  const es = useLang().lang === "es";
-  const trophies = honours.map((h) => resolveHonour(h.split(" ·")[0].trim())).slice(0, 3);
-  return (
-    <div className={`${ROW_COLS} mt-1 rounded-xl px-2 py-2`}
-      style={{ background: "linear-gradient(90deg, rgba(242,201,76,0.24), rgba(242,201,76,0.05) 72%)", boxShadow: "inset 0 0 0 1px rgba(242,201,76,0.38)" }}>
-      <span className="grid h-9 w-9 place-items-center overflow-hidden rounded-lg" style={{ background: "#e6b81f" }}>
-        <CountryFlag country={nation} size={20} />
-      </span>
-      <div className="flex min-w-0 items-center gap-1.5">
-        <CountryFlag country={nation} size={20} />
-        <span className="truncate font-display text-[0.9rem] font-extrabold text-white">{nation}</span>
-        <span className="flex shrink-0 items-center gap-0.5">
-          {trophies.map((h, i) => <TrophyArt key={i} id={h.id} size={15} title={es ? h.es : h.en} />)}
-        </span>
-      </div>
-      <span className="grid h-8 place-items-center text-[0.58rem] font-bold uppercase tracking-widest text-[#f2c94c]/70">Int</span>
-      <StatCell icon={AP_ICON} n={caps} />
-      <StatCell icon={GL_ICON} n={goals} />
-      <StatCell icon={AS_ICON} n={assists} />
     </div>
   );
 }
